@@ -1,0 +1,9 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "agent-engine"
+
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - unrs-resolver

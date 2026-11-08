@@ -1,0 +1,25 @@
+{
+  "name": "@garden/engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "eval": "tsx scripts/eval.ts",
+    "eval:mock": "tsx scripts/eval.ts --mock"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@openrouter/ai-sdk-provider": "^3.1.0",
+    "ai": "^7.0.164",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

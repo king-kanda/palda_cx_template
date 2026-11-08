@@ -1,0 +1,29 @@
+{
+  "name": "@garden/agent-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@garden/db": "workspace:*",
+    "@garden/engine": "workspace:*",
+    "@garden/integrations": "workspace:*",
+    "@garden/mcp-server": "workspace:*",
+    "@garden/services": "workspace:*",
+    "@hono/node-server": "^1.19.6",
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.13.17",
+    "postgres": "^3.4.9",
+    "zod": "^3.25.76",
+    "zod-to-json-schema": "^3.25.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

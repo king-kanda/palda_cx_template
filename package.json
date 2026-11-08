@@ -1,0 +1,31 @@
+{
+  "name": "garden-booking-os",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.34.9",
+  "scripts": {
+    "dev": "pnpm --filter @garden/web dev",
+    "dev:worker": "pnpm --filter @garden/worker dev",
+    "dev:engine": "pnpm --filter @garden/agent-service dev",
+    "build": "pnpm --filter @garden/web build",
+    "typecheck": "pnpm -r typecheck",
+    "typecheck:tests": "tsc -p tsconfig.tests.json --noEmit",
+    "verify": "pnpm typecheck && pnpm typecheck:tests && pnpm test && pnpm eval:mock && pnpm build",
+    "db:generate": "pnpm --filter @garden/db generate",
+    "db:migrate": "pnpm --filter @garden/db migrate",
+    "db:seed": "pnpm --filter @garden/web seed",
+    "db:studio": "pnpm --filter @garden/db studio",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "eval": "pnpm --filter @garden/engine eval",
+    "eval:mock": "pnpm --filter @garden/engine eval:mock"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "drizzle-orm": "^0.45.4",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
