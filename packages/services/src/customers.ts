@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { schema } from "@garden/db";
 import { decryptJson, encryptJson } from "@garden/integrations";
 import { audit, type ServiceContext } from "./context";
@@ -85,9 +85,11 @@ export async function findCustomerByPhone(ctx: ServiceContext, phone: string) {
   });
 }
 
+export type CustomerSegment = "repeat" | "vip" | "lapsed";
+
 export async function listCustomers(
   ctx: ServiceContext,
-  input: { search?: string; tag?: string; limit?: number } = {},
+  input: { search?: string; tag?: string; segment?: CustomerSegment; limit?: number } = {},
 ) {
   requireStaff(ctx.principal);
   const search = input.search?.trim();
@@ -114,6 +116,15 @@ export async function listCustomers(
       ),
     )
     .groupBy(schema.customers.id)
+    .having(
+      input.segment === "repeat"
+        ? sql`count(${schema.bookings.id}) > 1`
+        : input.segment === "vip"
+          ? sql`coalesce(sum(case when ${schema.bookings.status} in ('confirmed','completed') then ${schema.bookings.totalKes} else 0 end), 0) >= 100000`
+          : input.segment === "lapsed"
+            ? sql`coalesce(max(${schema.bookings.startsAt}), ${schema.customers.createdAt}) < now() - interval '90 days'`
+            : undefined,
+    )
     .orderBy(desc(schema.customers.createdAt))
     .limit(input.limit ?? 100);
   return rows;
@@ -139,7 +150,7 @@ export async function getCustomerProfile(ctx: ServiceContext, id: string) {
 
 export async function addNote(ctx: ServiceContext, customerId: string, note: string) {
   const customer = await getCustomer(ctx, customerId);
-  const stamped = `${new Date().toISOString()} — ${note}`;
+  const stamped = `${new Date().toISOString()} - ${note}`;
   const [updated] = await ctx.db
     .update(schema.customers)
     .set({ notes: customer.notes ? `${customer.notes}\n${stamped}` : stamped })
@@ -231,7 +242,7 @@ export async function logComplaint(
   return { handoffId: handoff!.id };
 }
 
-/* ───────────────────────── Sensitive data ───────────────────────── */
+/* ----- Sensitive data ----- */
 
 export function setSensitiveData(
   ctx: ServiceContext,
@@ -286,11 +297,120 @@ export async function deleteSensitiveData(ctx: ServiceContext, customerId: strin
   await audit(ctx, "customer.sensitive.deleted", "customer", customerId);
 }
 
-/* ───────────────────────── Public wrappers ───────────────────────── */
+/**
+ * Kenya DPA erasure path (PLAN sections 7 and 13.5).
+ *
+ * Financial records (bookings, invoices, payments) must be kept, so this
+ * anonymises rather than deletes: the customer row loses all identifiers,
+ * sensitive rows and conversation transcripts are deleted, and free-text
+ * fields on bookings/reviews/payments are cleared. The booking graph and
+ * audit trail survive, which is what an auditor or the tax authority needs.
+ *
+ * Owner-only, because it is irreversible.
+ */
+export async function eraseCustomerData(
+  ctx: ServiceContext,
+  customerId: string,
+): Promise<{ id: string }> {
+  requireStaff(ctx.principal);
+  if (ctx.principal.type === "staff" && ctx.principal.role !== "owner") {
+    throw new ForbiddenError("Only an owner can erase customer data.");
+  }
+  const customer = await getCustomer(ctx, customerId);
+
+  const conversations = await ctx.db.query.conversations.findMany({
+    where: and(
+      eq(schema.conversations.tenantId, ctx.tenantId),
+      eq(schema.conversations.customerId, customerId),
+    ),
+    columns: { id: true },
+  });
+  const conversationIds = conversations.map((row) => row.id);
+
+  if (conversationIds.length) {
+    await ctx.db
+      .update(schema.handoffs)
+      .set({ reason: "Erased (customer data deletion request)" })
+      .where(
+        and(
+          eq(schema.handoffs.tenantId, ctx.tenantId),
+          inArray(schema.handoffs.conversationId, conversationIds),
+        ),
+      );
+  }
+
+  // Messages cascade with the conversation row.
+  await ctx.db
+    .delete(schema.conversations)
+    .where(
+      and(
+        eq(schema.conversations.tenantId, ctx.tenantId),
+        eq(schema.conversations.customerId, customerId),
+      ),
+    );
+
+  await ctx.db
+    .delete(schema.customerSensitive)
+    .where(
+      and(
+        eq(schema.customerSensitive.tenantId, ctx.tenantId),
+        eq(schema.customerSensitive.customerId, customerId),
+      ),
+    );
+
+  await ctx.db
+    .update(schema.customers)
+    .set({
+      name: "Erased customer",
+      phoneE164: `erased:${customer.id}`,
+      email: null,
+      tags: [],
+      notes: null,
+      attributes: { erasedAt: new Date().toISOString() },
+    })
+    .where(and(eq(schema.customers.id, customerId), eq(schema.customers.tenantId, ctx.tenantId)));
+
+  await ctx.db
+    .update(schema.bookings)
+    .set({ notes: null, attributes: {} })
+    .where(
+      and(eq(schema.bookings.tenantId, ctx.tenantId), eq(schema.bookings.customerId, customerId)),
+    );
+
+  const bookingOfCustomer = sql`select ${schema.bookings.id} from ${schema.bookings} where ${schema.bookings.customerId} = ${customerId} and ${schema.bookings.tenantId} = ${ctx.tenantId}`;
+
+  await ctx.db
+    .update(schema.reviews)
+    .set({ comment: null })
+    .where(
+      and(
+        eq(schema.reviews.tenantId, ctx.tenantId),
+        sql`${schema.reviews.bookingId} in (${bookingOfCustomer})`,
+      ),
+    );
+
+  await ctx.db
+    .update(schema.payments)
+    .set({ phone: null, accountRef: null, rawPayload: null })
+    .where(
+      and(
+        eq(schema.payments.tenantId, ctx.tenantId),
+        sql`${schema.payments.bookingId} in (${bookingOfCustomer})`,
+      ),
+    );
+
+  await audit(ctx, "customer.erased", "customer", customerId, {
+    mode: "anonymise",
+    conversationsDeleted: conversationIds.length,
+  });
+  return { id: customerId };
+}
+
+/* ----- Public wrappers ----- */
 
 export async function customersFor(
   principal: Principal,
-  input: { search?: string; tag?: string; limit?: number } = {},
+  input: { search?: string; tag?: string; segment?: CustomerSegment; limit?: number } = {},
 ) {
   return withPrincipal(principal, (ctx) => listCustomers(ctx, input));
 }
@@ -301,4 +421,8 @@ export async function customerProfileFor(principal: Principal, id: string) {
 
 export async function upsertCustomerFor(principal: Principal, input: CustomerInput) {
   return withPrincipal(principal, (ctx) => upsertCustomerByPhone(ctx, input));
+}
+
+export async function eraseCustomerDataFor(principal: Principal, customerId: string) {
+  return withPrincipal(principal, (ctx) => eraseCustomerData(ctx, customerId));
 }

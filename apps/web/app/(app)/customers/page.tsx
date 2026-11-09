@@ -12,14 +12,19 @@ export const dynamic = "force-dynamic";
 export default async function CustomersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; tag?: string; error?: string }>;
+  searchParams: Promise<{ q?: string; tag?: string; segment?: string; error?: string; erased?: string }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
   const params = await searchParams;
+  const segment =
+    params.segment === "repeat" || params.segment === "vip" || params.segment === "lapsed"
+      ? params.segment
+      : undefined;
   const rows = await customersFor(principalOf(session), {
     search: params.q,
     tag: params.tag,
+    segment,
     limit: 200,
   });
 
@@ -35,6 +40,12 @@ export default async function CustomersPage({
 
       {params.error ? (
         <p className="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{params.error}</p>
+      ) : null}
+
+      {params.erased ? (
+        <p className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          Customer personal data erased. Booking and payment totals were kept for accounting.
+        </p>
       ) : null}
 
       <div className="mb-5 grid gap-3 sm:grid-cols-3">
@@ -53,6 +64,12 @@ export default async function CustomersPage({
               defaultValue={params.q}
             />
             <input className="input max-w-40" name="tag" placeholder="Tag" defaultValue={params.tag} />
+            <select className="input max-w-40" name="segment" defaultValue={segment ?? ""}>
+              <option value="">All customers</option>
+              <option value="repeat">Repeat</option>
+              <option value="vip">VIP (KES 100k+)</option>
+              <option value="lapsed">Lapsed (90d+)</option>
+            </select>
             <button className="btn btn-secondary">Search</button>
             <Link className="text-xs text-[#78716c] underline" href="/customers">
               Reset

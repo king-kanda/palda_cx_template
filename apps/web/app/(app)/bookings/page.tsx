@@ -69,9 +69,17 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
         title={`${settings.labels.booking}s`}
         subtitle="Availability, holds and the full booking ledger."
         action={
-          <Link className="btn btn-primary" href="/bookings/new">
-            + Add {settings.labels.booking.toLowerCase()}
-          </Link>
+          <div className="flex items-center gap-2">
+            <a
+              className="btn btn-secondary"
+              href={`/api/reports/export?type=bookings&from=${startOfNairobiDay(from).toISOString()}&to=${startOfNairobiDay(addDays(to, 1)).toISOString()}`}
+            >
+              Export CSV
+            </a>
+            <Link className="btn btn-primary" href="/bookings/new">
+              + Add {settings.labels.booking.toLowerCase()}
+            </Link>
+          </div>
         }
       />
 

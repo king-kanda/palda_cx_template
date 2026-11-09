@@ -161,7 +161,7 @@ async function validateAttributes(
   if (parsed.success) return parsed.data as Record<string, unknown>;
   // Attribute validation is strict for defined fields; surface a helpful error.
   const messages = parsed.error.issues.map((i) => `${i.path.join(".") || "attributes"}: ${i.message}`);
-  throw new ValidationError(`Invalid booking attributes — ${messages.join("; ")}`, parsed.error.flatten());
+  throw new ValidationError(`Invalid booking attributes - ${messages.join("; ")}`, parsed.error.flatten());
 }
 
 async function assertResources(
@@ -710,10 +710,38 @@ export async function listBookings(ctx: ServiceContext, filters: BookingListFilt
     list.push({ id: row.resourceId, name: row.name });
     byBooking.set(row.bookingId, list);
   }
-  return rows.map((row) => ({
-    ...row,
-    resources: byBooking.get(row.booking.id) ?? [],
-  }));
+
+  const paidRows = ids.length
+    ? await ctx.db
+        .select({
+          bookingId: schema.payments.bookingId,
+          paidKes: sql<number>`coalesce(sum(case
+            when ${schema.payments.status} <> 'succeeded' then 0
+            when ${schema.payments.method} = 'refund' then -${schema.payments.amountKes}
+            else ${schema.payments.amountKes} end), 0)::int`,
+        })
+        .from(schema.payments)
+        .where(
+          and(
+            eq(schema.payments.tenantId, ctx.tenantId),
+            inArray(schema.payments.bookingId, ids),
+          ),
+        )
+        .groupBy(schema.payments.bookingId)
+    : [];
+  const paidByBooking = new Map(
+    paidRows.filter((row) => row.bookingId).map((row) => [row.bookingId!, row.paidKes]),
+  );
+
+  return rows.map((row) => {
+    const paidKes = paidByBooking.get(row.booking.id) ?? 0;
+    return {
+      ...row,
+      resources: byBooking.get(row.booking.id) ?? [],
+      paidKes,
+      balanceKes: row.booking.totalKes - paidKes,
+    };
+  });
 }
 
 export async function getBookingDetail(ctx: ServiceContext, id: string) {
@@ -753,7 +781,7 @@ export async function upcomingForCustomer(ctx: ServiceContext, customerId: strin
   });
 }
 
-/* ───────────────────────── Public wrappers ───────────────────────── */
+/* ------------------------- Public wrappers ------------------------- */
 
 export async function createBookingFor(principal: Principal, input: CreateBookingInput) {
   return withPrincipal(principal, (ctx) => createBooking(ctx, input));
@@ -788,7 +816,7 @@ export async function applyDiscountFor(principal: Principal, id: string, discoun
 }
 
 export function bookingSummaryLine(booking: Booking, offering: Offering): string {
-  return `${offering.name} · ${formatNairobiDateTime(booking.startsAt)} · ${booking.partySize} guests`;
+  return `${offering.name} | ${formatNairobiDateTime(booking.startsAt)} | ${booking.partySize} guests`;
 }
 
 export function bookingDateKey(booking: Booking): string {

@@ -5,7 +5,7 @@ import { getSession } from "@/lib/auth";
 import { principalOf } from "@/lib/principal";
 import { dateTime, shortDate, timeAgo, titleCase } from "@/lib/format";
 import { PageHeader, Section, StatusPill } from "@/components/ui";
-import { addNoteAction, updateTagsAction } from "../actions";
+import { addNoteAction, eraseCustomerAction, updateTagsAction } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -193,6 +193,28 @@ export default async function CustomerProfilePage({
               ))}
             </ul>
           </Section>
+
+          {session.role === "owner" ? (
+            <Section title="Data protection">
+              <p className="text-sm text-[#57534e]">
+                Erase this customer&apos;s personal data (Kenya DPA). Names, phone, notes,
+                tags, sensitive records and conversations are removed. Booking and payment
+                totals are kept for accounting but stripped of personal details. This cannot
+                be undone.
+              </p>
+              <form action={eraseCustomerAction} className="mt-3 space-y-2">
+                <input type="hidden" name="customerId" value={customer.id} />
+                <input
+                  className="input"
+                  name="confirm"
+                  placeholder='Type ERASE to confirm'
+                  autoComplete="off"
+                  required
+                />
+                <button className="btn btn-secondary w-full">Erase personal data</button>
+              </form>
+            </Section>
+          ) : null}
         </div>
       </div>
     </div>

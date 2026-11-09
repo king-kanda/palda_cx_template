@@ -3,7 +3,8 @@
 The Booking App exposes exactly one agent-facing surface: a **per-tenant MCP
 server** at `POST/GET/DELETE /api/mcp`, authenticated with a bearer token that
 carries the tenant, principal type and scopes. The Agent Engine knows nothing
-about bookings; it only sees these tools.
+about bookings; it only sees these tools. The server currently advertises **52
+tools** (47 core + 5 vertical extras).
 
 Source of truth: [`packages/mcp-server/src/tools.ts`](../packages/mcp-server/src/tools.ts)
 (definitions) and [`packages/mcp-server/src/dispatch.ts`](../packages/mcp-server/src/dispatch.ts)
@@ -125,6 +126,20 @@ result.
 | --- | --- | --- | --- |
 | `reports.dashboard` | read | staff, system | Today/this week: bookings, revenue, outstanding, handoffs. |
 | `reports.daily_digest` | read | staff, system | The 07:00 Nairobi digest payload. |
+
+### Vertical extras
+
+Presets advertise extra tools as data, but these are real tools on every tenant;
+the preset controls whether the agent's prompt mentions them. They are also
+available to staff directly.
+
+| Tool | Tier | Principals | Purpose |
+| --- | --- | --- | --- |
+| `addons.quote` | read | customer, staff, system | Prices an offering with add-ons (chairs, tents, sound, decor). |
+| `meetings.create_link` | write-safe | staff, system | Creates/stores an online meeting link and sends it (consultancy). |
+| `intake.send_form` | write-safe | staff, system | Sends the pre-session intake form link (consultancy). |
+| `recalls.schedule` | write-safe | staff, system | Schedules a recall reminder after a completed visit (dental). |
+| `walkins.join_queue` | write-safe | staff, system | Adds a walk-in client to today's queue and returns their position (salon). |
 
 ## Approvals
 

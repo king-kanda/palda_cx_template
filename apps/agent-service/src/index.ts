@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 import { getDb, loadEnv, schema } from "@garden/db";
 import {
+  createHandoff,
   customerPrincipal,
   ensureConversation,
   getConversationThread,
@@ -28,6 +29,9 @@ import { customerSummary } from "./run-service";
 loadEnv();
 
 const app = new Hono();
+
+/** PLAN §5.5: max agent turns per conversation per hour. */
+const MAX_TURNS_PER_HOUR = Number(process.env.MAX_TURNS_PER_HOUR ?? 20) || 20;
 
 function internalAuthorised(header: string | undefined): boolean {
   const secret = process.env.INTERNAL_SECRET;
@@ -202,6 +206,42 @@ app.post("/webhooks/whatsapp", async (c) => {
         const conversation = await ensureConversation(ctx, customer.id, "whatsapp");
         if (conversation.handler === "human") {
           // Automation stays silent while a person owns the conversation.
+          return;
+        }
+
+        // Kenya DPA: a one-time consent line on first contact (PLAN §7).
+        const recentMessages = await ctx.db.query.messages.findMany({
+          where: eq(schema.messages.conversationId, conversation.id),
+          columns: { id: true },
+          limit: 2,
+        });
+        if (recentMessages.length === 1) {
+          const consent =
+            "Karibu! By chatting with us you agree that we store these messages to manage your booking and improve service. Reply STOP to opt out or ask for your data to be deleted.";
+          await sendFreeform(ctx, customer, consent);
+          await appendOutboundMessage(ctx, { conversationId: conversation.id, text: consent });
+        }
+
+        // PLAN §5.5: cap turns per conversation per hour; a runaway loop or a
+        // spammer gets a human instead of another model run.
+        const since = new Date(Date.now() - 60 * 60 * 1000);
+        const [recentRuns] = await ctx.db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(schema.agentRuns)
+          .where(
+            and(
+              eq(schema.agentRuns.tenantId, tenant.id),
+              eq(schema.agentRuns.conversationId, conversation.id),
+              gte(schema.agentRuns.createdAt, since),
+            ),
+          );
+        if ((recentRuns?.count ?? 0) >= MAX_TURNS_PER_HOUR) {
+          await createHandoff(ctx, {
+            conversationId: conversation.id,
+            reason: "Turn limit reached for this hour (possible spam or runaway loop).",
+            priority: "normal",
+            notifyCustomer: true,
+          });
           return;
         }
 

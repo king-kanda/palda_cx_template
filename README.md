@@ -12,7 +12,7 @@ table carries `tenant_id`, and the same MCP tools serve every business.
 | Piece | Where | Notes |
 | --- | --- | --- |
 | **Booking app** | `apps/web` | Next.js 16 staff UI, server actions, PDF invoices, `/api/mcp`, `/api/mpesa/callback`. |
-| **MCP server** | `packages/mcp-server` | 47 tenant-scoped tools over stateless Streamable HTTP, tiered + approval-gated. |
+| **MCP server** | `packages/mcp-server` | 52 tenant-scoped tools (47 core + 5 vertical extras) over stateless Streamable HTTP, tiered + approval-gated. |
 | **Agent engine** | `agent-engine` | Reusable Wambo engine: LLM loop, guard rails, evals, MCP client. Imports nothing from the product. |
 | **Agent service** | `apps/agent-service` | WhatsApp webhook, Wambo turns, internal chat/digest endpoints, per-conversation locks. |
 | **Worker** | `apps/worker` | pg-boss: reminders, hold expiry, approval expiry, 07:00 digest, events. |
@@ -59,27 +59,34 @@ the agent falls back to a deterministic model when `OPENROUTER_API_KEY` is unset
 
 ## Screens
 
-Dashboard · Calendar · Bookings (list, new, detail with money actions) ·
-Customers and profiles · Invoices with PDF and M-Pesa matching · Expenses & P&L ·
-Reviews · Approvals · Wambo inbox, thread and settings · Settings (policies,
-resources, packages, add-ons, team, integrations).
+Dashboard · Calendar · Bookings (list, new, detail with money actions, CSV export) ·
+Customers and profiles (search, repeat/VIP/lapsed segments, data-protection erasure) ·
+Invoices with PDF and M-Pesa matching · Expenses & P&L · Reviews · Approvals ·
+Wambo inbox, thread and settings · Settings (policies, resources, packages, add-ons,
+team, integrations).
 
 ## Verify it
 
 ```bash
 pnpm typecheck          # all packages and apps
 pnpm test               # 32 unit tests, no database
-pnpm eval:mock          # 10 deterministic agent scenarios
+pnpm eval:mock          # 18 deterministic agent scenarios
 pnpm build              # production Next build
 pnpm test:integration   # needs Postgres; seeds, books, proves overlap rejection
 ```
 
-`pnpm eval:mock` currently passes 10/10: availability + quote grounding, hold
+`pnpm eval:mock` currently passes 18/18: availability + quote grounding, hold
 semantics, approval-not-execution, handoff, ungrounded-price rejection, prompt
-injection, admin unpaid report, refund approval, digest numbers.
+injection, admin unpaid report, refund/bulk-send approvals, pending-approval
+visibility, digest numbers, plus salon booking, dental privacy, consultancy
+meeting link, tenant isolation, Swahili and capacity rejection.
 
 ## Documentation
 
+- [`docs/HANDOFF.md`](docs/HANDOFF.md) — cold-start setup, verification, repo map,
+  invariants, review checklist.
+- [`docs/STATUS.md`](docs/STATUS.md) — where the build is and what has actually
+  been verified.
 - [`docs/tool-contract.md`](docs/tool-contract.md) — tools, tiers, scopes,
   approvals, idempotency, error codes.
 - [`docs/runbook.md`](docs/runbook.md) — environment, migrations, seeds,
@@ -105,10 +112,11 @@ tests/            unit + Postgres-gated integration tests
 
 ## Status
 
-Code-complete against `PLAN.md` and verified by typecheck, 32 unit tests, 10
+Code-complete against `PLAN.md` and verified by typecheck, 32 unit tests, 18
 agent scenarios and a production build. Runtime verification that needs a
 database (migrations, seed, integration test) must be run once Docker/Postgres is
-available; the commands and expected results are in the runbook.
+available; the commands and expected results are in the runbook and
+[`docs/HANDOFF.md`](docs/HANDOFF.md).
 
 Not in v1: staff WhatsApp channel (staff use the web inbox), payments other than
 M-Pesa/cash/bank/card recording, and multi-currency.

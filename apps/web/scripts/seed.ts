@@ -34,7 +34,7 @@ async function main() {
     reset,
   });
 
-  console.log("\n✔ Demo tenant ready\n");
+  console.log("\nDemo tenant ready\n");
   console.log(`  Tenant:   ${result.slug} (${result.vertical})`);
   console.log(`  Tenant ID:${result.tenantId}`);
   console.log(`  Owner:    ${result.ownerEmail} / ${ownerPassword}`);
@@ -47,12 +47,12 @@ async function main() {
   if (result.counts.skipped) {
     console.log(`  Skipped:  ${result.counts.skipped} overlapping demo bookings (expected)`);
   }
-  console.log("\nNext: pnpm dev  →  http://localhost:3000/login\n");
+  console.log("\nNext: pnpm dev  ->  http://localhost:3000/login\n");
 }
 
 main()
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error("\n✖ Seed failed:", error instanceof Error ? error.message : error);
+    console.error("\nSeed failed:", error instanceof Error ? error.message : error);
     process.exit(1);
   });

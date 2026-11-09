@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   addNote,
+  eraseCustomerDataFor,
   upsertCustomerFor,
   updateTags,
   withPrincipal,
@@ -72,4 +73,27 @@ export async function updateTagsAction(formData: FormData): Promise<void> {
   } catch (error) {
     fail(`/customers/${customerId}`, error);
   }
+}
+
+/**
+ * DPA erasure (PLAN §7, §13.5). Owner-only and irreversible: the action is
+ * deliberately hard to trigger by accident (typed confirmation).
+ */
+export async function eraseCustomerAction(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  const customerId = String(formData.get("customerId") ?? "");
+  const confirmation = String(formData.get("confirm") ?? "").trim().toUpperCase();
+  if (session.role !== "owner") {
+    fail(`/customers/${customerId}`, new Error("Only an owner can erase customer data."));
+  }
+  if (confirmation !== "ERASE") {
+    fail(`/customers/${customerId}`, new Error('Type ERASE to confirm data deletion.'));
+  }
+  try {
+    await eraseCustomerDataFor(principalOf(session), customerId);
+  } catch (error) {
+    fail(`/customers/${customerId}`, error);
+  }
+  revalidatePath("/customers");
+  redirect(`/customers?erased=1`);
 }

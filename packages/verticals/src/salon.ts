@@ -49,7 +49,7 @@ export const salonPreset: Preset = {
     booking_confirmed:
       "Hi {{customer_name}}, your {{offering}} with {{resource_name}} is booked for {{date}} at {{time}}. See you at {{business_name}}!",
     reminder_1d: "Hi {{customer_name}}, a reminder of your {{offering}} tomorrow at {{time}}. Reply to reschedule.",
-    rebook_nudge: "Hi {{customer_name}}, it's been a few weeks since your last visit. Ready for a refresh? 💇‍♀️",
+    rebook_nudge: "Hi {{customer_name}}, it's been a few weeks since your last visit. Ready for a refresh? Book your next visit.",
     payment_received: "Asante {{customer_name}}! Payment of KES {{amount}} received.",
   },
   faq: [

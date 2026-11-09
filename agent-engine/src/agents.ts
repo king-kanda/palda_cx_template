@@ -63,7 +63,19 @@ export const WAMBO: AgentConfig = {
     keywords: ["human", "person", "manager", "complaint", "refund", "lawyer", "police", "mzee", "boss"],
   },
   pricing: { inputPerMTokUsd: 3, outputPerMTokUsd: 15 },
-  evals: ["wambo-availability", "wambo-quote", "wambo-hold", "wambo-cancel-policy", "wambo-handoff"],
+  evals: [
+    "wambo-availability",
+    "wambo-quote",
+    "wambo-hold",
+    "wambo-cancel-policy",
+    "wambo-handoff",
+    "salon-booking",
+    "dental-privacy",
+    "consultancy-meeting",
+    "wambo-tenant-isolation",
+    "wambo-swahili",
+    "wambo-capacity-rejection",
+  ],
 };
 
 export const ADMIN: AgentConfig = {
@@ -93,7 +105,13 @@ export const ADMIN: AgentConfig = {
   guard: { ...COMMON_GUARD, maxChars: 2500 },
   handoff: { enabled: false, afterFailedToolCalls: 4, keywords: [] },
   pricing: { inputPerMTokUsd: 0.3, outputPerMTokUsd: 1.2 },
-  evals: ["admin-today", "admin-unpaid", "admin-refund-approval"],
+  evals: [
+    "admin-today",
+    "admin-unpaid",
+    "admin-refund-approval",
+    "admin-pending-approval",
+    "admin-bulk-send-approval",
+  ],
 };
 
 export const LEDGER_DIGEST: AgentConfig = {
