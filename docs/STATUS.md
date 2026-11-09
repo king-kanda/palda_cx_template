@@ -20,11 +20,11 @@ Treat all of the code as **written but unverified against infrastructure** until
 | 2. Money | pricing, invoices + PDF, payments, expenses/P&L, M-Pesa STK + callback | Written | **No** | Daraja sandbox run; callback replay idempotency check |
 | 3. WhatsApp / reminders / MCP / approvals | webhook, inbox, pg-boss, `docs/tool-contract.md`, MCP server, approvals | Written | **No** | End-to-end run: dedupe, Nairobi reminder times, wrong-tenant/scope rejection, sensitive write becomes pending approval |
 | 4. Agent engine + Wambo | loop, MCP gateway, guard, context, run log, tracing, evals | Written | **No** | OpenRouter spike (PLAN §6.6, "first task") not done; mock evals only; no real-model run; no stub-MCP second-vertical test |
-| 5. Admin + ops agents | staff chat, events, `ledger-digest`, ops propose mode | Written | **No** | Admin/ops/tenancy evals are thin; agent definitions live in code modules rather than `agents/<id>/agent.json` folders (decision recorded below) |
+| 5. Admin + ops agents | staff chat, events, `ledger-digest`, ops propose mode | Written | **No** | Admin/ops/tenancy evals now include pending approvals, bulk send, tenant isolation and capacity in mock form; still need a real-model run. Agent definitions live in code modules rather than `agents/<id>/agent.json` folders (decision recorded below) |
 | 7. Salon | duration slots, stylists, walk-ins (`walkins.join_queue`) | Preset + tool | **No** | Salon eval set now includes a mock scenario; needs real-model run |
 | 8. Dental | dentist+chair, recalls (`recalls.schedule`), sensitive data | Preset + tool | **No** | Privacy eval (`dental-privacy`) added in mock form; needs real-model run |
 | 9. Consultancy | meeting links (`meetings.create_link`, auto on confirm), intake (`intake.send_form`), packages | Preset + tools | **No** | Confidentiality eval added in mock form; verify link on real confirm |
-| 6. Pilot | reviews polish, CRM segments, CSV export, 2-week shadow mode | Partial | **No** | Pilot needs the real garden |
+| 6. Pilot | reviews polish, CRM segments, CSV export, 2-week shadow mode | Partial | **No** | CRM segments, CSV export and DPA erasure are written; the 2-week shadow mode needs the real garden |
 
 (PLAN.md lists phases 7-9 before 6 in the text; numeric order above is by dependency.)
 
