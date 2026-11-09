@@ -1,7 +1,6 @@
-import "dotenv/config";
 import { and, eq } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
-import { closeDb, schema, getDb } from "../../packages/db/src/index";
+import { closeDb, getDb, loadEnv, schema } from "../../packages/db/src/index";
 import {
   createBooking,
   eraseCustomerData,
@@ -14,6 +13,8 @@ import {
   withPrincipal,
 } from "../../packages/services/src/index";
 import { addDays, dateKey, nairobiTime } from "../../packages/services/src/tz";
+
+loadEnv();
 
 const enabled = Boolean(process.env.DATABASE_URL);
 
@@ -99,6 +100,7 @@ describe.skipIf(!enabled)("booking overlap prevention (needs Postgres)", () => {
         partySize: 20,
         status: "confirmed",
         source: "staff",
+        attributes: { eventType: "wedding" },
       }),
     );
     expect(first.booking.id).toBeTruthy();
@@ -116,6 +118,7 @@ describe.skipIf(!enabled)("booking overlap prevention (needs Postgres)", () => {
           partySize: 10,
           status: "confirmed",
           source: "staff",
+          attributes: { eventType: "picnic" },
         }),
       );
     } catch (caught) {

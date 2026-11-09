@@ -68,15 +68,16 @@ pnpm verify            # typecheck → test-typecheck → unit tests → mock ev
 pnpm test:integration  # needs Postgres; seeds, books, proves overlap rejection
 ```
 
-Expected today (no database): `verify` green, integration test skipped
-automatically when `DATABASE_URL` is unset.
+Expected today: `verify` green; the integration test is skipped automatically when
+`DATABASE_URL` is unset.
 
-Evidence of the Phase 1 gate (`pnpm db:migrate && pnpm db:seed &&
-pnpm test:integration`) has **never** been produced here; if you have Docker, run
-it first and update `STATUS.md`. The integration test creates an isolated tenant,
-prices a quote, books a far-future slot, then asserts a second overlapping
-booking fails with `SLOT_UNAVAILABLE` (PostgreSQL `23P01` from
-`resource_occupancy_no_overlap`).
+The Phase 1 gate (`pnpm db:migrate && pnpm db:seed && pnpm test:integration`) ran
+successfully on 2026-11-09 against PostgreSQL 16: **4/4 integration tests
+passed**, including the DB overlap rejection (`SLOT_UNAVAILABLE` from
+PostgreSQL `23P01` on `resource_occupancy_no_overlap`) and the DPA-erasure test.
+The seeded owner/staff credentials were verified and the dashboard rendered with
+an owner session. Docker Compose itself still has not been exercised here; the
+gate used a temporary embedded PostgreSQL 16 server.
 
 ## 4. Repo map
 

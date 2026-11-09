@@ -113,10 +113,11 @@ tests/            unit + Postgres-gated integration tests
 ## Status
 
 Code-complete against `PLAN.md` and verified by typecheck, 32 unit tests, 18
-agent scenarios and a production build. Runtime verification that needs a
-database (migrations, seed, integration test) must be run once Docker/Postgres is
-available; the commands and expected results are in the runbook and
-[`docs/HANDOFF.md`](docs/HANDOFF.md).
+agent scenarios and a production build. The Phase 1 gate also passed on
+2026-11-09 against PostgreSQL 16: migrations, seed, `pnpm test:integration`
+(4/4), seeded login and a rendered dashboard. Remaining acceptance gates need
+external sandboxes (M-Pesa Daraja, WhatsApp, OpenRouter) or the real pilot
+garden; see [`docs/STATUS.md`](docs/STATUS.md).
 
 Not in v1: staff WhatsApp channel (staff use the web inbox), payments other than
 M-Pesa/cash/bank/card recording, and multi-currency.

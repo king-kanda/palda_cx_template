@@ -6,17 +6,17 @@
 
 ## TL;DR
 
-**Gated position: Phase 1.** `PLAN.md` says not to start a phase until the previous one passes its acceptance test. **No phase has passed its acceptance test**, because nothing has ever been run against a real database or an external sandbox in this environment (Docker/Postgres are unavailable here).
+**Gated position: Phase 2.** Phase 1 passed on 2026-11-09: migrations, seed and `pnpm test:integration` ran against a real PostgreSQL 16 instance, seeded owner/staff credentials verified, and the dashboard rendered with an owner session. Phase 2 (M-Pesa sandbox) is the next gate; external sandboxes are still unavailable here.
 
 **Code position: ahead of the gates.** Phases 1-5 are written, the three agent roles exist (`wambo`, `admin`, `ledger-digest`), all four vertical presets ship, and the Phase 6 conveniences are partly written. Phase 6's pilot itself is not started.
 
-Treat all of the code as **written but unverified against infrastructure** until the Phase 1 checks in `HANDOFF.md` pass.
+Treat code beyond Phase 1 as **written but unverified against infrastructure** until its acceptance test runs.
 
 ## Phase table
 
 | Phase | Scope | Code | Acceptance test passed | What's missing |
 |---|---|---|---|---|
-| 1. Core app | resources/offerings/bookings, overlap constraint, availability, calendar, customers, dashboard | Written | **No** | Run migrations + `pnpm test:integration` against Postgres |
+| 1. Core app | resources/offerings/bookings, overlap constraint, availability, calendar, customers, dashboard | Written | **Yes — 2026-11-09** | PostgreSQL 16: `pnpm db:migrate`, `pnpm db:seed`, `pnpm test:integration` (4/4), seeded owner/staff login, dashboard 200. Docker Compose itself still untested |
 | 2. Money | pricing, invoices + PDF, payments, expenses/P&L, M-Pesa STK + callback | Written | **No** | Daraja sandbox run; callback replay idempotency check |
 | 3. WhatsApp / reminders / MCP / approvals | webhook, inbox, pg-boss, `docs/tool-contract.md`, MCP server, approvals | Written | **No** | End-to-end run: dedupe, Nairobi reminder times, wrong-tenant/scope rejection, sensitive write becomes pending approval |
 | 4. Agent engine + Wambo | loop, MCP gateway, guard, context, run log, tracing, evals | Written | **No** | OpenRouter spike (PLAN §6.6, "first task") not done; mock evals only; no real-model run; no stub-MCP second-vertical test |
@@ -28,23 +28,31 @@ Treat all of the code as **written but unverified against infrastructure** until
 
 (PLAN.md lists phases 7-9 before 6 in the text; numeric order above is by dependency.)
 
-## What is verified in this environment (no database, no network)
+## What is verified in this environment
 
 Run with `pnpm verify` (typecheck + test typecheck + unit tests + mock evals + production build):
 
 - `pnpm typecheck` — all 9 packages/apps pass
 - `pnpm test` — 32 unit tests pass (no DB)
-- `pnpm eval:mock` — 18 deterministic agent scenarios pass (10/10 previously; added salon, dental privacy, consultancy, approvals, bulk send, tenant isolation, Swahili and capacity)
+- `pnpm eval:mock` — 18 deterministic agent scenarios pass
 - `pnpm build` — production Next build succeeds (23 routes, including the CSV export route)
 
-Last full run: 2026-11-09, after the DPA-erasure and eval-expansion changes.
+Phase 1 gate, run on 2026-11-09 against a temporary embedded PostgreSQL 16 server:
+
+- `pnpm db:migrate` — both migrations applied, including `btree_gist`, the
+  `resource_occupancy_no_overlap` exclusion constraint and RLS policies
+- `pnpm db:seed` — Palda demo tenant: 8 customers, 5 resources, 5 offerings, 10 bookings, 9 invoices, 9 payments
+- `pnpm test:integration` — **4/4 passed**: tenant seed, quote, DB overlap rejection (`SLOT_UNAVAILABLE` from `23P01`), DPA erasure (PII cleared, booking kept, audit written)
+- seeded credentials — `owner@palda.co.ke / owner1234` and `staff@palda.co.ke / staff1234` verified against the stored scrypt hashes
+- `GET /login` — 200; `GET /dashboard` with an owner session — 200 and rendered the seeded business
+
+Last full run: 2026-11-09.
 
 ## Never verified
 
-- Migrations (`0000_breezy_stardust.sql`, `0001_tenancy_and_overlap.sql`), seed, the GiST exclusion constraint and RLS on real Postgres
-- `tests/integration/booking-overlap.test.ts` has never run. It now also covers the DPA-erasure path (PII cleared, booking kept, audit written).
+- Docker Compose itself (the gate used an embedded PostgreSQL 16 server, not `docker compose up`)
 - Anything against real WhatsApp, M-Pesa Daraja sandbox, OpenRouter or Langfuse
-- Docker/Postgres were unavailable when the code was written
+- The CI workflow has not run on GitHub yet
 
 ## Recent changes (2026-11-08 → 11-09)
 
