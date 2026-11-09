@@ -1,11 +1,15 @@
 import "dotenv/config";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
 import { closeDb, schema, getDb } from "../../packages/db/src/index";
 import {
   createBooking,
+  eraseCustomerData,
   getQuote,
+  getSensitiveData,
+  recordInboundMessage,
   seedDemoTenant,
+  setSensitiveData,
   staffPrincipal,
   withPrincipal,
 } from "../../packages/services/src/index";
@@ -120,6 +124,79 @@ describe.skipIf(!enabled)("booking overlap prevention (needs Postgres)", () => {
 
     expect(error).toBeTruthy();
     expect((error as { code?: string }).code).toBe("SLOT_UNAVAILABLE");
+  });
+
+  it("erases customer PII but keeps the booking and audit trail", async () => {
+    const owner = staffPrincipal(tenantId, "itest-owner", "owner");
+    const staff = staffPrincipal(tenantId, "itest-staff", "staff");
+
+    // Give the customer data worth erasing: a note, a sensitive record,
+    // a conversation with a message, and free text on the booking.
+    const booking = await withPrincipal(owner, (ctx) =>
+      ctx.db.query.bookings.findFirst({
+        where: (b, { and, eq }) => and(eq(b.tenantId, tenantId), eq(b.customerId, customerA)),
+      }),
+    );
+    expect(booking).toBeTruthy();
+
+    await withPrincipal(owner, (ctx) =>
+      ctx.db
+        .update(schema.bookings)
+        .set({ notes: "VIP, allergic to lilies", attributes: { dietary: "vegan" } })
+        .where(eq(schema.bookings.id, booking!.id)),
+    );
+    await withPrincipal(owner, (ctx) =>
+      setSensitiveData(ctx, customerA, { idNumber: "12345678" }, new Date()),
+    );
+    await withPrincipal(owner, (ctx) =>
+      recordInboundMessage(ctx, {
+        customerId: customerA,
+        waMessageId: `itest-${slug}-1`,
+        text: "Please call me on my personal number.",
+      }),
+    );
+
+    // A non-owner staff member cannot erase.
+    await expect(
+      withPrincipal(staff, (ctx) => eraseCustomerData(ctx, customerA)),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+    await withPrincipal(owner, (ctx) => eraseCustomerData(ctx, customerA));
+
+    const erased = await withPrincipal(owner, (ctx) =>
+      ctx.db.query.customers.findFirst({
+        where: (c, { and, eq }) => and(eq(c.id, customerA), eq(c.tenantId, tenantId)),
+      }),
+    );
+    expect(erased?.name).toBe("Erased customer");
+    expect(erased?.phoneE164.startsWith("erased:")).toBe(true);
+    expect(erased?.email).toBeNull();
+    expect(erased?.tags).toEqual([]);
+    expect(erased?.notes).toBeNull();
+    expect((erased?.attributes as Record<string, unknown>).erasedAt).toBeTruthy();
+
+    expect(await withPrincipal(owner, (ctx) => getSensitiveData(ctx, customerA))).toBeNull();
+
+    const conversations = await withPrincipal(owner, (ctx) =>
+      ctx.db.query.conversations.findMany({
+        where: (c, { and, eq }) => and(eq(c.tenantId, tenantId), eq(c.customerId, customerA)),
+      }),
+    );
+    expect(conversations).toHaveLength(0);
+
+    const clearedBooking = await withPrincipal(owner, (ctx) =>
+      ctx.db.query.bookings.findFirst({ where: (b, { eq }) => eq(b.id, booking!.id) }),
+    );
+    expect(clearedBooking?.notes).toBeNull();
+    expect(clearedBooking?.attributes).toEqual({});
+
+    const auditRows = await withPrincipal(owner, (ctx) =>
+      ctx.db.query.auditLog.findMany({
+        where: (a, { and, eq }) =>
+          and(eq(a.tenantId, tenantId), eq(a.action, "customer.erased")),
+      }),
+    );
+    expect(auditRows.length).toBeGreaterThanOrEqual(1);
   });
 
   afterAll(async () => {

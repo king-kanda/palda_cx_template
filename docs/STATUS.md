@@ -42,7 +42,7 @@ Last full run: 2026-11-09, after the DPA-erasure and eval-expansion changes.
 ## Never verified
 
 - Migrations (`0000_breezy_stardust.sql`, `0001_tenancy_and_overlap.sql`), seed, the GiST exclusion constraint and RLS on real Postgres
-- `tests/integration/booking-overlap.test.ts` has never run
+- `tests/integration/booking-overlap.test.ts` has never run. It now also covers the DPA-erasure path (PII cleared, booking kept, audit written).
 - Anything against real WhatsApp, M-Pesa Daraja sandbox, OpenRouter or Langfuse
 - Docker/Postgres were unavailable when the code was written
 
@@ -79,6 +79,8 @@ Why: JSON/persona files would have to be read from disk at runtime and cannot be
 - Git repository on branch `main`, remote `origin` = `git@github.com:king-kanda/palda_cx_template.git` (SSH, private, personal project — no Batanat code).
 - Initial commit `8d6964c` ("Initial commit: Garden Booking OS (code-complete, unverified)") contains the whole tree. The DPA/CSV/segment/eval work above is committed in the session-end commit; see `git log`.
 - `.gitignore` covers `node_modules`, `.next`, `dist`, `.env`, logs and test artifacts.
+- CI (`.github/workflows/ci.yml`) runs `pnpm verify`, plus a Postgres 16 job for
+  migrations and `pnpm test:integration`. It has not run on GitHub yet.
 
 ## Maintenance rule
 

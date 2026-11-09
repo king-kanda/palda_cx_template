@@ -187,7 +187,7 @@ pnpm --filter @garden/mcp-server issue-token -- --tenant palda --type system --l
 |---|---|---|---|
 | Unit | `pnpm test` | No | pricing, Nairobi time, guard rails, tool contract/tiers, presets |
 | Agent scenarios | `pnpm eval:mock` | No | tool choice, grounding, approvals, handoff, injection, verticals |
-| Integration | `pnpm test:integration` | Yes | seed, quote, DB overlap rejection |
+| Integration | `pnpm test:integration` | Yes | seed, quote, DB overlap rejection, DPA erasure (PII cleared, booking kept, audit written) |
 | Full gate | `pnpm verify` | No | typecheck + test typecheck + unit + evals + build |
 
 ## 8. Git / remote
@@ -196,8 +196,9 @@ pnpm --filter @garden/mcp-server issue-token -- --tenant palda --type system --l
 - Commit style used so far: one descriptive commit per working session
   (`Initial commit: Garden Booking OS (code-complete, unverified)`).
 - Before pushing: `pnpm verify` must be green. Do not commit `.env`.
-- No CI is configured yet; the intended CI command is `pnpm verify` plus a
-  Postgres service for `pnpm test:integration`.
+- CI: `.github/workflows/ci.yml` runs `pnpm verify` on every push/PR and a second
+  job with Postgres 16 that runs `pnpm db:migrate && pnpm test:integration`.
+  The integration job has never run on GitHub yet; the first PR will exercise it.
 
 ## 9. Security / operations notes
 
