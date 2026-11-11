@@ -33,7 +33,8 @@ Treat code beyond Phase 1 as **written but unverified against infrastructure** u
 Run with `pnpm verify` (typecheck + test typecheck + unit tests + mock evals + production build):
 
 - `pnpm typecheck` — all 9 packages/apps pass
-- `pnpm test` — 40 unit tests pass (no DB)
+- `pnpm test` — 50 unit tests pass (no DB)
+- `pnpm env:check` — reports the selected integration modes and every missing provider key, without printing secret values
 - `pnpm eval:mock` — 18 deterministic agent scenarios pass
 - `pnpm build` — production Next build succeeds (23 routes, including the CSV export route)
 
@@ -71,6 +72,9 @@ Last full run: 2026-11-11 (**35/35 integration**, embedded PostgreSQL 16). Docke
 
 ## Recent changes (2026-11-08 → 11-11)
 
+- **Fail-fast configuration (2026-11-11):** `loadEnv()` now validates the selected modes and refuses to start when `MPESA_MODE=tuma|daraja`, `WHATSAPP_MODE=cloud` or a real `WAMBO_MODEL` is missing its keys (or, for M-Pesa, a public HTTPS callback). `pnpm env:check` prints the same diagnosis without secret values. Mock mode always starts, so a fresh checkout still builds.
+- **Empty Tuma callback (2026-11-11):** an empty `TUMA_CALLBACK_URL=` now falls back to `MPESA_CALLBACK_URL` instead of sending Tuma a blank `callback_url`.
+- **Docker stack committed (2026-11-11):** root `Dockerfile`, `.dockerignore` and `docker-compose.yml` are now versioned with the runbook; the image itself still needs rebuilding for Tuma and the Phase 3 fixes.
 - **Webhook commit ordering (2026-11-11):** the WhatsApp webhook now stores the inbound message, customer and conversation in a committed transaction before running the agent turn. Previously the turn ran inside that transaction, so `agent_runs` and conversation-linked tools hit FK failures on the shared pool for first-contact messages.
 - **Digest query fix (2026-11-11):** `buildDailyDigest` used a raw `sql` fragment with a `Date`, which postgres.js cannot bind; it now uses `lt()`. The 07:00 digest query executes.
 - **Template amount/time fix (2026-11-11):** `{{amount}}` is now the bare integer because every preset template already writes `KES`; this removes `KES KES 9,000`. Payment confirmations render the event date in `Africa/Nairobi` instead of UTC.
@@ -95,7 +99,7 @@ Why: JSON/persona files would have to be read from disk at runtime and cannot be
 ## Recommended next steps, in order
 
 1. ~~Phase 1 gate~~ done. `docker compose up --build` runs the whole stack (see runbook §2a).
-2. Re-run `pnpm verify` to confirm the claims above still hold.
+2. ~~Re-run `pnpm verify` to confirm the claims above still hold.~~ Done 2026-11-11: 9 typechecks, 50 unit tests, 18/18 mock evals, production build.
 3. Phase 2 gate: M-Pesa sandbox STK push, then replay the callback and confirm nothing changes.
 4. Phase 3 gate: MCP tenant/scope rejection and approval-not-execution against a real DB.
 5. Phase 4: do the OpenRouter spike, then run the mock scenarios against a real model (`pnpm eval`).
