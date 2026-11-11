@@ -215,6 +215,27 @@ Daraja is still supported: set `MPESA_MODE=daraja`, `MPESA_ENV`, consumer
 key/secret, shortcode and passkey, then register the same public HTTPS callback
 for STK and C2B validation/confirmation.
 
+### Phase 2 smoke test
+
+`pnpm smoke:mpesa` is the acceptance harness. It creates a far-future hold under
+the demo tenant, sends one real STK push, waits for the provider callback on the
+running web app, replays the callback, and asserts exactly one payment and one
+audit row. The booking/payment are removed afterwards; `--keep` preserves them.
+
+```bash
+# Offline dry run: no STK prompt, exercises the same service path.
+MPESA_MODE=mock pnpm smoke:mpesa --mock
+
+# Real sandbox gate: web app must be running and the callback must be public.
+# Tuma sandbox caps payments at KES 100 while the account is not live.
+MPESA_MODE=tuma pnpm smoke:mpesa --phone 254712345678 --amount 1
+```
+
+The callback URL's `?tenant=` (or `DEFAULT_TENANT_SLUG`) must select the same
+tenant as `--tenant` (default `palda`), otherwise the callback lands in a
+different tenant and the run times out. Enter the PIN; do not cancel three times
+in a row, because Tuma can block the number.
+
 The callback is idempotent on `mpesa_receipt`; unmatched C2B payments appear in
 Invoices → Unmatched and can be matched from the UI or `payments.match_unmatched`.
 `MPESA_MODE=mock` produces a pending payment that can be completed with

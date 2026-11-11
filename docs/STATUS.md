@@ -35,6 +35,7 @@ Run with `pnpm verify` (typecheck + test typecheck + unit tests + mock evals + p
 - `pnpm typecheck` — all 9 packages/apps pass
 - `pnpm test` — 50 unit tests pass (no DB)
 - `pnpm env:check` — reports the selected integration modes and every missing provider key, without printing secret values
+- `pnpm smoke:mpesa --mock` — Phase 2 harness dry run: hold → STK → callback → replay, asserting one payment and one audit row (passed 2026-11-11)
 - `pnpm eval:mock` — 18 deterministic agent scenarios pass
 - `pnpm build` — production Next build succeeds (23 routes, including the CSV export route)
 
@@ -100,7 +101,7 @@ Why: JSON/persona files would have to be read from disk at runtime and cannot be
 
 1. ~~Phase 1 gate~~ done. `docker compose up --build` runs the whole stack (see runbook §2a).
 2. ~~Re-run `pnpm verify` to confirm the claims above still hold.~~ Done 2026-11-11: 9 typechecks, 50 unit tests, 18/18 mock evals, production build.
-3. Phase 2 gate: M-Pesa sandbox STK push, then replay the callback and confirm nothing changes.
+3. Phase 2 gate: M-Pesa sandbox STK push, then replay the callback and confirm nothing changes. `pnpm smoke:mpesa --phone 2547XXXXXXXX --amount 1` automates the whole check; its mock dry run passes.
 4. Phase 3 gate: MCP tenant/scope rejection and approval-not-execution against a real DB.
 5. Phase 4: do the OpenRouter spike, then run the mock scenarios against a real model (`pnpm eval`).
 6. Answer the owner questions in PLAN §11 before the pilot.

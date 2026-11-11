@@ -16,6 +16,7 @@
     "db:seed": "pnpm --filter @garden/web seed",
     "db:studio": "pnpm --filter @garden/db studio",
     "env:check": "tsx scripts/check-env.ts",
+    "smoke:mpesa": "tsx scripts/mpesa-smoke.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts",
