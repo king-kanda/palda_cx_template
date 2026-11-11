@@ -38,7 +38,9 @@ function tumaBaseUrl(): string {
 }
 
 function tumaCallbackUrl(): string {
-  const url = process.env.TUMA_CALLBACK_URL ?? process.env.MPESA_CALLBACK_URL;
+  // `||` rather than `??`: .env files commonly ship `TUMA_CALLBACK_URL=` empty,
+  // which must fall back instead of sending Tuma a blank callback.
+  const url = process.env.TUMA_CALLBACK_URL || process.env.MPESA_CALLBACK_URL;
   if (!url) {
     throw new MpesaError(
       "TUMA_CALLBACK_URL (or MPESA_CALLBACK_URL) is not configured.",

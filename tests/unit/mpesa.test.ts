@@ -180,4 +180,98 @@ describe("M-Pesa callback parsing", () => {
       }
     }
   });
+
+  it("falls back to MPESA_CALLBACK_URL when TUMA_CALLBACK_URL is empty", async () => {
+    const saved = {
+      MPESA_MODE: process.env.MPESA_MODE,
+      TUMA_EMAIL: process.env.TUMA_EMAIL,
+      TUMA_API_KEY: process.env.TUMA_API_KEY,
+      TUMA_CALLBACK_URL: process.env.TUMA_CALLBACK_URL,
+      MPESA_CALLBACK_URL: process.env.MPESA_CALLBACK_URL,
+    };
+    process.env.MPESA_MODE = "tuma";
+    process.env.TUMA_EMAIL = "merchant@example.test";
+    process.env.TUMA_API_KEY = "tuma-test-key";
+    process.env.TUMA_CALLBACK_URL = "";
+    process.env.MPESA_CALLBACK_URL =
+      "https://bookings.example.test/api/mpesa/callback?tenant=palda";
+
+    const bodies: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: unknown, init?: { body?: string }) => {
+        if (String(url).endsWith("/auth/token")) {
+          return new Response(JSON.stringify({ success: true, data: { token: "a.b.c" } }), {
+            status: 200,
+          });
+        }
+        if (init?.body) bodies.push(init.body);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: { merchant_request_id: "mr", checkout_request_id: "cr" },
+          }),
+          { status: 201 },
+        );
+      }),
+    );
+
+    try {
+      await initiateStkPush({
+        phone: "0712345678",
+        amountKes: 100,
+        accountRef: "INV-2026-0002",
+        description: "Booking deposit",
+      });
+      expect(JSON.parse(bodies.at(-1)!).callback_url).toBe(
+        "https://bookings.example.test/api/mpesa/callback?tenant=palda",
+      );
+    } finally {
+      for (const [key, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  });
+
+  it("refuses a Tuma STK push with no callback URL anywhere", async () => {
+    const saved = {
+      MPESA_MODE: process.env.MPESA_MODE,
+      TUMA_EMAIL: process.env.TUMA_EMAIL,
+      TUMA_API_KEY: process.env.TUMA_API_KEY,
+      TUMA_CALLBACK_URL: process.env.TUMA_CALLBACK_URL,
+      MPESA_CALLBACK_URL: process.env.MPESA_CALLBACK_URL,
+    };
+    process.env.MPESA_MODE = "tuma";
+    process.env.TUMA_EMAIL = "merchant@example.test";
+    process.env.TUMA_API_KEY = "tuma-test-key";
+    process.env.TUMA_CALLBACK_URL = "";
+    delete process.env.MPESA_CALLBACK_URL;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ success: true, data: { token: "a.b.c" } }), {
+            status: 200,
+          }),
+      ),
+    );
+
+    try {
+      await expect(
+        initiateStkPush({
+          phone: "0712345678",
+          amountKes: 100,
+          accountRef: "INV-2026-0003",
+          description: "Booking deposit",
+        }),
+      ).rejects.toThrow(/TUMA_CALLBACK_URL \(or MPESA_CALLBACK_URL\) is not configured/);
+    } finally {
+      for (const [key, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  });
 });
