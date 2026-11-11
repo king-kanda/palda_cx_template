@@ -51,6 +51,37 @@ Demo credentials (from `.env.example`):
 
 Tenant slug: `palda`.
 
+## 2a. Everything in Docker (no local Node needed)
+
+```bash
+docker compose up --build        # db + migrate/seed + web + agent + worker
+```
+
+| Service | Container | URL | Notes |
+| --- | --- | --- | --- |
+| `db` | `garden_db` | `localhost:5432` | Postgres 16, volume `garden_pgdata`. |
+| `migrate` | `garden_migrate` | — | One-shot: `db:migrate` then `db:seed`. Exits 0; re-running is safe (seed skips an existing tenant). |
+| `web` | `garden_web` | http://localhost:3000 | Production build (`next start`). |
+| `agent` | `garden_agent` | http://localhost:3100 | `GET /health`. |
+| `worker` | `garden_worker` | — | pg-boss queues. |
+
+All four app services share one image (`garden-booking-os:local`, built from
+the root `Dockerfile`). `./.env` is optional: it is passed through when present,
+but `DATABASE_URL` and `AGENT_SERVICE_URL` are always overridden to the
+container network, and the four secrets default to the dev values in
+`.env.example`. WhatsApp, M-Pesa and meetings default to `mock`.
+
+```bash
+docker compose up -d db                     # Postgres only; run the apps natively with pnpm
+docker compose logs -f web agent worker     # follow logs
+docker compose run --rm migrate pnpm test:integration   # integration tests inside the image
+docker compose up --build -d                # after code changes (the image is a built snapshot, no hot reload)
+docker compose down                         # stop, keep data
+docker compose down -v                      # stop and wipe the database
+```
+
+For hot reload, use the native flow in section 2 against `docker compose up -d db`.
+
 ## 3. Verification
 
 ```bash
@@ -162,13 +193,27 @@ Staff are **not** on WhatsApp in v1: the staff channel is the web inbox
 (`/wambo`). Staff replies and Wambo replies both go to the customer on
 WhatsApp/web.
 
-## 7. M-Pesa (Daraja)
+## 7. M-Pesa (Tuma or Daraja)
 
-1. Set `MPESA_MODE=daraja`, `MPESA_ENV`, consumer key/secret, shortcode and
-   passkey.
-2. Set the callback URL to a public HTTPS endpoint:
-   `https://<host>/api/mpesa/callback?tenant=palda`.
-3. Register the C2B validation/confirmation URL with the same endpoint.
+**Tuma is the recommended provider.** In the Tuma Merchant Portal go to
+Developer API → Keys & Docs, generate a key, then set:
+
+1. `MPESA_MODE=tuma`
+2. `TUMA_EMAIL` and `TUMA_API_KEY`
+3. `TUMA_CALLBACK_URL=https://<host>/api/mpesa/callback?tenant=palda`
+   (falls back to `MPESA_CALLBACK_URL` when unset)
+4. Optional `TUMA_API_BASE_URL` (default `https://api.tuma.co.ke`)
+
+Tuma sandbox accounts can only charge KES 1–100 until the account is approved
+for production. An STK push authenticates with `POST /auth/token`, then sends
+`{amount, phone, callback_url, description}` to `POST /payment/stk-push`.
+Tuma posts `{result_code, status, checkout_request_id, mpesa_receipt_number,
+amount}` back to the same callback route; a payment succeeds only when
+`result_code` is `0` and `status` is `completed`.
+
+Daraja is still supported: set `MPESA_MODE=daraja`, `MPESA_ENV`, consumer
+key/secret, shortcode and passkey, then register the same public HTTPS callback
+for STK and C2B validation/confirmation.
 
 The callback is idempotent on `mpesa_receipt`; unmatched C2B payments appear in
 Invoices → Unmatched and can be matched from the UI or `payments.match_unmatched`.

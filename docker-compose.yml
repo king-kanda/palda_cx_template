@@ -1,3 +1,31 @@
+# Postgres only:        docker compose up -d db        (then run apps natively with pnpm)
+# Whole stack in Docker: docker compose up --build
+#
+# Values come from ./.env when it exists (optional); the container-network
+# overrides below always win so the services reach each other by name.
+
+x-app: &app
+  build: .
+  image: garden-booking-os:local
+  env_file:
+    - path: .env
+      required: false
+  environment: &app-env
+    NODE_ENV: production
+    DATABASE_URL: postgres://postgres:postgres@db:5432/garden_bookings
+    APP_URL: ${APP_URL:-http://localhost:3000}
+    AGENT_SERVICE_URL: http://agent:3100
+    AGENT_SERVICE_PORT: "3100"
+    DEFAULT_TENANT_SLUG: ${DEFAULT_TENANT_SLUG:-palda}
+    AUTH_SECRET: ${AUTH_SECRET:-dev-only-change-me-0000000000000000000000000000}
+    ENCRYPTION_KEY: ${ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+    INTERNAL_SECRET: ${INTERNAL_SECRET:-dev-internal-secret}
+    MCP_TOKEN_SECRET: ${MCP_TOKEN_SECRET:-dev-mcp-secret-change-me}
+    WHATSAPP_MODE: ${WHATSAPP_MODE:-mock}
+    MPESA_MODE: ${MPESA_MODE:-mock}
+    MEETINGS_MODE: ${MEETINGS_MODE:-mock}
+  restart: unless-stopped
+
 services:
   db:
     image: postgres:16
@@ -17,6 +45,60 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+
+  # One-shot: schema + exclusion constraint + RLS, then the demo tenant.
+  # Re-running is safe: the seed refuses to overwrite an existing tenant.
+  migrate:
+    <<: *app
+    container_name: garden_migrate
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - pnpm db:migrate && (pnpm db:seed || echo "[seed] skipped - tenant already exists")
+
+  web:
+    <<: *app
+    container_name: garden_web
+    ports:
+      - "3000:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: ["pnpm", "--filter", "@garden/web", "start"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://localhost:3000/login || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  agent:
+    <<: *app
+    container_name: garden_agent
+    ports:
+      - "3100:3100"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: ["pnpm", "--filter", "@garden/agent-service", "start"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3100/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  worker:
+    <<: *app
+    container_name: garden_worker
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: ["pnpm", "--filter", "@garden/worker", "start"]
 
 volumes:
   garden_pgdata:
