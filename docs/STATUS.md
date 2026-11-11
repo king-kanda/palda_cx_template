@@ -20,7 +20,7 @@ Treat code beyond Phase 1 as **written but unverified against infrastructure** u
 | 2. Money | pricing, invoices + PDF, payments, expenses/P&L, M-Pesa STK + callback | Written | **No** | Tuma sandbox run; callback replay idempotency check |
 | 3. WhatsApp / reminders / MCP / approvals | webhook, inbox, pg-boss, `docs/tool-contract.md`, MCP server, approvals | Written | **Yes (mock) — 2026-11-11** | Postgres-backed webhook dedupe, consent, takeover, turn cap, Nairobi reminder times and digest content all pass; wrong-tenant/scope rejection and approval conversion pass. A real WhatsApp Cloud API send and a real-model turn remain. |
 | 4. Agent engine + Wambo | loop, MCP gateway, guard, context, run log, tracing, evals | Written | **No** | OpenRouter spike (PLAN §6.6, "first task") not done; mock evals only; no real-model run; no stub-MCP second-vertical test |
-| 5. Admin + ops agents | staff chat, events, `ledger-digest`, ops propose mode | Written | **No** | Admin/ops/tenancy evals now include pending approvals, bulk send, tenant isolation and capacity in mock form; still need a real-model run. Agent definitions live in code modules rather than `agents/<id>/agent.json` folders (decision recorded below) |
+| 5. Admin + ops agents | staff chat, events, `ledger-digest`, ops propose mode | Written | **No** | Admin/ops/tenancy evals now include pending approvals, bulk send, tenant isolation and capacity in mock form; still need a real-model run. Staff chat and digest delivery are verified in mock (4 tests). Agent definitions live in code modules rather than `agents/<id>/agent.json` folders (decision recorded below) |
 | 7. Salon | duration slots, stylists, walk-ins (`walkins.join_queue`) | Preset + tool | **No** | Salon eval set now includes a mock scenario; needs real-model run |
 | 8. Dental | dentist+chair, recalls (`recalls.schedule`), sensitive data | Preset + tool | **No** | Privacy eval (`dental-privacy`) added in mock form; needs real-model run |
 | 9. Consultancy | meeting links (`meetings.create_link`, auto on confirm), intake (`intake.send_form`), packages | Preset + tools | **No** | Confidentiality eval added in mock form; verify link on real confirm |
@@ -60,7 +60,9 @@ Phase 3 coverage was added on 2026-11-11 against the same embedded PostgreSQL 16
 - `tests/integration/whatsapp-flow.test.ts` (5) — drives the real agent-service Hono routes: a duplicate webhook stores one inbound message and produces one agent run, the DPA consent line is sent first, a staff takeover keeps automation silent, the hourly turn cap creates a handoff instead of a model run, an image receipt is stored without a run, and a bad `X-Hub-Signature-256` is rejected with 401.
 - `tests/integration/reminders.test.ts` (5) — reminders land at exact Nairobi-time offsets (hold nudge/deposit/‑7d/‑3d/‑1d/thank-you/review), nothing is due before `send_at`, dispatch sends in mock mode with a single `KES` prefix and the Nairobi event date, expired holds are released with reminders cancelled, and the 07:00 digest (04:00 UTC) is built from the Nairobi-local day with today's events and unpaid balances.
 
-Last full run: 2026-11-11 (**31/31 integration**, embedded PostgreSQL 16). Docker stack last verified 2026-11-09; the image predates Tuma and the Phase 3 fixes.
+- `tests/integration/agent-internal.test.ts` (4) — `/internal/*` rejects a missing or wrong shared secret, a staff chat turn persists an `agent_runs` row under the staff principal, a user from another tenant is rejected, and the digest endpoint writes a staff alert.
+
+Last full run: 2026-11-11 (**35/35 integration**, embedded PostgreSQL 16). Docker stack last verified 2026-11-09; the image predates Tuma and the Phase 3 fixes.
 
 ## Never verified
 

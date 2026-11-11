@@ -79,10 +79,10 @@ The seeded owner/staff credentials were verified and the dashboard rendered with
 an owner session.
 
 The full integration suite now also covers money, MCP approvals and Phase 3:
-**31/31 passed on 2026-11-11** (4 booking/DPA, 7 money incl. the Tuma callback
+**35/35 passed on 2026-11-11** (4 booking/DPA, 7 money incl. the Tuma callback
 shape, 10 MCP tenancy/scope/approval, 5 WhatsApp webhook flow, 5 Nairobi
-reminders/digest). Docker Compose was verified separately on 2026-11-09; see
-[`STATUS.md`](./STATUS.md).
+reminders/digest, 4 agent-service staff routes). Docker Compose was verified
+separately on 2026-11-09; see [`STATUS.md`](./STATUS.md).
 
 ## 4. Repo map
 
