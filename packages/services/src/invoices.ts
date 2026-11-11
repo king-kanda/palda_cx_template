@@ -5,7 +5,7 @@ import { audit, getSettings, type ServiceContext } from "./context";
 import { cancelReminders } from "./reminders";
 import { renderTemplate, sendProactive } from "./notify";
 import { addDays, dateKey, formatNairobi, formatNairobiTime, nairobiTime } from "./tz";
-import { ConflictError, NotFoundError, PolicyError, ValidationError, kes } from "./types";
+import { ConflictError, NotFoundError, PolicyError, ValidationError } from "./types";
 
 const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
 
@@ -163,7 +163,8 @@ export async function sendInvoice(ctx: ServiceContext, invoiceId: string): Promi
         `${APP_URL}/invoices/${invoice.id}/pdf`,
       ),
       vars: {
-        amount: kes(invoice.totalKes),
+        // Templates own the "KES" prefix; the variable is the bare amount.
+        amount: Math.round(invoice.totalKes),
         date: formatNairobi(booking.startsAt),
         invoice_number: invoice.number,
         invoice_link: `${APP_URL}/invoices/${invoice.id}/pdf`,

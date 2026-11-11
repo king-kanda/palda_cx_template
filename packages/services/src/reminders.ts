@@ -4,7 +4,6 @@ import type { Booking, Customer, Offering } from "@garden/db";
 import { getSettings, type ServiceContext } from "./context";
 import { addMinutes, formatNairobi, formatNairobiTime, isPast, nairobiTime, dateKey } from "./tz";
 import { renderTemplate, sendProactive, templateParams, baseVars } from "./notify";
-import { kes } from "./types";
 
 export type ReminderDTO = typeof schema.reminders.$inferSelect;
 
@@ -104,7 +103,7 @@ export function reminderVars(
     ...baseVars(businessName, customer),
     date: formatNairobi(booking.startsAt),
     time: formatNairobiTime(booking.startsAt),
-    amount: kes(booking.status === "hold" ? booking.depositRequiredKes : balance),
+    amount: booking.status === "hold" ? booking.depositRequiredKes : balance,
     offering: offering.name,
     arrival_time: settings.arrivalTime,
     review_link: settings.reviewLink,

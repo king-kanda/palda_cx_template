@@ -6,7 +6,8 @@ import { audit, getSettings, type ServiceContext } from "./context";
 import { netPaidForBooking, recalculateInvoices, generateInvoice } from "./invoices";
 import { confirmBooking } from "./bookings";
 import { sendProactive } from "./notify";
-import { ConflictError, ForbiddenError, NotFoundError, PolicyError, ValidationError, kes, requireStaff } from "./types";
+import { formatNairobi } from "./tz";
+import { ConflictError, ForbiddenError, NotFoundError, PolicyError, ValidationError, requireStaff } from "./types";
 
 async function scopedBooking(ctx: ServiceContext, bookingId: string): Promise<Booking> {
   const booking = await ctx.db.query.bookings.findFirst({
@@ -92,8 +93,9 @@ export async function recordPayment(
           templateName: "payment_received",
           body: template,
           vars: {
-            amount: kes(input.amountKes),
-            date: booking.startsAt.toISOString().slice(0, 10),
+            // Templates own the "KES" prefix; the variable is the bare amount.
+            amount: Math.round(input.amountKes),
+            date: formatNairobi(booking.startsAt),
           },
           language: customer.language,
         });

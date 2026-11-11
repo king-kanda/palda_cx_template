@@ -115,7 +115,7 @@ tests/            unit + Postgres-gated integration tests
 Code-complete against `PLAN.md` and verified by typecheck, 40 unit tests, 18
 agent scenarios and a production build. The Phase 1 gate also passed on
 2026-11-09 against PostgreSQL 16: migrations, seed, `pnpm test:integration`
-(4/4 at the time; the full suite is now 21/21), seeded login and a rendered
+(4/4 at the time; the full suite is now 31/31), seeded login and a rendered
 dashboard. Remaining acceptance gates need external sandboxes (Tuma, WhatsApp,
 OpenRouter) or the real pilot garden; see [`docs/STATUS.md`](docs/STATUS.md).
 

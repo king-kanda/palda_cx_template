@@ -104,7 +104,7 @@ export async function buildDailyDigest(
       and(
         eq(schema.bookings.tenantId, ctx.tenantId),
         eq(schema.bookings.status, "hold"),
-        sql`${schema.bookings.holdExpiresAt} < ${new Date(Date.now() + 24 * 3_600_000)}`,
+        lt(schema.bookings.holdExpiresAt, new Date(Date.now() + 24 * 3_600_000)),
       ),
     );
 
