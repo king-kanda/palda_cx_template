@@ -263,12 +263,13 @@ const bookingTools: AnyToolDef[] = [
     name: "bookings.create_hold",
     group: "bookings",
     description:
-      "Create a hold for a specific space and time. Idempotent and auto-expiring. Returns the booking with server-priced totals. Customer identity is taken from context, never from arguments.",
+      "Create a hold for a specific space and time. Idempotent and auto-expiring. Returns the booking with server-priced totals. Customer identity comes from context for customer principals; staff must pass customerId.",
     tier: "write-safe",
     principalTypes: ["customer", "staff", "system"],
     scopes: ["bookings:write_own", "bookings:write"],
     input: z
       .object({
+        customerId: uuid.optional(),
         offeringId: uuid.optional(),
         offering: z.string().max(120).optional(),
         resourceId: uuid.optional(),
@@ -294,13 +295,14 @@ const bookingTools: AnyToolDef[] = [
       })
       .strict(),
     async handler(ctx, args) {
+      const customerId = await resolveCustomerId(ctx, args.customerId);
       const offeringId = await resolveOfferingId(ctx, args);
       const addons = await resolveAddons(ctx, args.addons);
       const settings = await svc.getSettings(ctx);
       const attributes: Record<string, unknown> = { ...(args.attributes ?? {}) };
       if (settings.vertical === "venue" && !attributes.eventType) attributes.eventType = "other";
       const created = await svc.createBooking(ctx, {
-        customerId: ctx.principal.type === "customer" ? ctx.principal.customerId : undefined,
+        customerId,
         offeringId,
         resourceIds: args.resourceIds ?? (args.resourceId ? [args.resourceId] : undefined),
         startsAt: args.startsAt,
