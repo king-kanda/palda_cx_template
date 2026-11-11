@@ -3,6 +3,7 @@
 > Last updated: 2026-11-11. Written for any agent or human picking this project up cold.
 > Source of truth for the plan is `PLAN.md` (§9 = phases). This file records **where the build actually is**.
 > Cold-start instructions live in [`HANDOFF.md`](./HANDOFF.md).
+> What the owner must still provide (keys, public URL, product answers) lives in [`ACTION-ITEMS.md`](./ACTION-ITEMS.md).
 
 ## TL;DR
 
