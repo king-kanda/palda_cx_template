@@ -76,8 +76,12 @@ successfully on 2026-11-09 against PostgreSQL 16: **4/4 integration tests
 passed**, including the DB overlap rejection (`SLOT_UNAVAILABLE` from
 PostgreSQL `23P01` on `resource_occupancy_no_overlap`) and the DPA-erasure test.
 The seeded owner/staff credentials were verified and the dashboard rendered with
-an owner session. Docker Compose itself still has not been exercised here; the
-gate used a temporary embedded PostgreSQL 16 server.
+an owner session.
+
+The full integration suite now also covers money and MCP approvals:
+**21/21 passed on 2026-11-11** (4 booking/DPA, 7 money incl. the Tuma callback
+shape, 10 MCP tenancy/scope/approval). Docker Compose was verified separately on
+2026-11-09; see [`STATUS.md`](./STATUS.md).
 
 ## 4. Repo map
 
@@ -97,8 +101,8 @@ packages/
                   digest, expenses, settings, extras (vertical tools), seed
   mcp-server/     tool definitions, dispatch/gating/approvals, stateless server,
                   token issuance
-  integrations/   WhatsApp Cloud API, M-Pesa Daraja, AES-GCM crypto, meetings,
-                  lazy PDF
+  integrations/   WhatsApp Cloud API, M-Pesa via Tuma/Daraja, AES-GCM crypto,
+                  meetings, lazy PDF
   verticals/      venue | salon | dental | consultancy presets
 tests/            unit + Postgres-gated integration
 docs/             tool-contract.md, runbook.md, STATUS.md, HANDOFF.md

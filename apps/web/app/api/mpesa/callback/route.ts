@@ -16,7 +16,9 @@ async function tenantFor(request: Request) {
 }
 
 /**
- * Daraja callback receiver. STK results and C2B confirmations both arrive here.
+ * Payment callback receiver for both supported M-Pesa providers: Tuma
+ * (flat `result_code`/`checkout_request_id` JSON) and Safaricom Daraja
+ * (`Body.stkCallback`). `parseStkCallback` normalises either shape.
  * Matching is idempotent: duplicate receipts return the existing payment.
  */
 export async function POST(request: Request): Promise<Response> {

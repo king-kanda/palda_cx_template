@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export type MpesaMode = "daraja" | "mock";
+export type MpesaMode = "daraja" | "tuma" | "mock";
 
 export function mpesaMode(): MpesaMode {
   return (process.env.MPESA_MODE as MpesaMode) ?? "mock";
@@ -27,8 +27,126 @@ function normalisePhone(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   if (digits.startsWith("254")) return digits;
   if (digits.startsWith("0")) return `254${digits.slice(1)}`;
+  if (digits.length === 9 && digits.startsWith("7")) return `254${digits}`;
   return digits;
 }
+
+/* ------------------------------- Tuma ---------------------------------- */
+
+function tumaBaseUrl(): string {
+  return (process.env.TUMA_API_BASE_URL ?? "https://api.tuma.co.ke").replace(/\/+$/, "");
+}
+
+function tumaCallbackUrl(): string {
+  const url = process.env.TUMA_CALLBACK_URL ?? process.env.MPESA_CALLBACK_URL;
+  if (!url) {
+    throw new MpesaError(
+      "TUMA_CALLBACK_URL (or MPESA_CALLBACK_URL) is not configured.",
+    );
+  }
+  return url;
+}
+
+type TumaTokenCache = { token: string; expiresAt: number };
+let tumaTokenCache: TumaTokenCache | null = null;
+
+/** Reads the JWT `exp` claim so the token is reused until shortly before expiry. */
+function jwtExpiresAt(token: string): number | null {
+  const part = token.split(".")[1];
+  if (!part) return null;
+  try {
+    const json = JSON.parse(
+      Buffer.from(part.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8"),
+    ) as { exp?: unknown };
+    return typeof json.exp === "number" ? json.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+async function tumaToken(): Promise<string> {
+  if (tumaTokenCache && tumaTokenCache.expiresAt > Date.now() + 60_000) {
+    return tumaTokenCache.token;
+  }
+  const email = process.env.TUMA_EMAIL;
+  const apiKey = process.env.TUMA_API_KEY;
+  if (!email || !apiKey) {
+    throw new MpesaError("Tuma credentials are not configured (TUMA_EMAIL, TUMA_API_KEY).");
+  }
+
+  const res = await fetch(`${tumaBaseUrl()}/auth/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ email, api_key: apiKey }),
+  });
+  const json = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    message?: string;
+    data?: { token?: string };
+  };
+  const token = json.data?.token;
+  if (!res.ok || json.success !== true || !token) {
+    throw new MpesaError(json.message ?? "Could not authenticate with Tuma.", json);
+  }
+
+  tumaTokenCache = {
+    token,
+    expiresAt: jwtExpiresAt(token) ?? Date.now() + 10 * 60_000,
+  };
+  return token;
+}
+
+async function initiateTumaStk(input: {
+  phone: string;
+  amountKes: number;
+  description: string;
+}): Promise<StkResult> {
+  const token = await tumaToken();
+  const phone = normalisePhone(input.phone);
+  if (!/^254\d{9}$/.test(phone)) {
+    throw new MpesaError("Invalid Kenyan phone number for M-Pesa (expected 254XXXXXXXXX).");
+  }
+
+  const res = await fetch(`${tumaBaseUrl()}/payment/stk-push`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      amount: Math.round(input.amountKes),
+      phone,
+      callback_url: tumaCallbackUrl(),
+      description: input.description.slice(0, 200),
+    }),
+  });
+  const json = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    message?: string;
+    data?: {
+      merchant_request_id?: string;
+      checkout_request_id?: string;
+      customer_message?: string;
+    };
+  };
+  if (!res.ok || json.success !== true) {
+    throw new MpesaError(json.message ?? "Tuma STK push failed.", json);
+  }
+  const checkoutRequestId = String(json.data?.checkout_request_id ?? "");
+  if (!checkoutRequestId) {
+    throw new MpesaError("Tuma returned no CheckoutRequestID.", json);
+  }
+
+  return {
+    checkoutRequestId,
+    merchantRequestId: String(json.data?.merchant_request_id ?? ""),
+    customerMessage:
+      json.data?.customer_message ?? json.message ?? "STK push sent. Enter your M-Pesa PIN.",
+    mocked: false,
+  };
+}
+
 
 async function darajaToken(): Promise<string> {
   const key = process.env.MPESA_CONSUMER_KEY;
@@ -62,6 +180,9 @@ export async function initiateStkPush(input: {
       customerMessage: "Mock STK push sent. Enter M-Pesa PIN to complete.",
       mocked: true,
     };
+  }
+  if (mpesaMode() === "tuma") {
+    return initiateTumaStk(input);
   }
   const token = await darajaToken();
   const base =
@@ -114,6 +235,68 @@ export type ParsedCallback = {
   raw: Record<string, unknown>;
 };
 
+const tumaCallbackSchema = z
+  .object({
+    result_code: z.union([z.number(), z.string()]),
+    status: z.string().optional(),
+    checkout_request_id: z.string().min(1),
+    merchant_request_id: z.string().nullish(),
+    mpesa_receipt_number: z.string().nullish(),
+    amount: z.union([z.number(), z.string()]).nullish(),
+    phone: z.union([z.string(), z.number()]).nullish(),
+    msisdn: z.union([z.string(), z.number()]).nullish(),
+    result_desc: z.string().nullish(),
+    failure_reason: z.string().nullish(),
+    message: z.string().nullish(),
+  })
+  .passthrough();
+
+function tumaPhone(value: string | number | null | undefined): string | null {
+  if (value === null || value === undefined) return null;
+  const digits = normalisePhone(String(value));
+  return digits ? `+${digits}` : null;
+}
+
+/**
+ * Tuma posts a flat JSON body (optionally wrapped in `data`):
+ * { result_code, status, checkout_request_id, mpesa_receipt_number, amount, ... }
+ * Success is `result_code === 0` with status `completed`.
+ */
+function parseTumaCallback(payload: unknown): ParsedCallback | null {
+  const record = payload as Record<string, unknown> | null;
+  const nested = record?.data;
+  const candidate =
+    nested && typeof nested === "object" && !Array.isArray(nested) &&
+    "checkout_request_id" in (nested as Record<string, unknown>)
+      ? nested
+      : payload;
+  const parsed = tumaCallbackSchema.safeParse(candidate);
+  if (!parsed.success) return null;
+
+  const cb = parsed.data;
+  const resultCode = Number(cb.result_code);
+  const status = cb.status?.toLowerCase();
+  const success =
+    resultCode === 0 &&
+    (status === undefined || ["completed", "success", "successful"].includes(status));
+
+  return {
+    checkoutRequestId: cb.checkout_request_id,
+    merchantRequestId: cb.merchant_request_id ?? null,
+    receipt: cb.mpesa_receipt_number ? String(cb.mpesa_receipt_number) : null,
+    amountKes: Number(cb.amount ?? 0),
+    phone: tumaPhone(cb.phone ?? cb.msisdn),
+    success,
+    resultCode,
+    resultDesc:
+      cb.failure_reason ??
+      cb.result_desc ??
+      cb.message ??
+      (success ? "Payment successful" : "Payment failed"),
+    raw: payload as Record<string, unknown>,
+  };
+}
+
 const callbackSchema = z.object({
   Body: z.object({
     stkCallback: z.object({
@@ -138,6 +321,9 @@ const callbackSchema = z.object({
 });
 
 export function parseStkCallback(payload: unknown): ParsedCallback {
+  const tuma = parseTumaCallback(payload);
+  if (tuma) return tuma;
+
   const parsed = callbackSchema.safeParse(payload);
   if (!parsed.success) throw new MpesaError("Malformed M-Pesa callback payload.", parsed.error.flatten());
   const cb = parsed.data.Body.stkCallback;

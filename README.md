@@ -19,7 +19,7 @@ table carries `tenant_id`, and the same MCP tools serve every business.
 | **Domain services** | `packages/services` | The only implementation of bookings, money, approvals, CRM, reporting. UI and MCP share it. |
 | **Database** | `packages/db` | Drizzle schema (32 tables), migrations, tenant-scoped transaction helper. |
 | **Verticals** | `packages/verticals` | Venue, salon, dental, consultancy presets: labels, hours, offerings, FAQ, reminders, agent hints. |
-| **Integrations** | `packages/integrations` | WhatsApp Cloud API, M-Pesa Daraja, encryption, meetings, invoice PDF. |
+| **Integrations** | `packages/integrations` | WhatsApp Cloud API, M-Pesa via Tuma (Daraja adapter), encryption, meetings, invoice PDF. |
 
 ## Design rules
 
@@ -69,7 +69,7 @@ team, integrations).
 
 ```bash
 pnpm typecheck          # all packages and apps
-pnpm test               # 32 unit tests, no database
+pnpm test               # 40 unit tests, no database
 pnpm eval:mock          # 18 deterministic agent scenarios
 pnpm build              # production Next build
 pnpm test:integration   # needs Postgres; seeds, books, proves overlap rejection
@@ -112,12 +112,12 @@ tests/            unit + Postgres-gated integration tests
 
 ## Status
 
-Code-complete against `PLAN.md` and verified by typecheck, 32 unit tests, 18
+Code-complete against `PLAN.md` and verified by typecheck, 40 unit tests, 18
 agent scenarios and a production build. The Phase 1 gate also passed on
 2026-11-09 against PostgreSQL 16: migrations, seed, `pnpm test:integration`
-(4/4), seeded login and a rendered dashboard. Remaining acceptance gates need
-external sandboxes (M-Pesa Daraja, WhatsApp, OpenRouter) or the real pilot
-garden; see [`docs/STATUS.md`](docs/STATUS.md).
+(4/4 at the time; the full suite is now 21/21), seeded login and a rendered
+dashboard. Remaining acceptance gates need external sandboxes (Tuma, WhatsApp,
+OpenRouter) or the real pilot garden; see [`docs/STATUS.md`](docs/STATUS.md).
 
 Not in v1: staff WhatsApp channel (staff use the web inbox), payments other than
 M-Pesa/cash/bank/card recording, and multi-currency.

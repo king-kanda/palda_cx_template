@@ -234,6 +234,58 @@ describe.skipIf(!enabled || !inMockMode)("money: mock M-Pesa lifecycle (needs Po
     expect(await withPrincipal(owner(), (ctx) => netPaidForBooking(ctx, booking.booking.id))).toBe(0);
   });
 
+  it("accepts a Tuma-shaped success callback through the same route parser", async () => {
+    const startKey = addDays(dateKey(new Date()), 270);
+    const booking = await withPrincipal(owner(), (ctx) =>
+      createBooking(ctx, {
+        customerId,
+        offeringId,
+        resourceIds: [resourceId],
+        startsAt: nairobiTime(startKey, "10:00").toISOString(),
+        endsAt: nairobiTime(startKey, "13:00").toISOString(),
+        partySize: 4,
+        status: "hold",
+        source: "staff",
+        attributes: { eventType: "birthday" },
+      }),
+    );
+    const started = await withPrincipal(owner(), (ctx) =>
+      initiateStk(ctx, { bookingId: booking.booking.id }),
+    );
+    const receipt = `TUMA${Date.now().toString().slice(-8)}`;
+    const payload = {
+      result_code: 0,
+      status: "completed",
+      merchant_request_id: `mr-${started.payment.id.slice(-8)}`,
+      checkout_request_id: started.payment.mpesaCheckoutRequestId,
+      mpesa_receipt_number: receipt,
+      amount: started.payment.amountKes,
+      phone: customerPhone.replace(/^\+/, ""),
+      timestamp: new Date().toISOString(),
+      result_desc: "Payment successful",
+    };
+
+    const paid = await withPrincipal(callbackPrincipal(), (ctx) =>
+      handleStkCallback(ctx, payload),
+    );
+    expect(paid?.status).toBe("succeeded");
+    expect(paid?.mpesaReceipt).toBe(receipt);
+    expect(paid?.amountKes).toBe(started.payment.amountKes);
+
+    const replay = await withPrincipal(callbackPrincipal(), (ctx) =>
+      handleStkCallback(ctx, payload),
+    );
+    expect(replay?.id).toBe(paid?.id);
+
+    const rows = await withPrincipal(owner(), (ctx) =>
+      ctx.db.query.payments.findMany({
+        where: (p, { and, eq }) =>
+          and(eq(p.tenantId, tenantId), eq(p.mpesaReceipt, receipt)),
+      }),
+    );
+    expect(rows).toHaveLength(1);
+  });
+
   it("accepts a C2B confirmation once and ignores the duplicate receipt", async () => {
     const transId = `TESTC2B${Date.now().toString().slice(-8)}`;
     const payload = {
