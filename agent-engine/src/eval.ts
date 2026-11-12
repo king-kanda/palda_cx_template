@@ -73,12 +73,14 @@ class ScriptedGateway implements ToolGateway {
 
 export async function runScenario(scenario: Scenario): Promise<ScenarioResult> {
   const config = getAgentConfig(scenario.agentId);
+  const principalType =
+    scenario.agentId === "wambo" ? "customer" : scenario.agentId === "admin" ? "staff" : "system";
   const gateway = new ScriptedGateway(scenario.tools, scenario.responses, scenario.errors ?? {});
   const result = await runAgent(
     {
       agentId: config.id,
       config,
-      principalType: "customer",
+      principalType,
       trigger: "eval",
       messages: [{ role: "user", text: scenario.userMessage }],
       businessFacts: "Eval business facts.",

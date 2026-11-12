@@ -426,7 +426,12 @@ export async function confirmBooking(ctx: ServiceContext, id: string) {
     .set({ status: "confirmed", holdExpiresAt: null, updatedAt: new Date() })
     .where(eq(schema.bookings.id, id))
     .returning();
-  await cancelReminders(ctx, id, ["hold_nudge", "deposit_due"]);
+  await cancelReminders(ctx, id, [
+    "hold_nudge",
+    "deposit_due",
+    "quote_nudge_24h",
+    "quote_nudge_72h",
+  ]);
   const conversation = await ctx.db.query.conversations.findFirst({
     where: and(
       eq(schema.conversations.tenantId, ctx.tenantId),

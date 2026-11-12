@@ -51,6 +51,8 @@ export const salonPreset: Preset = {
     reminder_1d: "Hi {{customer_name}}, a reminder of your {{offering}} tomorrow at {{time}}. Reply to reschedule.",
     rebook_nudge: "Hi {{customer_name}}, it's been a few weeks since your last visit. Ready for a refresh? Book your next visit.",
     payment_received: "Asante {{customer_name}}! Payment of KES {{amount}} received.",
+    quote_nudge:
+      "Hi {{customer_name}}, just checking in on your {{offering}} quote for {{date}} (KES {{amount}}). Would you like to book it?",
   },
   faq: [
     { q: "Do you take walk-ins?", a: "Yes, subject to stylist availability. Booking ahead is recommended." },

@@ -8,6 +8,7 @@ import { renderTemplate, sendProactive, templateParams, baseVars } from "./notif
 export type ReminderDTO = typeof schema.reminders.$inferSelect;
 
 const RESEND_GUARD_KINDS = new Set(["hold_nudge", "deposit_due"]);
+const QUOTE_NUDGE_KINDS = new Set(["quote_nudge_24h", "quote_nudge_72h"]);
 
 export async function cancelReminders(
   ctx: ServiceContext,
@@ -67,6 +68,26 @@ export async function scheduleForBooking(ctx: ServiceContext, bookingId: string)
       template: "deposit_request",
       channel: "whatsapp",
     });
+  }
+
+  // Post-quote nudges (PLAN.md Phase 6): an unconfirmed inquiry gets a gentle
+  // follow-up after 24h and 72h. Confirming or cancelling clears them.
+  if (booking.status === "inquiry" && booking.totalKes > 0) {
+    for (const [hours, kind] of [
+      [24, "quote_nudge_24h"],
+      [72, "quote_nudge_72h"],
+    ] as const) {
+      const sendAt = addMinutes(booking.createdAt, hours * 60);
+      if (sendAt.getTime() <= now.getTime()) continue;
+      rows.push({
+        tenantId: ctx.tenantId,
+        bookingId,
+        kind,
+        sendAt,
+        template: "quote_nudge",
+        channel: "whatsapp",
+      });
+    }
   }
 
   for (const rule of settings.preset.reminders) {
@@ -159,6 +180,13 @@ export async function dispatchDueReminders(
   let failed = 0;
   for (const row of due) {
     if (["cancelled", "completed", "no_show"].includes(row.booking.status)) {
+      await ctx.db
+        .update(schema.reminders)
+        .set({ status: "cancelled" })
+        .where(eq(schema.reminders.id, row.reminder.id));
+      continue;
+    }
+    if (QUOTE_NUDGE_KINDS.has(row.reminder.kind) && row.booking.status !== "inquiry") {
       await ctx.db
         .update(schema.reminders)
         .set({ status: "cancelled" })

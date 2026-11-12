@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { eq } from "drizzle-orm";
+import { getDb, schema } from "@garden/db";
 import { getBookingFor, kes, type EnrichedBooking } from "@garden/services";
 import { getSession } from "@/lib/auth";
 import { principalOf } from "@/lib/principal";
@@ -8,10 +10,12 @@ import { PageHeader, StatusPill } from "@/components/ui";
 import {
   cancelBookingAction,
   confirmBookingAction,
+  createMeetingLinkAction,
   generateInvoiceAction,
   recordPaymentAction,
   requestReviewAction,
   rescheduleBookingAction,
+  sendIntakeFormAction,
 } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +41,19 @@ export default async function BookingDetailPage({
   const { id } = await params;
   const query = await searchParams;
 
+  const [verticalRow, tenantRow] = await Promise.all([
+    getDb().query.tenantVertical.findFirst({
+      where: eq(schema.tenantVertical.tenantId, session.tenantId),
+      columns: { vertical: true },
+    }),
+    getDb().query.tenants.findFirst({
+      where: eq(schema.tenants.id, session.tenantId),
+      columns: { slug: true },
+    }),
+  ]);
+  const isConsultancy = (verticalRow?.vertical ?? "venue") === "consultancy";
+  const tenantSlug = tenantRow?.slug ?? "";
+
   let detail: Detail;
   try {
     detail = (await getBookingFor(principalOf(session), id)) as Detail;
@@ -44,7 +61,10 @@ export default async function BookingDetailPage({
     notFound();
   }
 
-  const eventType = String((detail.booking.attributes as Record<string, unknown>)?.eventType ?? "—");
+  const attributes = detail.booking.attributes as Record<string, unknown>;
+  const eventType = String(attributes?.eventType ?? "—");
+  const meetingUrl = typeof attributes?.meetingUrl === "string" ? attributes.meetingUrl : "";
+  const intakeUrl = typeof attributes?.intakeUrl === "string" ? attributes.intakeUrl : "";
 
   return (
     <div>
@@ -224,6 +244,61 @@ export default async function BookingDetailPage({
         </div>
 
         <div className="space-y-5">
+          {isConsultancy ? (
+            <section className="card p-5">
+              <h2 className="mb-3 text-sm font-semibold">Online session</h2>
+              <div className="space-y-4 text-sm">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-[#a8a29e]">
+                    Meeting link
+                  </p>
+                  {meetingUrl ? (
+                    <a
+                      className="mt-0.5 block break-all text-xs font-medium text-[#c2410c]"
+                      href={meetingUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {meetingUrl}
+                    </a>
+                  ) : (
+                    <>
+                      <p className="mt-0.5 text-[#78716c]">No link yet.</p>
+                      <form action={createMeetingLinkAction} className="mt-2">
+                        <input type="hidden" name="bookingId" value={detail.booking.id} />
+                        <button className="btn btn-secondary w-full text-xs">
+                          Create meeting link
+                        </button>
+                      </form>
+                    </>
+                  )}
+                </div>
+
+                <div className="border-t border-[#f5f5f4] pt-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-[#a8a29e]">
+                    Intake form
+                  </p>
+                  <Link
+                    className="mt-0.5 block break-all text-xs font-medium text-[#c2410c]"
+                    href={intakeUrl || `/intake/${tenantSlug}/${detail.booking.id}`}
+                    target="_blank"
+                  >
+                    {intakeUrl || `/intake/${tenantSlug}/${detail.booking.id}`}
+                  </Link>
+                  <form action={sendIntakeFormAction} className="mt-2">
+                    <input type="hidden" name="bookingId" value={detail.booking.id} />
+                    <button className="btn btn-secondary w-full text-xs">
+                      {intakeUrl ? "Resend intake form" : "Send intake form"}
+                    </button>
+                  </form>
+                  <p className="mt-2 text-xs text-[#a8a29e]">
+                    Answers are stored encrypted and are never shared with the booking assistant.
+                  </p>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
           <section className="card p-5">
             <h2 className="mb-3 text-sm font-semibold">Actions</h2>
             <form action={rescheduleBookingAction} className="space-y-2">

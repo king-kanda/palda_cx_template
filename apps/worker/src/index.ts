@@ -16,6 +16,7 @@ const QUEUES = {
   digest: "digest.daily",
   approvals: "approvals.expire",
   events: "events.emit",
+  ops: "ops.scan",
 } as const;
 
 type TenantRow = { id: string; slug: string; name: string };
@@ -149,15 +150,22 @@ async function main() {
     return result as unknown as Record<string, unknown>;
   });
 
-  await boss.work<{ event: string; tenantSlug: string }>(
-    QUEUES.events,
-    async (jobs: { data: { event: string; tenantSlug: string } }[]) => {
-      for (const job of jobs) {
-        await emitEvent(job.data.event, job.data.tenantSlug, job.data as Record<string, unknown>);
-      }
-      return { handled: jobs.length };
-    },
-  );
+  await boss.work(QUEUES.events, async (jobs: { data: { event: string; tenantSlug: string } }[]) => {
+    for (const job of jobs) {
+      await emitEvent(job.data.event, job.data.tenantSlug, job.data as Record<string, unknown>);
+    }
+    return { handled: jobs.length };
+  });
+
+  // Ops watch runs through the agent service so proposals go through the same
+  // approval bridge as every other agent write.
+  await boss.work(QUEUES.ops, async () => {
+    const tenants = await activeTenants();
+    for (const tenant of tenants) {
+      await emitEvent("ops.scan", tenant.slug, {});
+    }
+    return { scanned: tenants.length };
+  });
 
   // Every minute: reminders and expiring holds. Nairobi is UTC+3, pg-boss runs
   // these on wall-clock intervals so no timezone conversion is needed.
@@ -166,6 +174,8 @@ async function main() {
   await boss.schedule(QUEUES.approvals, "0 * * * *", {}, { tz: "Africa/Nairobi", key: "approvals" });
   // Daily owner digest at 07:00 Nairobi (Phase 5 acceptance criterion).
   await boss.schedule(QUEUES.digest, "0 7 * * *", {}, { tz: "Africa/Nairobi", key: "digest" });
+  // Ops watch every two hours: unanswered handoffs, expiring holds, unmatched receipts.
+  await boss.schedule(QUEUES.ops, "0 */2 * * *", {}, { tz: "Africa/Nairobi", key: "ops" });
 
   console.log("[worker] started; queues:", Object.values(QUEUES).join(", "));
 

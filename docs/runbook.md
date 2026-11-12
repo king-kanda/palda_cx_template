@@ -7,9 +7,9 @@ Everything an operator needs to run, test and go live with Garden Booking OS.
 | Process | Command | Port | Purpose |
 | --- | --- | --- | --- |
 | Postgres | `docker compose up -d` | 5432 | Source of truth. |
-| Web + API + MCP | `pnpm dev` | 3000 | Staff UI, server actions, `/api/mcp`, `/api/mpesa/callback`. |
-| Agent service | `pnpm dev:engine` | 3100 | WhatsApp webhook, Wambo turns, digests. |
-| Worker | `pnpm dev:worker` | — | pg-boss jobs: reminders, holds, approvals, digest, events. |
+| Web + API + MCP | `pnpm dev` | 3000 | Staff UI, public intake form, server actions, `/api/mcp`, `/api/mpesa/callback`. |
+| Agent service | `pnpm dev:engine` | 3100 | WhatsApp webhook, Wambo turns, digests, ops scans. |
+| Worker | `pnpm dev:worker` | — | pg-boss jobs: reminders, holds, approvals, digest, events, ops scan. |
 
 Single-tenant per deployment for the web UI (`DEFAULT_TENANT_SLUG`); every table
 is still `tenant_id`-scoped, so one deployment can serve several tenants through
@@ -86,18 +86,19 @@ For hot reload, use the native flow in section 2 against `docker compose up -d d
 
 ```bash
 pnpm typecheck      # every package and app
-pnpm test           # unit tests (no database needed)
-pnpm eval:mock      # 10 deterministic agent scenarios, no LLM/network
+pnpm test           # 53 unit tests (no database needed)
+pnpm eval:mock      # 21 deterministic agent scenarios, no LLM/network
 pnpm build          # production build of the web app
 
 # Needs Postgres (docker compose up -d && pnpm db:migrate)
 pnpm test:integration
 ```
 
-`pnpm test:integration` seeds an isolated tenant, prices a quote, creates a
-booking at a far-future slot, then asserts a second booking for the same
-resource/time fails with `SLOT_UNAVAILABLE`. It is skipped automatically when
-`DATABASE_URL` is not set.
+`pnpm test:integration` seeds isolated tenants and covers the booking overlap
+constraint, money/M-Pesa lifecycle and callback replay, MCP tenancy/scopes and
+exactly-once approvals, WhatsApp dedupe/takeover/turn caps, Nairobi reminders and
+quote nudges, the daily digest, the ops endpoint, and consultancy intake
+encryption. It is skipped automatically when `DATABASE_URL` is not set.
 
 What the unit suite covers: money arithmetic (`computeQuote`), Nairobi
 time/date conversion, guard rails (money must come from tools, forbidden

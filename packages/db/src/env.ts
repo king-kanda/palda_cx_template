@@ -38,7 +38,7 @@ export type EnvLike = Record<string, string | undefined>;
 const MODES = {
   mpesa: ["mock", "tuma", "daraja"],
   whatsapp: ["mock", "cloud"],
-  meetings: ["mock", "google"],
+  meetings: ["mock"],
 } as const;
 
 function value(env: EnvLike, key: string): string {

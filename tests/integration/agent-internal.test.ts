@@ -127,6 +127,24 @@ describe.skipIf(!enabled)("agent-service internal staff routes (needs Postgres)"
     expect(response.status).toBe(404);
   });
 
+  it("runs the ops watch and delivers its report to staff", async () => {
+    const response = await post("/internal/ops", { tenantSlug: slug, event: "ops.scan" }, SECRET);
+    expect(response.status).toBe(200);
+    const json = (await response.json()) as { ok: boolean; text?: string };
+    expect(json.ok).toBe(true);
+    expect(json.text?.length).toBeGreaterThan(0);
+
+    const runs = await getDb().query.agentRuns.findMany({
+      where: and(
+        eq(schema.agentRuns.tenantId, tenantId),
+        eq(schema.agentRuns.agentId, "ops"),
+      ),
+    });
+    expect(runs.length).toBeGreaterThanOrEqual(1);
+    expect(runs.at(-1)!.principalType).toBe("system");
+    expect(runs.at(-1)!.trigger).toBe("scheduled");
+  });
+
   it("delivers the daily digest as a staff alert", async () => {
     const response = await post("/internal/digest", { tenantSlug: slug }, SECRET);
     expect(response.status).toBe(200);

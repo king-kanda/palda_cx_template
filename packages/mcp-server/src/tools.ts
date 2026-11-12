@@ -1200,7 +1200,7 @@ const verticalTools: AnyToolDef[] = [
     name: "meetings.create_link",
     group: "meetings",
     description:
-      "Create and store a meeting link for an online session, and send it to the customer (consultancy).",
+      "Create and store a meeting link for an online session (consultancy). Confirmation sends it to the customer.",
     tier: "write-safe",
     principalTypes: ["staff", "system"],
     scopes: ["bookings:write"],

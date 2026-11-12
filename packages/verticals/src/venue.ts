@@ -98,6 +98,8 @@ export const venuePreset: Preset = {
       "Asante {{customer_name}} for celebrating with us! If you have a minute, we'd love a review: {{review_link}}",
     hold_nudge:
       "Hi {{customer_name}}, your hold for {{date}} at {{business_name}} expires soon. Would you like to confirm with a deposit?",
+    quote_nudge:
+      "Hi {{customer_name}}, just checking in on your {{offering}} quote for {{date}} (KES {{amount}}). Would you like to go ahead, or shall we adjust anything?",
   },
   faq: [
     { q: "Where are you located?", a: "We are in Karen, Nairobi. Exact directions are sent on booking." },

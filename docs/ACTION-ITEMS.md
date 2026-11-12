@@ -1,6 +1,6 @@
 # Action items for the owner
 
-> Last updated: 2026-11-11. Everything below is **yours** to provide; the code is
+> Last updated: 2026-11-12. Everything below is **yours** to provide; the code is
 > being finished in parallel. Tests run last, once these are in place.
 > Put secrets in `.env` only — never commit that file or paste keys into chat.
 
@@ -17,7 +17,7 @@
 | ☐ | `WHATSAPP_APP_SECRET` | Meta app → Settings → Basic | Verifies webhook signatures |
 | ☐ | `WHATSAPP_VERIFY_TOKEN` | You choose it | Must match the value entered in Meta's webhook setup |
 | ☐ | `LANGFUSE_HOST` / `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | https://cloud.langfuse.com | Optional; enables agent tracing |
-| ☐ | Google Calendar OAuth | Google Cloud console | Only needed if we decide to support `MEETINGS_MODE=google`; v1 ships a working Jitsi link |
+| ☐ | Google Calendar OAuth | Google Cloud console | **Not needed for v1** — meetings ship as a working Jitsi link; only source this if we later add a Calendar provider |
 
 **Also decide:** the WhatsApp Business number must be a real number that can
 receive the verification code. If it is already on WhatsApp, it has to be
@@ -70,7 +70,7 @@ with me:
 ```bash
 pnpm env:check                                   # what is still missing
 pnpm smoke:mpesa --phone <your number> --amount 1 # Phase 2, real Tuma sandbox
-pnpm test:integration                            # 35 Postgres tests
+pnpm test:integration                            # 40 Postgres tests
 pnpm eval                                        # real-model agent evals
 docker compose up --build                        # full stack + image rebuild
 docker compose run --rm migrate pnpm test:integration

@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeDb, getDb, loadEnv, schema } from "../../packages/db/src/index";
 import {
   buildDailyDigest,
+  confirmBooking,
   createBooking,
   dispatchDueReminders,
   dueReminders,
@@ -204,7 +205,11 @@ describe.skipIf(!enabled)("Nairobi reminders and daily digest (needs Postgres)",
     );
     const depositLog = logs.find((log) => {
       const body = String((log.request as Record<string, unknown> | null)?.body ?? "");
-      return body.includes(customerName) && body.includes("deposit");
+      return (
+        body.includes(customerName) &&
+        body.includes("deposit") &&
+        body.includes(formatNairobi(startsAt))
+      );
     });
     expect(depositLog).toBeTruthy();
     const body = String((depositLog!.request as Record<string, unknown>).body);
@@ -252,6 +257,49 @@ describe.skipIf(!enabled)("Nairobi reminders and daily digest (needs Postgres)",
       listReminders(ctx, created.booking.id),
     );
     expect(reminders.every((row) => row.status === "cancelled")).toBe(true);
+  });
+
+  it("nudges an unconfirmed quote at +24h and +72h, then stops on confirm", async () => {
+    const quoteKey = addDays(dateKey(new Date()), 30);
+    const created = await withPrincipal(owner(), (ctx) =>
+      createBooking(ctx, {
+        customerId,
+        offeringId,
+        resourceIds: [resourceId],
+        startsAt: nairobiTime(quoteKey, "15:00").toISOString(),
+        endsAt: nairobiTime(quoteKey, "18:00").toISOString(),
+        partySize: 2,
+        status: "inquiry",
+        source: "staff",
+        attributes: { eventType: "corporate" },
+      }),
+    );
+    expect(created.booking.totalKes).toBeGreaterThan(0);
+
+    const nudges = (
+      await withPrincipal(owner(), (ctx) => listReminders(ctx, created.booking.id))
+    ).filter((row) => row.status === "pending" && row.kind.startsWith("quote_nudge_"));
+    expect(nudges.map((row) => row.kind).sort()).toEqual([
+      "quote_nudge_24h",
+      "quote_nudge_72h",
+    ]);
+    for (const row of nudges) {
+      const hours = row.kind === "quote_nudge_24h" ? 24 : 72;
+      expect(row.sendAt.getTime() - created.booking.createdAt.getTime()).toBe(
+        hours * 3_600_000,
+      );
+      expect(row.template).toBe("quote_nudge");
+    }
+
+    await withPrincipal(owner(), (ctx) => confirmBooking(ctx, created.booking.id));
+    const after = await withPrincipal(owner(), (ctx) =>
+      listReminders(ctx, created.booking.id),
+    );
+    expect(
+      after
+        .filter((row) => row.kind.startsWith("quote_nudge_"))
+        .every((row) => row.status === "cancelled"),
+    ).toBe(true);
   });
 
   it("builds the 07:00 Nairobi digest from the Nairobi-local day", async () => {

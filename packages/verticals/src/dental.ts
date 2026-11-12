@@ -53,6 +53,8 @@ export const dentalPreset: Preset = {
     reminder_1d:
       "Hi {{customer_name}}, a reminder of your appointment tomorrow at {{time}}. Reply to reschedule (24 hours notice required).",
     recall: "Hi {{customer_name}}, it's time for your 6-month dental check-up. Reply BOOK to schedule.",
+    quote_nudge:
+      "Hi {{customer_name}}, just checking in on your {{offering}} quote for {{date}} (KES {{amount}}). Would you like to book it?",
   },
   faq: [
     { q: "Where are you located?", a: "We are on Ngong Road, Nairobi." },

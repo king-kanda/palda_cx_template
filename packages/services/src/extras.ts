@@ -1,13 +1,13 @@
 import { and, eq, gte, lte } from "drizzle-orm";
 import { schema } from "@garden/db";
 import type { Booking, Customer, Offering } from "@garden/db";
-import { createMeetingLink, intakeFormLink } from "@garden/integrations";
+import { createMeetingLink, decryptJson, encryptJson, intakeFormLink } from "@garden/integrations";
 import { audit, getSettings, type ServiceContext } from "./context";
 import { upsertCustomerByPhone } from "./customers";
 import { createBooking } from "./bookings";
-import { baseVars, sendProactive } from "./notify";
+import { baseVars, sendProactive, sendStaffAlert } from "./notify";
 import { dateKey, endOfNairobiDay, formatNairobi, startOfNairobiDay } from "./tz";
-import { NotFoundError, ValidationError } from "./types";
+import { ForbiddenError, NotFoundError, ValidationError } from "./types";
 
 /**
  * Vertical extras that the presets advertise as `toolExtras`.
@@ -90,7 +90,7 @@ export async function sendIntakeForm(
   const booking = await loadBooking(ctx, bookingId);
   const { customer, offering } = await bookingContext(ctx, booking);
   const settings = await getSettings(ctx);
-  const intakeUrl = intakeFormLink(booking.id);
+  const intakeUrl = intakeFormLink(settings.tenant.slug, booking.id);
 
   await ctx.db
     .update(schema.bookings)
@@ -232,4 +232,171 @@ export async function joinWalkInQueue(
     position: ahead.length + 1,
     startsAt,
   };
+}
+
+/* ----- Consultancy intake forms ----- */
+
+export type IntakeAnswers = {
+  topic: string;
+  attendees: string;
+  goals: string;
+  notes: string;
+};
+
+export type IntakeFormView = {
+  bookingId: string;
+  businessName: string;
+  offeringName: string;
+  startsAt: Date;
+  customerName: string;
+  submittedAt: Date | null;
+  answers: IntakeAnswers;
+  cancelled: boolean;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function cleanLine(value: unknown, max: number): string {
+  return String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
+}
+
+function cleanBlock(value: unknown, max: number): string {
+  return String(value ?? "")
+    .replace(/\r\n/g, "\n")
+    .trim()
+    .slice(0, max);
+}
+
+/**
+ * Intake answers are confidential, so they live encrypted in
+ * `customer_sensitive` (never in booking attributes, prompts or logs).
+ */
+async function readSensitive(
+  ctx: ServiceContext,
+  customerId: string,
+): Promise<{ row: typeof schema.customerSensitive.$inferSelect | null; data: Record<string, unknown> }> {
+  const row = await ctx.db.query.customerSensitive.findFirst({
+    where: and(
+      eq(schema.customerSensitive.tenantId, ctx.tenantId),
+      eq(schema.customerSensitive.customerId, customerId),
+    ),
+  });
+  if (!row) return { row: null, data: {} };
+  try {
+    const data = decryptJson<Record<string, unknown>>(row.dataEncrypted);
+    return { row, data: isRecord(data) ? data : {} };
+  } catch {
+    // A rotated ENCRYPTION_KEY must not break the public form; staff can still
+    // see that a submission happened from the audit log.
+    return { row, data: {} };
+  }
+}
+
+function intakeEntry(data: Record<string, unknown>, bookingId: string): Record<string, unknown> {
+  const intake = isRecord(data.intake) ? data.intake : {};
+  return isRecord(intake[bookingId]) ? (intake[bookingId] as Record<string, unknown>) : {};
+}
+
+/** Public-safe view for `/intake/<tenant>/<bookingId>`: no phone, price or internal ids. */
+export async function getIntakeForm(
+  ctx: ServiceContext,
+  bookingId: string,
+): Promise<IntakeFormView> {
+  const booking = await loadBooking(ctx, bookingId);
+  const settings = await getSettings(ctx);
+  const { customer, offering } = await bookingContext(ctx, booking);
+  const { data } = await readSensitive(ctx, booking.customerId);
+  const entry = intakeEntry(data, booking.id);
+  const submittedAt =
+    typeof entry.submittedAt === "string" && !Number.isNaN(new Date(entry.submittedAt).getTime())
+      ? new Date(entry.submittedAt)
+      : null;
+
+  return {
+    bookingId: booking.id,
+    businessName: settings.tenant.name,
+    offeringName: offering?.name ?? "Session",
+    startsAt: booking.startsAt,
+    customerName: customer.name,
+    submittedAt,
+    answers: {
+      topic: cleanLine(entry.topic, 160),
+      attendees: cleanLine(entry.attendees, 200),
+      goals: cleanBlock(entry.goals, 1000),
+      notes: cleanBlock(entry.notes, 2000),
+    },
+    cancelled: booking.status === "cancelled",
+  };
+}
+
+/** Stores one intake submission per booking, encrypted, and alerts staff. */
+export async function submitIntakeForm(
+  ctx: ServiceContext,
+  bookingId: string,
+  input: IntakeAnswers & { consented: boolean },
+): Promise<IntakeFormView> {
+  const booking = await loadBooking(ctx, bookingId);
+  if (ctx.principal.type === "customer" && booking.customerId !== ctx.principal.customerId) {
+    throw new ForbiddenError("You can only complete the intake form for your own booking.");
+  }
+  if (booking.status === "cancelled") {
+    throw new ValidationError("This booking was cancelled. Ask the business for a new intake link.");
+  }
+  if (!input.consented) {
+    throw new ValidationError("Please confirm the business may use these answers to prepare for the session.");
+  }
+
+  const answers: IntakeAnswers = {
+    topic: cleanLine(input.topic, 160),
+    attendees: cleanLine(input.attendees, 200),
+    goals: cleanBlock(input.goals, 1000),
+    notes: cleanBlock(input.notes, 2000),
+  };
+  if (answers.topic.length < 3) {
+    throw new ValidationError("Tell us the main topic in a few words.");
+  }
+
+  const { row, data } = await readSensitive(ctx, booking.customerId);
+  const intake = isRecord(data.intake) ? data.intake : {};
+  const updated = {
+    ...data,
+    intake: {
+      ...intake,
+      [booking.id]: { ...answers, submittedAt: new Date().toISOString() },
+    },
+  };
+
+  await ctx.db
+    .insert(schema.customerSensitive)
+    .values({
+      customerId: booking.customerId,
+      tenantId: ctx.tenantId,
+      dataEncrypted: encryptJson(updated),
+      consentAt: row?.consentAt ?? new Date(),
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: schema.customerSensitive.customerId,
+      set: {
+        dataEncrypted: encryptJson(updated),
+        consentAt: row?.consentAt ?? new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+  // Confidentially: audit the fact, never the answers, and alert staff without
+  // copying the content into the staff channel.
+  await audit(ctx, "booking.intake_submitted", "booking", booking.id, {
+    fields: ["topic", "attendees", "goals", "notes"],
+  });
+  await sendStaffAlert(
+    ctx,
+    `Intake form received for ${booking.id} on ${formatNairobi(booking.startsAt)}.`,
+  );
+  return getIntakeForm(ctx, bookingId);
 }

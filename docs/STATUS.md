@@ -1,6 +1,6 @@
 # Build Status
 
-> Last updated: 2026-11-11. Written for any agent or human picking this project up cold.
+> Last updated: 2026-11-12. Written for any agent or human picking this project up cold.
 > Source of truth for the plan is `PLAN.md` (§9 = phases). This file records **where the build actually is**.
 > Cold-start instructions live in [`HANDOFF.md`](./HANDOFF.md).
 > What the owner must still provide (keys, public URL, product answers) lives in [`ACTION-ITEMS.md`](./ACTION-ITEMS.md).
@@ -9,7 +9,7 @@
 
 **Gated position: Phase 2.** Phase 1 passed on 2026-11-09: migrations, seed and `pnpm test:integration` ran against a real PostgreSQL 16 instance, seeded owner/staff credentials verified, and the dashboard rendered with an owner session. Phase 2 (M-Pesa sandbox) is the next gate; external sandboxes are still unavailable here.
 
-**Code position: ahead of the gates.** Phases 1-5 are written, the three agent roles exist (`wambo`, `admin`, `ledger-digest`), all four vertical presets ship, and the Phase 6 conveniences are partly written. Phase 6's pilot itself is not started.
+**Code position: ahead of the gates.** Phases 1-5 are written, the four agent configs exist (`wambo`, `admin`, `ledger-digest`, `ops` in propose mode), all four vertical presets ship, and the Phase 6 conveniences (reviews, quote nudges, CRM segments, CSV exports) are written. Phase 6's pilot itself is not started.
 
 Treat code beyond Phase 1 as **written but unverified against infrastructure** until its acceptance test runs, with one exception: Phase 3's webhook, reminder and approval behaviour passed against Postgres in mock mode on 2026-11-11.
 
@@ -20,12 +20,12 @@ Treat code beyond Phase 1 as **written but unverified against infrastructure** u
 | 1. Core app | resources/offerings/bookings, overlap constraint, availability, calendar, customers, dashboard | Written | **Yes — 2026-11-09** | PostgreSQL 16: `pnpm db:migrate`, `pnpm db:seed`, `pnpm test:integration` (4/4), seeded owner/staff login, dashboard 200. Docker Compose verified 2026-11-09 |
 | 2. Money | pricing, invoices + PDF, payments, expenses/P&L, M-Pesa STK + callback | Written | **No** | Tuma sandbox run; callback replay idempotency check |
 | 3. WhatsApp / reminders / MCP / approvals | webhook, inbox, pg-boss, `docs/tool-contract.md`, MCP server, approvals | Written | **Yes (mock) — 2026-11-11** | Postgres-backed webhook dedupe, consent, takeover, turn cap, Nairobi reminder times and digest content all pass; wrong-tenant/scope rejection and approval conversion pass. A real WhatsApp Cloud API send and a real-model turn remain. |
-| 4. Agent engine + Wambo | loop, MCP gateway, guard, context, run log, tracing, evals | Written | **No** | OpenRouter spike (PLAN §6.6, "first task") not done; mock evals only; no real-model run; no stub-MCP second-vertical test |
-| 5. Admin + ops agents | staff chat, events, `ledger-digest`, ops propose mode | Written | **No** | Admin/ops/tenancy evals now include pending approvals, bulk send, tenant isolation and capacity in mock form; still need a real-model run. Staff chat and digest delivery are verified in mock (4 tests). Agent definitions live in code modules rather than `agents/<id>/agent.json` folders (decision recorded below) |
-| 7. Salon | duration slots, stylists, walk-ins (`walkins.join_queue`) | Preset + tool | **No** | Salon eval set now includes a mock scenario; needs real-model run |
+| 4. Agent engine + Wambo | loop, MCP gateway, guard, context, run log, tracing, evals | Written | **No** | OpenRouter spike (PLAN §6.6, "first task") not done; mock evals only; no real-model run. Stub-MCP second-vertical acceptance now passes (`tests/unit/mcp-stub.test.ts`, in-memory MCP transport with salon tools). |
+| 5. Admin + ops agents | staff chat, events, `ledger-digest`, ops propose mode | Written | **No** | Admin/ops/tenancy evals include pending approvals, bulk send, tenant isolation, capacity and three ops scenarios in mock form; still need a real-model run. Staff chat and digest delivery are verified in mock (4 tests). Agent definitions live in code modules rather than `agents/<id>/agent.json` folders (decision recorded below) |
+| 7. Salon | duration slots, stylists, walk-ins (`walkins.join_queue`) | Preset + tool | **No** | Salon eval set now includes a mock scenario and the stub-MCP acceptance; needs real-model run |
 | 8. Dental | dentist+chair, recalls (`recalls.schedule`), sensitive data | Preset + tool | **No** | Privacy eval (`dental-privacy`) added in mock form; needs real-model run |
-| 9. Consultancy | meeting links (`meetings.create_link`, auto on confirm), intake (`intake.send_form`), packages | Preset + tools | **No** | Confidentiality eval added in mock form; verify link on real confirm |
-| 6. Pilot | reviews polish, CRM segments, CSV export, 2-week shadow mode | Partial | **No** | CRM segments, CSV export and DPA erasure are written; the 2-week shadow mode needs the real garden |
+| 9. Consultancy | meeting links (`meetings.create_link`, auto on confirm), public intake form (`intake.send_form` → `/intake/[id]`), packages | Preset + tools + UI | **No** | Confidentiality eval added in mock form; intake encrypted-storage/audit/alert test passes; verify link on real confirm |
+| 6. Pilot | reviews polish, quote nudges, CRM segments, CSV export, 2-week shadow mode | Written except pilot | **No** | Low-score alerts, +24h/+72h quote nudges, CRM segments, CSV export and DPA erasure are written; the 2-week shadow mode needs the real garden |
 
 (PLAN.md lists phases 7-9 before 6 in the text; numeric order above is by dependency.)
 
@@ -34,11 +34,11 @@ Treat code beyond Phase 1 as **written but unverified against infrastructure** u
 Run with `pnpm verify` (typecheck + test typecheck + unit tests + mock evals + production build):
 
 - `pnpm typecheck` — all 9 packages/apps pass
-- `pnpm test` — 50 unit tests pass (no DB)
+- `pnpm test` — 53 unit tests pass (no DB)
 - `pnpm env:check` — reports the selected integration modes and every missing provider key, without printing secret values
 - `pnpm smoke:mpesa --mock` — Phase 2 harness dry run: hold → STK → callback → replay, asserting one payment and one audit row (passed 2026-11-11)
-- `pnpm eval:mock` — 18 deterministic agent scenarios pass
-- `pnpm build` — production Next build succeeds (23 routes, including the CSV export route)
+- `pnpm eval:mock` — 21 deterministic agent scenarios pass, including three ops scenarios
+- `pnpm build` — production Next build succeeds (including the CSV export and public intake routes)
 
 Phase 1 gate, run on 2026-11-09 against a temporary embedded PostgreSQL 16 server:
 
@@ -61,19 +61,24 @@ After adding Tuma support on 2026-11-11, the suite was re-run against embedded P
 Phase 3 coverage was added on 2026-11-11 against the same embedded PostgreSQL 16:
 
 - `tests/integration/whatsapp-flow.test.ts` (5) — drives the real agent-service Hono routes: a duplicate webhook stores one inbound message and produces one agent run, the DPA consent line is sent first, a staff takeover keeps automation silent, the hourly turn cap creates a handoff instead of a model run, an image receipt is stored without a run, and a bad `X-Hub-Signature-256` is rejected with 401.
-- `tests/integration/reminders.test.ts` (5) — reminders land at exact Nairobi-time offsets (hold nudge/deposit/‑7d/‑3d/‑1d/thank-you/review), nothing is due before `send_at`, dispatch sends in mock mode with a single `KES` prefix and the Nairobi event date, expired holds are released with reminders cancelled, and the 07:00 digest (04:00 UTC) is built from the Nairobi-local day with today's events and unpaid balances.
+- `tests/integration/reminders.test.ts` (6) — reminders land at exact Nairobi-time offsets (hold nudge/deposit/‑7d/‑3d/‑1d/thank-you/review), nothing is due before `send_at`, dispatch sends in mock mode with a single `KES` prefix and the Nairobi event date, expired holds are released with reminders cancelled, an unconfirmed inquiry gets quote nudges at +24h/+72h which are cancelled on confirm, and the 07:00 digest (04:00 UTC) is built from the Nairobi-local day with today's events and unpaid balances.
 
-- `tests/integration/agent-internal.test.ts` (4) — `/internal/*` rejects a missing or wrong shared secret, a staff chat turn persists an `agent_runs` row under the staff principal, a user from another tenant is rejected, and the digest endpoint writes a staff alert.
+- `tests/integration/agent-internal.test.ts` (5) — `/internal/*` rejects a missing or wrong shared secret, a staff chat turn persists an `agent_runs` row under the staff principal, a user from another tenant is rejected, the digest endpoint writes a staff alert, and `/internal/ops` runs the ops watch under the system principal.
 
-Last full run: 2026-11-11 (**35/35 integration**, embedded PostgreSQL 16). Docker stack last verified 2026-11-09; the image predates Tuma and the Phase 3 fixes.
+Last full run: 2026-11-12 (**40/40 integration**, embedded PostgreSQL 16). Docker stack last verified 2026-11-09; the image predates Tuma, intake, the ops agent and the Phase 3 fixes.
 
 ## Never verified
 
 - Anything against real WhatsApp, the Tuma sandbox, OpenRouter or Langfuse
 - The CI workflow has not run on GitHub yet
 
-## Recent changes (2026-11-08 → 11-11)
+## Recent changes (2026-11-08 → 11-12)
 
+- **Ops agent in propose mode (2026-11-12):** a fourth config (`ops`) scans open handoffs, expiring holds and unmatched M-Pesa receipts and can only call `approvals.request`; write/decide tools are blocked. `/internal/ops` runs it under the system principal, and the worker schedules an `ops.scan` every two hours. Three mock evals cover reporting, proposal-not-execution and prompt injection. The eval harness now passes the right principal per agent (customer/staff/system).
+- **Stub-MCP second vertical (2026-11-12):** `tests/unit/mcp-stub.test.ts` runs the unchanged engine against a real MCP server over an in-memory transport exposing salon tools, proving the §6.9 config-only acceptance test.
+- **Consultancy intake (2026-11-12):** `intake.send_form` now points at a working public `/intake/[id]` form (unguessable booking id). Answers are encrypted in `customer_sensitive`, audited without content, and staff are alerted without content; the booking detail has an "Online session" card to create the meeting link and send/resend the form.
+- **Quote nudges (2026-11-12):** unconfirmed inquiry bookings get `quote_nudge` at +24h and +72h from creation; confirming or cancelling clears them, and dispatch skips them once the booking is no longer an inquiry.
+- **Meetings mode (2026-11-12):** `MEETINGS_MODE` is `mock` only (a working Jitsi link). The unimplemented `google` value is rejected at startup instead of failing later.
 - **Fail-fast configuration (2026-11-11):** `loadEnv()` now validates the selected modes and refuses to start when `MPESA_MODE=tuma|daraja`, `WHATSAPP_MODE=cloud` or a real `WAMBO_MODEL` is missing its keys (or, for M-Pesa, a public HTTPS callback). `pnpm env:check` prints the same diagnosis without secret values. Mock mode always starts, so a fresh checkout still builds.
 - **Empty Tuma callback (2026-11-11):** an empty `TUMA_CALLBACK_URL=` now falls back to `MPESA_CALLBACK_URL` instead of sending Tuma a blank `callback_url`.
 - **Docker stack committed (2026-11-11):** root `Dockerfile`, `.dockerignore` and `docker-compose.yml` are now versioned with the runbook; the image itself still needs rebuilding for Tuma and the Phase 3 fixes.

@@ -59,6 +59,8 @@ export const consultancyPreset: Preset = {
     reminder_1d: "Hi {{customer_name}}, your {{offering}} is tomorrow at {{time}}. {{meeting_line}}",
     reminder_1h: "Hi {{customer_name}}, we're meeting in one hour. See you shortly.",
     payment_received: "Thank you {{customer_name}}, payment of KES {{amount}} received.",
+    quote_nudge:
+      "Hi {{customer_name}}, just checking in on your {{offering}} quote for {{date}} (KES {{amount}}). Would you like to book it?",
   },
   faq: [
     { q: "Can sessions be online?", a: "Yes, we use Google Meet or Zoom. A link is sent on confirmation." },

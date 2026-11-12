@@ -72,6 +72,11 @@ describe("runtime configuration validation", () => {
     expect(problems[0]).toContain('MPESA_MODE="tumaa"');
   });
 
+  it("rejects an unimplemented meetings provider", () => {
+    const problems = missingRuntimeEnv({ ...base, MEETINGS_MODE: "google" });
+    expect(problems[0]).toContain('MEETINGS_MODE="google"');
+  });
+
   it("does not let a real model id run without its API key", () => {
     expect(
       missingRuntimeEnv({ ...base, WAMBO_MODEL: "anthropic/claude-sonnet-4.5" }),

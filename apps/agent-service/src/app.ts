@@ -417,6 +417,32 @@ app.post("/internal/digest", async (c) => {
   return c.json({ ok: true, text: turn.text, result: turn.result });
 });
 
+/** Ops watch: read-only scan; any proposal lands in the approvals queue. */
+app.post("/internal/ops", async (c) => {
+  const body = await readJson(c.req.raw);
+  const tenant = await tenantBySlugOrId(body);
+  if (!tenant) return c.json({ ok: false, error: "Tenant not found" }, 404);
+
+  const turn = await runTurn({
+    tenantId: tenant.id,
+    agentId: "ops",
+    principal: systemPrincipal(tenant.id, "ops"),
+    trigger: "scheduled",
+    userText:
+      "Scan open handoffs, expiring holds, unmatched M-Pesa receipts and pending approvals. Report what needs attention, or propose at most one action for staff approval.",
+    extraContext:
+      typeof body.event === "string" ? `Triggered by event: ${body.event}.` : "Scheduled queue scan.",
+  });
+  if (turn.busy) return c.json({ ok: false, busy: true }, 409);
+  if (!turn.text) return c.json({ ok: false, error: "No ops report produced." }, 502);
+
+  await withPrincipal(systemPrincipal(tenant.id, "ops"), (ctx) =>
+    sendStaffAlert(ctx, turn.text),
+  );
+
+  return c.json({ ok: true, text: turn.text, result: turn.result });
+});
+
 /** Staff sends a manual WhatsApp message from the inbox. */
 app.post("/internal/staff-message", async (c) => {
   const body = await readJson(c.req.raw);
@@ -457,7 +483,11 @@ app.post("/internal/events", async (c) => {
     return c.redirect("/internal/digest", 307);
   }
 
-  // v1 ops agent is read-only: acknowledge and let the worker decide next steps.
+  if (event === "ops.scan" || event === "handoff.created" || event === "hold.expiring") {
+    return c.redirect("/internal/ops", 307);
+  }
+
+  // Unknown events are acknowledged; no model run is spent on them.
   return c.json({ ok: true, event, tenantId: tenant.id, accepted: true });
 });
 

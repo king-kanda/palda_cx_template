@@ -12,7 +12,12 @@ export function createMeetingLink(input: { topic: string; startsAt: Date }): str
   throw new Error("Meeting provider not configured. Set MEETINGS_MODE=mock or implement a provider.");
 }
 
-export function intakeFormLink(sessionId: string): string {
+/**
+ * Public intake links carry the tenant slug because the page cannot read the
+ * booking before a tenant context exists (RLS). The booking UUID remains the
+ * only credential for the form itself.
+ */
+export function intakeFormLink(tenantSlug: string, sessionId: string): string {
   const base = process.env.APP_URL ?? "http://localhost:3000";
-  return `${base}/intake/${sessionId}`;
+  return `${base.replace(/\/$/, "")}/intake/${encodeURIComponent(tenantSlug)}/${sessionId}`;
 }

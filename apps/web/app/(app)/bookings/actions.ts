@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
+  attachMeetingLink,
   cancelBookingFor,
   confirmBookingFor,
   createBookingFor,
@@ -11,6 +12,7 @@ import {
   recordPayment,
   requestReview,
   rescheduleBookingFor,
+  sendIntakeForm,
   sendInvoice,
   withPrincipal,
   ServiceError,
@@ -176,6 +178,7 @@ export async function sendInvoiceAction(formData: FormData): Promise<void> {
     revalidatePath("/invoices");
     redirect("/invoices");
   } catch (error) {
+    if (error instanceof Error && error.message === "NEXT_REDIRECT") throw error;
     fail("/invoices", error);
   }
 }
@@ -188,6 +191,33 @@ export async function requestReviewAction(formData: FormData): Promise<void> {
     revalidatePath(`/bookings/${bookingId}`);
     redirect(`/bookings/${bookingId}`);
   } catch (error) {
+    if (error instanceof Error && error.message === "NEXT_REDIRECT") throw error;
+    fail(`/bookings/${bookingId}`, error);
+  }
+}
+
+export async function sendIntakeFormAction(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  const bookingId = String(formData.get("bookingId") ?? "");
+  try {
+    await withPrincipal(principalOf(session), (ctx) => sendIntakeForm(ctx, bookingId));
+    revalidatePath(`/bookings/${bookingId}`);
+    redirect(`/bookings/${bookingId}`);
+  } catch (error) {
+    if (error instanceof Error && error.message === "NEXT_REDIRECT") throw error;
+    fail(`/bookings/${bookingId}`, error);
+  }
+}
+
+export async function createMeetingLinkAction(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  const bookingId = String(formData.get("bookingId") ?? "");
+  try {
+    await withPrincipal(principalOf(session), (ctx) => attachMeetingLink(ctx, bookingId));
+    revalidatePath(`/bookings/${bookingId}`);
+    redirect(`/bookings/${bookingId}`);
+  } catch (error) {
+    if (error instanceof Error && error.message === "NEXT_REDIRECT") throw error;
     fail(`/bookings/${bookingId}`, error);
   }
 }
