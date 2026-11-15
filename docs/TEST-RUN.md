@@ -20,7 +20,7 @@ Meta and Tuma cannot reach `localhost`. Use a tunnel (Cloudflare Tunnel or ngrok
 
 ## 3. WhatsApp routing
 
-Each customer connects its own number from a connect link (Engine > Operations > Connections > WhatsApp). The number is recorded in `whatsapp_routes` and inbound messages are routed by it; a message to a number nobody connected is ignored. See `docs/WHATSAPP-ONBOARDING.md`.
+Each customer's owner connects their own number from Integrations in their own app (the Engine shows it read-only). The number is recorded in `whatsapp_routes` and inbound messages are routed by it; a message to a number nobody connected is ignored. See `docs/WHATSAPP-ONBOARDING.md`.
 
 ## 4. Order of checks
 

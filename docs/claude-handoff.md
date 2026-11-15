@@ -332,7 +332,7 @@ suspend, and open-as-owner with the banner and return. **Not verified:** the wiz
 - **Customers cannot change their own password** (no screen); the Engine can reset it. Nothing is emailed: the one-time
   password is copied from the Engine and sent by the team (e.g. WhatsApp).
 - **Engine team management** is CLI-only (`engine:admin`); no roles, no per-admin permissions, no login rate limiting or MFA.
-- **WhatsApp uses Embedded Signup with coexistence** (`docs/WHATSAPP-ONBOARDING.md`). Each customer connects its own number; routing is `whatsapp_routes`. Built and tested against mocks and a stubbed Graph API only, never against real Meta. Not built: per-customer message templates, history import, token renewal.
+- **WhatsApp uses Embedded Signup with coexistence** (`docs/WHATSAPP-ONBOARDING.md`). Each customer's owner connects their own number from Integrations in their own app (the Engine is read-only); routing is `whatsapp_routes`. Built and tested against mocks and a stubbed Graph API only, never against real Meta. Not built: per-customer message templates, history import, token renewal.
 - The agent's picture is stored as a small data URL (~20-40 KB) inside the business's config. It is shown in the app only; it is
   **not** sent to WhatsApp (a WhatsApp business profile picture is set in Meta Business Manager).
 - Customer owners can still edit the agent's name and voice on their Wambo settings page; decide whether that should be

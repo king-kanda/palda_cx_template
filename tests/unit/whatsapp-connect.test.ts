@@ -2,10 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseWhatsAppPayload } from "../../packages/integrations/src/whatsapp";
 import { sendText } from "../../packages/integrations/src/whatsapp";
 import { parseSignupMessage } from "../../packages/integrations/src/whatsapp-signup-message";
-import { createWhatsappConnectToken, verifyWhatsappConnectToken } from "../../packages/services/src/whatsapp-connect";
-
-const TENANT_A = "11111111-1111-4111-8111-111111111111";
-const TENANT_B = "22222222-2222-4222-8222-222222222222";
 
 const message = (id: string, from: string, body: string) => ({ id, from, timestamp: "1760000000", type: "text", text: { body } });
 const change = (phoneNumberId: string, value: Record<string, unknown>, field = "messages") => ({
@@ -106,52 +102,6 @@ describe("parseSignupMessage (what Meta's popup posts back)", () => {
     for (const data of [null, "not json", 5, {}, { type: "OTHER", event: "FINISH" }, { type: "WA_EMBEDDED_SIGNUP", event: "SOMETHING_NEW" }, "{bad"]) {
       expect(parseSignupMessage("https://www.facebook.com", data)).toBeNull();
     }
-  });
-});
-
-describe("connect links", () => {
-  const original = process.env.AUTH_SECRET;
-  beforeEach(() => {
-    process.env.AUTH_SECRET = "unit-test-secret-aaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-  });
-  afterEach(() => {
-    process.env.AUTH_SECRET = original;
-  });
-
-  it("round-trips and names exactly one business", () => {
-    const token = createWhatsappConnectToken(TENANT_A, 72);
-    expect(verifyWhatsappConnectToken(token)).toEqual({ tenantId: TENANT_A });
-    expect(verifyWhatsappConnectToken(createWhatsappConnectToken(TENANT_B))).toEqual({ tenantId: TENANT_B });
-  });
-
-  it("expires", () => {
-    const token = createWhatsappConnectToken(TENANT_A, 1);
-    expect(verifyWhatsappConnectToken(token, Date.now() + 30 * 60 * 1000)).not.toBeNull();
-    expect(verifyWhatsappConnectToken(token, Date.now() + 61 * 60 * 1000)).toBeNull();
-  });
-
-  it("cannot be altered to connect a number to a different business", () => {
-    const token = createWhatsappConnectToken(TENANT_A, 72);
-    const [payload, sig] = token.split(".");
-    const forged = Buffer.from(JSON.stringify({ p: "wa-connect", t: TENANT_B, e: Math.floor(Date.now() / 1000) + 99999, n: "x" })).toString("base64url");
-    expect(verifyWhatsappConnectToken(`${forged}.${sig}`)).toBeNull();
-    expect(verifyWhatsappConnectToken(`${payload}.${"0".repeat(64)}`)).toBeNull();
-    expect(verifyWhatsappConnectToken(`${payload}.${sig}.extra`)).toBeNull();
-    expect(verifyWhatsappConnectToken(`${payload}x.${sig}`)).toBeNull();
-  });
-
-  it("is rejected under a different secret, and for garbage", () => {
-    const token = createWhatsappConnectToken(TENANT_A, 72);
-    process.env.AUTH_SECRET = "a-different-secret-bbbbbbbbbbbbbbbbbbbbbbbbbbbb";
-    expect(verifyWhatsappConnectToken(token)).toBeNull();
-    process.env.AUTH_SECRET = "unit-test-secret-aaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    for (const junk of ["", "x", "a.b", "...", "not a token", "e30.e30"]) expect(verifyWhatsappConnectToken(junk)).toBeNull();
-  });
-
-  it("is not usable as any other kind of signed value", () => {
-    const payload = Buffer.from(JSON.stringify({ p: "something-else", t: TENANT_A, e: Math.floor(Date.now() / 1000) + 999 })).toString("base64url");
-    const real = createWhatsappConnectToken(TENANT_A, 72);
-    expect(verifyWhatsappConnectToken(`${payload}.${real.split(".")[1]}`)).toBeNull();
   });
 });
 

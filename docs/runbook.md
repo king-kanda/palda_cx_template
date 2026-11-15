@@ -163,7 +163,7 @@ Customers are set up by the Palda team in the Engine (`/engine`); there is no pu
   no RLS. Re-run the `GRANT ... ON ALL TABLES` statement in section 4 after migrating so `garden_web` can read and write them.
 - A new customer starts **In setup** and cannot sign in. **Roll out** (in the Engine) makes it live and issues the owner's password.
   The password is shown once and is never stored readable; use **Reset owner password** to issue another.
-- WhatsApp is routed to a customer by `whatsapp_routes`, filled when the customer connects their number (Engine > Operations > Connections). Migration 0008 adds that table and backfills it; like `login_index` it has no RLS, so re-run the GRANT in section 4 after migrating. See `docs/WHATSAPP-ONBOARDING.md`.
+- WhatsApp is routed to a customer by `whatsapp_routes`, filled when the customer's owner connects their number (Integrations, in their own app). Migration 0008 adds that table and backfills it; like `login_index` it has no RLS, so re-run the GRANT in section 4 after migrating. See `docs/WHATSAPP-ONBOARDING.md`.
 
 ## 5. MCP and the agent engine
 
@@ -202,7 +202,7 @@ Full guide: `docs/WHATSAPP-ONBOARDING.md` (Embedded Signup and coexistence).
 3. In Meta, set the callback URL to
    `https://<host>/webhooks/whatsapp` and the verify token to
    `WHATSAPP_VERIFY_TOKEN`.
-4. Send each customer a connect link from the Engine; routing is recorded automatically.
+4. Each customer's owner connects their number from Integrations in their own app; routing is recorded automatically.
 5. `GET /webhooks/whatsapp` answers the verification challenge; `POST` verifies
    `X-Hub-Signature-256` when the app secret is set.
 

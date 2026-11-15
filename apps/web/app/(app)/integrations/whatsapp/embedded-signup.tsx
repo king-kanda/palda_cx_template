@@ -19,7 +19,6 @@ declare global {
 type Phase = "idle" | "working" | "done" | "error";
 
 export function EmbeddedSignup({
-  token,
   appId,
   configId,
   graphVersion,
@@ -27,7 +26,6 @@ export function EmbeddedSignup({
   mock,
   initial,
 }: {
-  token: string;
   appId: string | null;
   configId: string | null;
   graphVersion: string;
@@ -47,7 +45,7 @@ export function EmbeddedSignup({
   const submit = useCallback(
     async (payload: { code: string; wabaId: string | null; phoneNumberId: string | null; businessId: string | null; coexistence: boolean }) => {
       setPhase("working");
-      const res = await completeSignupAction({ token, ...payload });
+      const res = await completeSignupAction(payload);
       if (res.ok && res.connection) {
         setResult(res.connection);
         setPhase("done");
@@ -56,7 +54,7 @@ export function EmbeddedSignup({
         setPhase("error");
       }
     },
-    [token],
+    [],
   );
 
   // Meta sends the account ids in a message and the exchangeable code in the login callback. Either can arrive first, so wait for

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CalendarDays, Calculator, FileText, MessageSquare, Plug, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -6,7 +7,7 @@ import { getSession } from "@/lib/auth";
 import { principalOf } from "@/lib/principal";
 import { dateTime } from "@/lib/format";
 import { EmptyState, PageHeader, Section } from "@/components/ui";
-import { startWhatsappConnectAction } from "./actions";
+import { checkWhatsappAction, disconnectWhatsappAction } from "./whatsapp/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -82,9 +83,21 @@ export default async function IntegrationsPage() {
             )}
           </div>
           {isOwner ? (
-            <form action={startWhatsappConnectAction}>
-              <button className="btn btn-primary h-11 px-5">{waLive ? "Reconnect WhatsApp" : "Connect WhatsApp"}</button>
-            </form>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/integrations/whatsapp" className="btn btn-primary h-11 px-5">
+                {waLive ? "Reconnect WhatsApp" : "Connect WhatsApp"}
+              </Link>
+              {whatsapp ? (
+                <>
+                  <form action={checkWhatsappAction}>
+                    <button className="btn btn-secondary h-11 px-5">Check connection</button>
+                  </form>
+                  <form action={disconnectWhatsappAction}>
+                    <button className="btn btn-secondary h-11 px-5 text-danger-600">Disconnect</button>
+                  </form>
+                </>
+              ) : null}
+            </div>
           ) : (
             <p className="text-xs text-ink-muted">Only the account owner can connect WhatsApp.</p>
           )}

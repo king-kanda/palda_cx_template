@@ -1,0 +1,98 @@
+PALDA CX - PENDING
+Last updated: 2026-11-15
+
+STATE OF THE CODE
+- Last commit: d22160c (WhatsApp Embedded Signup + coexistence). Pushed: NO.
+- UNCOMMITTED: connecting WhatsApp moved to the customer's own app
+  (Integrations > Connect WhatsApp, owner only). Engine is read-only. Signed-link
+  code removed. Docs updated. Typecheck clean, 282 unit + 172 integration pass,
+  browser check passes. Evals (57) not re-run after this change.
+- Nothing has been run against real Meta, Tuma or a real model. Mocks and stubs only.
+
+
+A. NEEDS YOU (accounts, approvals, decisions)
+
+[ ] Meta app creds in .env: META_APP_ID, META_APP_SECRET, META_ES_CONFIG_ID,
+    WHATSAPP_VERIFY_TOKEN. Set WHATSAPP_GRAPH_VERSION to a current version.
+    (docs/WHATSAPP-ONBOARDING.md section 1)
+[ ] Meta Tech Provider approval + business verification + app review
+    (whatsapp_business_management, whatsapp_business_messaging).
+    Until then only people with a role on the app can connect a number.
+[ ] Confirm coexistence is available for Kenyan numbers (Meta docs did not say).
+[ ] Public HTTPS host for :3000 (APP_URL) and :3100 (webhook). Tunnel is fine for testing.
+[ ] Meta webhook: callback https://<host-3100>/webhooks/whatsapp, subscribe to
+    messages, smb_message_echoes, history, smb_app_state_sync, account_update.
+[ ] Tuma live approval (sandbox caps KES 1-100). Keys: TUMA_EMAIL, TUMA_API_KEY,
+    TUMA_CALLBACK_URL (public https).
+[ ] OPENROUTER_API_KEY + real WAMBO_MODEL, then run real-model evals (pnpm eval).
+[ ] Data protection: dental DPA sign-off, ODPC registration, privacy policy,
+    consent wording for AI chats and for importing coexistence history.
+[ ] Decide: Engine admin accounts, what to do when WhatsApp ends a customer's link,
+    pricing and message templates to offer.
+[ ] Decide: do customers authorise Zoho / Google Workspace themselves via real OAuth?
+    (today the Palda team connects those via external MCP servers in the Engine)
+[ ] Decide: commit + push the uncommitted work (remote is the PERSONAL account,
+    git@github.com:king-kanda/palda_cx_template.git).
+
+
+B. I CAN BUILD (say which first)
+
+[ ] 1. WhatsApp message templates per customer WABA (reminders, confirmations,
+       review requests fail outside the 24h window until templates are approved).
+[ ] 2. Token health: scheduled connection checks, renewal, alert on failure.
+[ ] 3. Restricted DB role for production (local user is superuser, so RLS is not
+       enforced locally). Re-test tenant isolation under it.
+[ ] 4. Customer password change / reset screen.
+[ ] 5. Engine admin hardening: roles, login rate limiting, MFA.
+[ ] 6. Delivery receipts (sent / delivered / read).
+[ ] 7. Import coexistence history into the inbox (wait for the data-protection decision).
+[ ] 8. Backups, monitoring, alerting (Postgres + Qdrant) and a deploy pipeline.
+[ ] 9. pnpm check:all script that sets the test env safely, so the suite can never
+       run against the live database by mistake.
+[ ] 10. Customer self-service OAuth for Zoho / Google Workspace (only if you say yes above).
+
+
+C. THE CHECK YOU RUN WHEN YOU CAN
+
+C1. Quick UI check (mock mode, no keys)
+    docker compose up -d --build
+    - http://localhost:3000/engine/login -> sign in as the Engine admin
+    - Open a customer -> "Open their app" -> Integrations -> Connect WhatsApp
+    - Press "Simulate a new number" for one customer and
+      "Simulate an existing WhatsApp Business app number" for another
+    - Confirm each customer's inbox only gets its own messages
+    - Back in the Engine: Customers > (customer) > Operations > Connections
+      should show the status read-only, with no connect/disconnect buttons
+    (docs/TEST-RUN.md has the longer walkthrough)
+
+C2. Automated suites (set the test env in the SAME command; never run without it)
+    Test DB: garden_test in the garden_db container (NOT garden_bookings).
+    Env: DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/garden_test
+         AUTH_SECRET=ci-only-secret-0000000000000000000000000000
+         ENCRYPTION_KEY=<64 zeros>  INTERNAL_SECRET=ci-internal-secret
+         MCP_TOKEN_SECRET=ci-mcp-secret
+         WHATSAPP_MODE=mock MPESA_MODE=mock MEETINGS_MODE=mock
+         WAMBO_MODEL=mock EMBEDDING_MODE=mock VECTOR_MODE=mock
+    Then: pnpm typecheck && pnpm typecheck:tests
+          pnpm test               (expect 282 unit)
+          pnpm eval:mock          (expect 57/57)
+          pnpm test:integration   (expect 172)
+
+C3. First real-Meta test (the biggest unknown)
+    pnpm env:check
+    - Use two tester numbers added as roles on the Meta app: one NEW number,
+      one existing WhatsApp Business app number (coexistence)
+    - Customer owner: Integrations > Connect WhatsApp, complete Meta's popup
+    - Press "Check connection", send the number a message, watch the run in the Engine
+    - Reply from the phone app on the coexistence number: agent should go quiet in that chat
+    - Connect the second number: confirm each message lands in the right business
+    - Use shadow mode for the first real messages
+    - Also try: pnpm smoke:mpesa --phone <number> --amount 1   (Tuma sandbox)
+
+
+D. KNOWN UNVERIFIED (see docs/WHATSAPP-ONBOARDING.md sections 7 and 8)
+- Real Embedded Signup popup, code exchange, webhook subscription
+- Token lifetime and renewal behaviour
+- Typing indicator against a real number
+- Shape of coexistence history/contacts payloads (kept raw, not imported)
+- Country availability of coexistence for Kenya

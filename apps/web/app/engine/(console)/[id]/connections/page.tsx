@@ -1,12 +1,9 @@
 import Link from "next/link";
-import { embeddedSignupReady, whatsappMode } from "@garden/integrations";
 import { customerTelemetry, getEngineCustomer, getWhatsappConnection, langfuseConfigured } from "@garden/services";
 import { requireEngineAdmin } from "@/lib/engine-auth";
 import { dateTime } from "@/lib/format";
 import { Panel } from "../../../components/ui";
-import { checkWhatsappAction, disconnectWhatsappAction } from "../actions";
 import { WorkspaceHeader } from "../header";
-import { WhatsappLink } from "./whatsapp-link";
 
 export const dynamic = "force-dynamic";
 
@@ -68,7 +65,7 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ id
               {wa.lastError ? <p className="rounded-xl bg-warning-100 px-3 py-2 text-sm text-warning-600">Last problem: {wa.lastError}</p> : null}
               {wa.status === "disconnected" ? (
                 <p className="rounded-xl bg-warning-100 px-3 py-2 text-sm text-warning-600">
-                  WhatsApp ended this connection, so nothing is sent or received. Send a new connect link to reconnect.
+                  WhatsApp ended this connection, so nothing is sent or received. The customer reconnects from Integrations in their own app.
                 </p>
               ) : null}
               {wa.mode === "coexistence" ? (
@@ -78,35 +75,14 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ id
                   {wa.sync ? ` Contacts and history were requested from WhatsApp once, at connection (${wa.sync.history ? "history requested" : "history not requested"}).` : ""}
                 </p>
               ) : null}
-              <div className="flex flex-wrap gap-2">
-                <form action={checkWhatsappAction}>
-                  <input type="hidden" name="tenantId" value={id} />
-                  <button className="btn btn-secondary h-10 px-4">Check connection</button>
-                </form>
-                <form action={disconnectWhatsappAction}>
-                  <input type="hidden" name="tenantId" value={id} />
-                  <button className="btn btn-secondary h-10 px-4 text-danger-600">Disconnect</button>
-                </form>
-              </div>
             </div>
           ) : (
             <p className="text-sm text-ink-muted">
-              No WhatsApp number is connected for {customer.name}, so the agent can&apos;t receive customer messages. Make a connect link and send it to them: they sign in with
-              Meta, choose their number, and it is linked to this business only.
+              No WhatsApp number is connected for {customer.name}, so the agent can&apos;t receive customer messages. Their owner connects it themselves under Integrations in their own
+              app: they sign in with Meta and choose their number, and it is linked to this business only. Nothing is entered on the Engine side.
             </p>
           )}
 
-          <div className="mt-5 border-t border-line pt-4">
-            <p className="mb-2 text-sm font-medium">{wa ? "Reconnect or change the number" : "Connect their number"}</p>
-            {embeddedSignupReady() ? (
-              <WhatsappLink tenantId={id} />
-            ) : (
-              <p className="rounded-xl bg-warning-100 px-3 py-2 text-sm text-warning-600">
-                Meta isn&apos;t configured on this server yet. Set META_APP_ID, META_APP_SECRET and META_ES_CONFIG_ID in .env (see docs/WHATSAPP-ONBOARDING.md).
-              </p>
-            )}
-            {whatsappMode() === "mock" ? <p className="mt-2 text-xs text-ink-muted">Test mode: the link opens a page that simulates a connection, with no real WhatsApp account.</p> : null}
-          </div>
         </Panel>
 
         <Panel title="Langfuse traces" aside={<Status ok={lf} on="Configured" off="Not configured" />}>

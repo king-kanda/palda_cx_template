@@ -9,12 +9,10 @@ import {
   exchangeSignupCode,
   getPhoneNumber,
   getWabaPhoneNumbers,
-  hmacSha256Hex,
   registerNumber,
   requestAppDataSync,
   subscribeApp,
   unsubscribeApp,
-  verifyHmacSha256,
   whatsappMode,
   type WhatsAppCreds,
 } from "@garden/integrations";
@@ -28,46 +26,6 @@ import { ConflictError, NotFoundError, ValidationError } from "./types";
  * Messages arrive knowing only the number they were sent to, so \`whatsapp_routes\` maps number to business without needing a
  * tenant context (and its primary key means a number can only ever belong to one business).
  */
-
-/* ───────────────────────────── signed connect links ───────────────────────────── */
-
-const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64url");
-const unb64 = (s: string) => Buffer.from(s, "base64url").toString("utf8");
-
-function signingSecret(): string {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) throw new ValidationError("The server has no AUTH_SECRET configured.");
-  return secret;
-}
-
-/**
- * A link a customer (or the Palda team, together with them) opens to connect WhatsApp. It names ONE business, expires, and is
- * signed, so it can't be altered to connect a number to a different business. It grants nothing else.
- */
-export function createWhatsappConnectToken(tenantId: string, ttlHours = 72): string {
-  const payload = b64(JSON.stringify({ p: "wa-connect", t: tenantId, e: Math.floor(Date.now() / 1000) + ttlHours * 3600, n: randomBytes(6).toString("hex") }));
-  return `${payload}.${hmacSha256Hex(payload, signingSecret())}`;
-}
-
-export function verifyWhatsappConnectToken(token: string, now = Date.now()): { tenantId: string } | null {
-  const [payload, sig, extra] = token.split(".");
-  if (!payload || !sig || extra !== undefined) return null;
-  let secret: string;
-  try {
-    secret = signingSecret();
-  } catch {
-    return null;
-  }
-  if (!verifyHmacSha256(payload, sig, secret)) return null;
-  try {
-    const data = JSON.parse(unb64(payload)) as { p?: string; t?: string; e?: number };
-    if (data.p !== "wa-connect" || typeof data.t !== "string" || typeof data.e !== "number") return null;
-    if (data.e * 1000 < now) return null;
-    return { tenantId: data.t };
-  } catch {
-    return null;
-  }
-}
 
 /* ───────────────────────────────── the connection ───────────────────────────────── */
 
