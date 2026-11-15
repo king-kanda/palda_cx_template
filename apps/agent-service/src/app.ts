@@ -6,6 +6,8 @@ import {
   customerPrincipal,
   ensureConversation,
   getConversationThread,
+  getSettings,
+  requestApproval,
   sendFreeform,
   sendStaffAlert,
   sendStaffMessage,
@@ -15,6 +17,7 @@ import {
   appendOutboundMessage,
   recordInboundMessage,
   upsertCustomerByPhone,
+  type ServiceContext,
 } from "@garden/services";
 import {
   parseWebhook,
@@ -84,6 +87,35 @@ async function tenantForPhoneNumberId(phoneNumberId: string | null) {
   }
   const slug = process.env.DEFAULT_TENANT_SLUG ?? "palda";
   return (await db.query.tenants.findFirst({ where: eq(schema.tenants.slug, slug) })) ?? null;
+}
+
+/**
+ * Phase 6 shadow mode: model-authored replies are held for staff approval
+ * instead of being sent. Consent and deterministic template messages are not
+ * affected. Returns whether the message went out.
+ */
+async function deliverAgentReply(
+  ctx: ServiceContext,
+  customer: typeof schema.customers.$inferSelect,
+  conversationId: string,
+  text: string,
+): Promise<{ sent: boolean; approvalId?: string }> {
+  const settings = await getSettings(ctx);
+  if (!settings.shadowMode) {
+    await sendFreeform(ctx, customer, text);
+    return { sent: true };
+  }
+  const approval = await requestApproval(ctx, {
+    kind: "message_review",
+    payload: { conversationId, customerId: customer.id, text },
+    conversationId,
+    requestedBy: "wambo:shadow",
+  });
+  await sendStaffAlert(
+    ctx,
+    `Wambo drafted a reply for ${customer.name}; approve it in the Approvals queue.`,
+  );
+  return { sent: false, approvalId: approval.id };
 }
 
 function whatsappMeta(payload: Record<string, unknown>): {
@@ -282,7 +314,23 @@ app.post("/webhooks/whatsapp", async (c) => {
         // handoffs.create already sent its own acknowledgement; still keep the
         // engine's words in the thread for staff context.
         if (!turn.result?.handoff) {
-          await sendFreeform(ctx, prepared.customer, turn.text);
+          const delivery = await deliverAgentReply(
+            ctx,
+            prepared.customer,
+            prepared.conversationId,
+            turn.text,
+          );
+          if (!delivery.sent) {
+            // Shadow mode: show the draft to staff in the thread; it is only
+            // sent to the customer after approval.
+            await appendOutboundMessage(ctx, {
+              conversationId: prepared.conversationId,
+              text: `[Draft awaiting approval] ${turn.text}`,
+              type: "draft",
+              toolCalls: turn.result?.toolCalls ?? [],
+            });
+            return;
+          }
         }
         await appendOutboundMessage(ctx, {
           conversationId: prepared.conversationId,
@@ -384,7 +432,18 @@ app.post("/internal/reply", async (c) => {
   if (!turn.text) return c.json({ ok: false, error: "No reply produced." }, 502);
 
   await withPrincipal(systemPrincipal(tenant.id, "wambo"), async (ctx) => {
-    if (!turn.result?.handoff) await sendFreeform(ctx, customer, turn.text);
+    if (!turn.result?.handoff) {
+      const delivery = await deliverAgentReply(ctx, customer, conversationId, turn.text);
+      if (!delivery.sent) {
+        await appendOutboundMessage(ctx, {
+          conversationId,
+          text: `[Draft awaiting approval] ${turn.text}`,
+          type: "draft",
+          toolCalls: turn.result?.toolCalls ?? [],
+        });
+        return;
+      }
+    }
     await appendOutboundMessage(ctx, {
       conversationId,
       text: turn.text,

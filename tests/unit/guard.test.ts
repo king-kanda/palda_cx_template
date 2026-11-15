@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { getAgentConfig } from "../../agent-engine/src/agents";
 import {
+  checkDatesGrounded,
   checkForbiddenPromises,
+  checkLinks,
   checkMoneyGrounded,
   checkPii,
   checkRepeat,
@@ -61,6 +63,49 @@ describe("repeat guard", () => {
 
   it("allows a fresh message", () => {
     expect(checkRepeat("Karibu!", ["Karibu!"], 2)).toEqual([]);
+  });
+});
+
+describe("date grounding guard", () => {
+  const toolResults = [{ startsAt: "2026-12-20T06:00:00.000Z" }];
+
+  it("accepts a date that a tool returned", () => {
+    expect(checkDatesGrounded("Your event is on 20 December 2026.", toolResults)).toEqual([]);
+    expect(checkDatesGrounded("Your event is on 2026-12-20.", toolResults)).toEqual([]);
+  });
+
+  it("rejects a date that no tool returned", () => {
+    const failures = checkDatesGrounded("Your event is on 21 December 2026.", toolResults);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toContain("21 December 2026");
+  });
+
+  it("ignores relative dates", () => {
+    expect(checkDatesGrounded("See you next Saturday.", toolResults)).toEqual([]);
+  });
+});
+
+describe("link allowlist guard", () => {
+  it("allows links that a tool returned", () => {
+    expect(
+      checkLinks("Join here: https://meet.jit.si/palda-abc123", [
+        { meetingUrl: "https://meet.jit.si/palda-abc123" },
+      ]),
+    ).toEqual([]);
+  });
+
+  it("allows the tenant's own domain", () => {
+    expect(
+      checkLinks("See https://book.palda.co.ke/intake/palda/abc", [], [
+        "https://book.palda.co.ke",
+      ]),
+    ).toEqual([]);
+  });
+
+  it("rejects an invented link", () => {
+    const failures = checkLinks("Pay here: https://evil.example/pay", []);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toContain("evil.example");
   });
 });
 

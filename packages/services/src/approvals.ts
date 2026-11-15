@@ -9,6 +9,7 @@ export type ApprovalKind =
   | "cancel_outside_policy"
   | "bulk_send"
   | "override_price"
+  | "message_review"
   | "other";
 
 export const APPROVAL_KINDS: ApprovalKind[] = [
@@ -17,6 +18,7 @@ export const APPROVAL_KINDS: ApprovalKind[] = [
   "cancel_outside_policy",
   "bulk_send",
   "override_price",
+  "message_review",
   "other",
 ];
 

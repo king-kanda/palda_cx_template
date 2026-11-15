@@ -5,6 +5,7 @@ import { cancelBookingInternal } from "./bookings";
 import { recalculateInvoices } from "./invoices";
 import { markApprovalExecuted } from "./approvals";
 import { sendFreeform } from "./notify";
+import { appendOutboundMessage } from "./conversations";
 import { getQuote } from "./pricing";
 import { NotFoundError, ValidationError } from "./types";
 
@@ -111,6 +112,26 @@ export async function executeApproval(
       await markApprovalExecuted(ctx, approvalId, { sent });
       return { executed: true, result: { sent } };
     }
+    case "message_review": {
+      const customerId = String(payload.customerId ?? "");
+      const text = String(payload.text ?? "");
+      const conversationId =
+        approval.conversationId ??
+        (typeof payload.conversationId === "string" ? payload.conversationId : null);
+      if (!customerId || !text) {
+        throw new ValidationError("Drafted message payload is incomplete.");
+      }
+      const customer = await ctx.db.query.customers.findFirst({
+        where: and(eq(schema.customers.id, customerId), eq(schema.customers.tenantId, ctx.tenantId)),
+      });
+      if (!customer) throw new NotFoundError("Customer", customerId);
+      await sendFreeform(ctx, customer, text);
+      if (conversationId) {
+        await appendOutboundMessage(ctx, { conversationId, text });
+      }
+      await markApprovalExecuted(ctx, approvalId, { customerId, conversationId });
+      return { executed: true, result: { customerId, conversationId } };
+    }
     default: {
       const settings = await getSettings(ctx);
       await audit(ctx, `approval.${settings.vertical}.executed_manually`, "approval", approvalId);
@@ -130,6 +151,8 @@ export function approvalTitle(kind: string, payload: Record<string, unknown>): s
       return "Cancel outside policy";
     case "bulk_send":
       return "Bulk WhatsApp send";
+    case "message_review":
+      return "Wambo drafted reply (shadow mode)";
     case "override_price":
       return `Price override to KES ${Number(payload.totalKes ?? 0).toLocaleString("en-KE")}`;
     default:

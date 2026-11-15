@@ -163,6 +163,7 @@ describe("engine against a stub MCP server (salon vertical)", () => {
           },
         ],
         recentOutbound: [],
+        allowedLinks: [],
         runId: "eval-salon-stub-mcp",
       },
       gateway,

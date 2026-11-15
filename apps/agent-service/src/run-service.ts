@@ -258,6 +258,9 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
         extraContext: input.extraContext ?? "",
         mockPlan: input.mockPlan,
         recentOutbound,
+        allowedLinks: [process.env.APP_URL ?? "", process.env.PUBLIC_REVIEW_URL ?? ""].filter(
+          Boolean,
+        ),
       },
       createInProcessGateway(input.principal),
       llmFor(config),

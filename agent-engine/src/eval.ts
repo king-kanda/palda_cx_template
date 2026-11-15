@@ -20,6 +20,8 @@ export type Scenario = {
   responses: Record<string, unknown>;
   /** Error responses (tool name -> error message). */
   errors?: Record<string, string>;
+  /** Prior outbound messages, for resend/repeat-guard scenarios. */
+  recentOutbound?: string[];
   expect: {
     toolCalls?: string[];
     forbiddenTools?: string[];
@@ -87,7 +89,8 @@ export async function runScenario(scenario: Scenario): Promise<ScenarioResult> {
       customerSummary: "Eval customer.",
       extraContext: "",
       mockPlan: scenario.plan,
-      recentOutbound: [],
+      recentOutbound: scenario.recentOutbound ?? [],
+      allowedLinks: [],
       runId: `eval-${scenario.id}`,
     },
     gateway,

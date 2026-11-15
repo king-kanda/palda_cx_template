@@ -168,12 +168,16 @@ export async function runAgent(
   const messages: EngineMessage[] = [...input.messages];
   const allTools = await gateway.listTools();
   const tools = filterTools(allTools, input);
+  const grantedToolNames = new Set(tools.map((tool) => tool.name));
   const system = buildSystemPrompt(input, tools);
   const usage = emptyUsage();
   const toolCallLog: RunResult["toolCalls"] = [];
   const toolResults: unknown[] = [];
   const pendingApprovals: RunResult["pendingApprovals"] = [];
   const callCounts = new Map<string, number>();
+  const maxToolCalls = config.toolPolicy.maxToolCalls ?? 6;
+  let executedToolCalls = 0;
+  let capReached = false;
   let handoff: RunResult["handoff"] | undefined;
   let text = "";
   let failedToolCalls = 0;
@@ -216,6 +220,34 @@ export async function runAgent(
       });
 
       for (const call of engineCalls) {
+        // PLAN §6.1: a model may only call tools granted to its agent version.
+        // Reject a hallucinated or blocked tool before the gateway sees it.
+        if (!grantedToolNames.has(call.name)) {
+          failedToolCalls += 1;
+          messages.push({
+            role: "tool",
+            toolCallId: call.id,
+            name: call.name,
+            content: safeJson({ error: `Tool not granted to this agent: ${call.name}` }),
+          });
+          continue;
+        }
+
+        // PLAN §5.5: hard cap on tool calls in one turn.
+        if (executedToolCalls >= maxToolCalls) {
+          capReached = true;
+          messages.push({
+            role: "tool",
+            toolCallId: call.id,
+            name: call.name,
+            content: safeJson({
+              error: `Tool call limit reached (${maxToolCalls} per turn).`,
+            }),
+          });
+          continue;
+        }
+        executedToolCalls += 1;
+
         const signature = `${call.name}:${safeJson(call.args)}`;
         const count = (callCounts.get(signature) ?? 0) + 1;
         callCounts.set(signature, count);
@@ -269,6 +301,13 @@ export async function runAgent(
         });
       }
 
+      if (capReached) {
+        stoppedReason = "tool_loop";
+        text =
+          "I need a team member to finish that without risking a wrong answer. One moment please.";
+        handoff = { reason: `Tool call cap (${maxToolCalls}) reached`, tool: "engine" };
+        break;
+      }
       if (handoff) {
         stoppedReason = "handoff";
         break;
@@ -309,12 +348,54 @@ export async function runAgent(
       latencyMs: Date.now() - started,
     };
 
-    const guarded = guardOutput({
+    let guarded = guardOutput({
       text: baseResult.text,
       config,
       toolResults,
       recentOutbound: input.recentOutbound,
+      allowedLinks: input.allowedLinks,
     });
+
+    // PLAN §6.4: regenerate once with an explicit correction before falling
+    // back. Mock mode stays deterministic for the eval gate.
+    if (!guarded.ok && llm.name !== "mock") {
+      const retry = await llm
+        .generate({
+          system: [
+            system,
+            "",
+            "## Correction required",
+            `Your previous reply was rejected: ${guarded.reasons.join("; ")}.`,
+            "Rewrite it using only facts, amounts, dates and links from tool results this turn.",
+            "If you cannot, apologise briefly and hand off to a human.",
+          ].join("\n"),
+          messages: [
+            ...messages,
+            { role: "assistant", text: baseResult.text },
+            { role: "user", text: "Rewrite that reply so it passes the checks." },
+          ],
+          tools,
+          model: config.model,
+        })
+        .catch(() => null);
+      if (retry) {
+        addUsage(usage, retry.usage);
+        const retryText = retry.text?.trim() ?? "";
+        if (retryText && !retry.toolCalls?.length) {
+          const retryGuard = guardOutput({
+            text: retryText,
+            config,
+            toolResults,
+            recentOutbound: input.recentOutbound,
+            allowedLinks: input.allowedLinks,
+          });
+          if (retryGuard.ok) guarded = retryGuard;
+        }
+      }
+    }
+
+    baseResult.costKes = estimateCostKes(usage, config);
+    baseResult.text = guarded.text;
     const finalResult = applyGuard(baseResult, guarded, config);
     if (hooks.onFinish) await hooks.onFinish(finalResult);
     return finalResult;

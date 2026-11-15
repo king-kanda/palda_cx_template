@@ -58,6 +58,8 @@ export type ToolPolicyConfig = {
   blockedTools?: string[];
   /** Tools that require a human approval; the gateway already enforces this, this is a second fence. */
   sensitiveTools?: string[];
+  /** Hard cap on tool calls executed in one turn (PLAN §5.5). */
+  maxToolCalls?: number;
 };
 
 export type GuardConfig = {
@@ -110,6 +112,8 @@ export const RunInputSchema = z.object({
   extraContext: z.string().default(""),
   mockPlan: z.custom<MockStep[]>().optional(),
   recentOutbound: z.array(z.string()).default([]),
+  /** Hosts the tenant allows links to, beyond links a tool returned. */
+  allowedLinks: z.array(z.string()).default([]),
   runId: z.string().optional(),
 });
 

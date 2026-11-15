@@ -55,6 +55,7 @@ export const WAMBO: AgentConfig = {
   ],
   toolPolicy: {
     blockedTools: ["blocks.create", "blocks.delete", "approvals.decide", "messages.send"],
+    maxToolCalls: 6,
   },
   guard: COMMON_GUARD,
   handoff: {
@@ -75,6 +76,19 @@ export const WAMBO: AgentConfig = {
     "wambo-tenant-isolation",
     "wambo-swahili",
     "wambo-capacity-rejection",
+    "wambo-double-booking",
+    "wambo-price-negotiation",
+    "wambo-sheng",
+    "wambo-refund-demand",
+    "wambo-angry-complaint",
+    "wambo-date-ambiguity",
+    "wambo-payment-lag",
+    "wambo-reschedule-approval",
+    "wambo-guard-date",
+    "wambo-guard-link",
+    "wambo-tool-cap",
+    "wambo-tool-failures",
+    "wambo-duplicate-resend",
   ],
 };
 
@@ -101,6 +115,7 @@ export const ADMIN: AgentConfig = {
   ],
   toolPolicy: {
     blockedTools: ["approvals.decide"],
+    maxToolCalls: 10,
   },
   guard: { ...COMMON_GUARD, maxChars: 2500 },
   handoff: { enabled: false, afterFailedToolCalls: 4, keywords: [] },
@@ -111,6 +126,10 @@ export const ADMIN: AgentConfig = {
     "admin-refund-approval",
     "admin-pending-approval",
     "admin-bulk-send-approval",
+    "admin-no-confirm",
+    "admin-cannot-approve",
+    "admin-review-injection",
+    "admin-tenant-isolation",
   ],
 };
 
@@ -136,11 +155,12 @@ export const LEDGER_DIGEST: AgentConfig = {
   toolPolicy: {
     allowedTools: ["reports.daily_digest", "reports.dashboard", "payments.list_unmatched", "invoices.list"],
     blockedTools: ["messages.send", "approvals.decide"],
+    maxToolCalls: 4,
   },
   guard: { ...COMMON_GUARD, maxChars: 2000 },
   handoff: { enabled: false, afterFailedToolCalls: 2, keywords: [] },
   pricing: { inputPerMTokUsd: 0.3, outputPerMTokUsd: 1.2 },
-  evals: ["digest-numbers"],
+  evals: ["digest-numbers", "ops-readonly"],
 };
 
 export const OPS: AgentConfig = {
@@ -182,6 +202,7 @@ export const OPS: AgentConfig = {
       "bookings.cancel",
       "bookings.reschedule",
     ],
+    maxToolCalls: 8,
   },
   guard: { ...COMMON_GUARD, maxChars: 2000 },
   handoff: { enabled: false, afterFailedToolCalls: 2, keywords: [] },

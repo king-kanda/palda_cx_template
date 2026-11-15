@@ -142,10 +142,32 @@ export async function getCustomerProfile(ctx: ServiceContext, id: string) {
     where: and(eq(schema.conversations.tenantId, ctx.tenantId), eq(schema.conversations.customerId, id)),
     orderBy: desc(schema.conversations.lastInboundAt),
   });
+  const bookingIds = bookings.map((row) => row.booking.id);
+  const reviews = bookingIds.length
+    ? await ctx.db.query.reviews.findMany({
+        where: and(
+          eq(schema.reviews.tenantId, ctx.tenantId),
+          inArray(schema.reviews.bookingId, bookingIds),
+        ),
+        orderBy: desc(schema.reviews.receivedAt),
+        limit: 20,
+      })
+    : [];
   const spend = bookings
     .filter((b) => ["confirmed", "completed"].includes(b.booking.status))
     .reduce((sum, b) => sum + b.booking.totalKes, 0);
-  return { customer, bookings, conversations, lifetimeValueKes: spend };
+  const rated = reviews.filter((review) => review.rating !== null);
+  const averageRating = rated.length
+    ? rated.reduce((sum, review) => sum + (review.rating ?? 0), 0) / rated.length
+    : null;
+  return {
+    customer,
+    bookings,
+    conversations,
+    reviews,
+    averageRating,
+    lifetimeValueKes: spend,
+  };
 }
 
 export async function addNote(ctx: ServiceContext, customerId: string, note: string) {

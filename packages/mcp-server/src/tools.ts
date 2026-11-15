@@ -918,6 +918,26 @@ const workflowTools: AnyToolDef[] = [
     },
   }),
   defineTool({
+    name: "reviews.list",
+    group: "reviews",
+    description: "Recent customer reviews with booking and customer context (staff/ops).",
+    tier: "read",
+    principalTypes: ["staff", "system"],
+    scopes: ["reviews:read", "reviews:write"],
+    input: z.object({}).strict(),
+    async handler(ctx) {
+      const rows = await svc.listReviews(ctx);
+      return rows.map((row) => ({
+        reviewId: row.review.id,
+        bookingId: row.booking.id,
+        customer: row.customer.name,
+        rating: row.review.rating,
+        comment: row.review.comment,
+        receivedAt: row.review.receivedAt?.toISOString() ?? null,
+      }));
+    },
+  }),
+  defineTool({
     name: "reviews.request",
     group: "reviews",
     description: "Send a post-event review request (staff/ops).",

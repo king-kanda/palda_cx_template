@@ -53,6 +53,8 @@ export type TenantSettings = {
   faq: { q: string; a: string }[];
   labels: Preset["labels"];
   agentName: string;
+  /** Phase 6 pilot: Wambo drafts replies for staff approval instead of sending. */
+  shadowMode: boolean;
 };
 
 function asNumber(value: unknown, fallback: number): number {
@@ -107,6 +109,7 @@ export async function getSettings(ctx: ServiceContext): Promise<TenantSettings> 
     faq,
     labels: preset.labels,
     agentName: asString(brand.agentName, preset.agent.name),
+    shadowMode: business.shadowMode === true,
   };
 }
 

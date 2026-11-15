@@ -2,9 +2,13 @@ import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { closeDb, getDb, loadEnv, schema } from "../../packages/db/src/index";
 import {
+  decideApproval,
   ensureConversation,
+  executeApproval,
   seedDemoTenant,
+  staffPrincipal,
   systemPrincipal,
+  updateConfig,
   withPrincipal,
 } from "../../packages/services/src/index";
 import { app } from "../../apps/agent-service/src/app";
@@ -293,6 +297,74 @@ describe.skipIf(!enabled)("WhatsApp webhook flow (needs Postgres)", () => {
 
     const customer = await customerFor(waId);
     expect(customer?.phoneE164).toBe(`+${waId}`);
+  });
+
+  it("holds model replies for approval in shadow mode", async () => {
+    const waId = "254711000106";
+    const owner = () => staffPrincipal(tenantId, "owner-shadow", "owner");
+
+    await withPrincipal(owner(), (ctx) =>
+      updateConfig(ctx, "business", { shadowMode: true }),
+    );
+    try {
+      await post(
+        payload({
+          waId,
+          waMessageId: "wamid.shadow.1",
+          text: "Hello, do you have space for a picnic?",
+        }),
+      );
+
+      const conversation = await conversationFor(waId);
+      expect(conversation).toBeTruthy();
+      const messages = await messagesFor(waId);
+      const draft = messages.find((m) => m.type === "draft");
+      expect(draft).toBeTruthy();
+      expect(draft!.body).toContain("[Draft awaiting approval]");
+
+      // The consent line is deterministic and still goes out; the model reply
+      // does not reach the customer before approval.
+      const modelReplies = messages.filter(
+        (m) =>
+          m.direction === "outbound" &&
+          m.type !== "draft" &&
+          !(m.body ?? "").includes("Karibu!") &&
+          !(m.body ?? "").includes("STOP"),
+      );
+      expect(modelReplies).toHaveLength(0);
+
+      const approvals = await getDb().query.approvals.findMany({
+        where: and(
+          eq(schema.approvals.tenantId, tenantId),
+          eq(schema.approvals.kind, "message_review"),
+        ),
+      });
+      const approval = approvals.find(
+        (row) =>
+          (row.payload as Record<string, unknown>).conversationId === conversation!.id,
+      );
+      expect(approval).toBeTruthy();
+
+      await withPrincipal(owner(), (ctx) =>
+        decideApproval(ctx, approval!.id, "approved"),
+      );
+      await withPrincipal(owner(), (ctx) => executeApproval(ctx, approval!.id));
+
+      const after = await messagesFor(waId);
+      const sentText = String((approval!.payload as Record<string, unknown>).text ?? "");
+      expect(
+        after.some(
+          (m) =>
+            m.direction === "outbound" &&
+            m.type !== "draft" &&
+            m.body === sentText,
+        ),
+      ).toBe(true);
+    } finally {
+      await withPrincipal(owner(), (ctx) =>
+        updateConfig(ctx, "business", { shadowMode: false }),
+      );
+    }
   });
 
   it("stores an image receipt for staff without invoking the agent", async () => {
