@@ -22,6 +22,12 @@ x-app: &app
     INTERNAL_SECRET: ${INTERNAL_SECRET:-dev-internal-secret}
     MCP_TOKEN_SECRET: ${MCP_TOKEN_SECRET:-dev-mcp-secret-change-me}
     WHATSAPP_MODE: ${WHATSAPP_MODE:-mock}
+    # Meta app (Embedded Signup). One app for every customer; each customer's own number and token are collected when they connect.
+    META_APP_ID: ${META_APP_ID:-}
+    META_APP_SECRET: ${META_APP_SECRET:-}
+    META_ES_CONFIG_ID: ${META_ES_CONFIG_ID:-}
+    META_ES_FEATURE_TYPE: ${META_ES_FEATURE_TYPE:-}
+    HUMAN_PACING: ${HUMAN_PACING:-}
     MPESA_MODE: ${MPESA_MODE:-mock}
     MEETINGS_MODE: ${MEETINGS_MODE:-mock}
     QDRANT_URL: http://qdrant:6333

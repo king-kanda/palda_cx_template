@@ -11,9 +11,8 @@
 | ☐ | `TUMA_EMAIL` | Tuma Merchant Portal → Developer API → Keys & Docs | Merchant account email |
 | ☐ | `TUMA_API_KEY` | same page | Sandbox caps payments at KES 1–100 until the account is approved for live |
 | ☐ | `OPENROUTER_API_KEY` | https://openrouter.ai/keys | Unlocks real-model evals for Wambo, Admin and the digest |
-| ☐ | `WHATSAPP_PHONE_NUMBER_ID` | Meta app → WhatsApp → API Setup | |
-| ☐ | `WHATSAPP_BUSINESS_ACCOUNT_ID` | Meta app → WhatsApp → API Setup | Needed for templates/analytics |
-| ☐ | `WHATSAPP_ACCESS_TOKEN` | Meta app → WhatsApp → API Setup | Use a permanent system-user token, not the 24h test token |
+| ☐ | `META_APP_ID`, `META_APP_SECRET` | Meta app → Settings → Basic | Per-customer numbers connect themselves; see `docs/WHATSAPP-ONBOARDING.md` |
+| ☐ | `META_ES_CONFIG_ID` | Facebook Login for Business → Configurations | The Embedded Signup configuration id |
 | ☐ | `WHATSAPP_APP_SECRET` | Meta app → Settings → Basic | Verifies webhook signatures |
 | ☐ | `WHATSAPP_VERIFY_TOKEN` | You choose it | Must match the value entered in Meta's webhook setup |
 | ☐ | `LANGFUSE_HOST` / `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | https://cloud.langfuse.com | Optional; enables agent tracing |

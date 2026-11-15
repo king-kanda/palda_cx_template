@@ -6,3 +6,4 @@ export * from "./pdf-lazy";
 export * from "./vector";
 export * from "./embeddings";
 export * from "./external-mcp";
+export * from "./whatsapp-onboarding";

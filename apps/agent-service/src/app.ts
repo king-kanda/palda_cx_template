@@ -16,15 +16,24 @@ import {
   systemPrincipal,
   withPrincipal,
   appendOutboundMessage,
+  getWhatsappCreds,
+  markWhatsappDisconnected,
+  recordAppReply,
   recordInboundMessage,
+  recordWhatsappSync,
+  routeWhatsappAccount,
+  routeWhatsappNumber,
   upsertCustomerByPhone,
   type ServiceContext,
 } from "@garden/services";
 import {
-  parseWebhook,
+  parseWhatsAppPayload,
   sendTypingIndicator,
   verifyWebhookSignature,
   webhookChallenge,
+  whatsappMode,
+  type InboundWhatsAppMessage,
+  type WhatsAppChange,
 } from "@garden/integrations";
 import type { EngineMessage } from "@garden/engine";
 import { runTurn } from "./run-service";
@@ -70,25 +79,23 @@ async function tenantBySlugOrId(input: {
   return (await db.query.tenants.findFirst({ where: eq(schema.tenants.slug, slug) })) ?? null;
 }
 
-async function tenantForPhoneNumberId(phoneNumberId: string | null) {
+/**
+ * Which business is this WhatsApp number? Each business connects its own number, recorded in whatsapp_routes. A number nobody has
+ * connected is IGNORED: it must never fall through to some default business, or one customer's messages would land in
+ * another's inbox. Two narrow development fallbacks remain: the single number in the environment belongs to the default business,
+ * and in mock mode a hand-made payload with no number at all goes to the default business.
+ */
+async function tenantForWhatsappNumber(phoneNumberId: string | null) {
   const db = getDb();
+  const defaultTenant = async () =>
+    (await db.query.tenants.findFirst({ where: eq(schema.tenants.slug, process.env.DEFAULT_TENANT_SLUG ?? "palda") })) ?? null;
   if (phoneNumberId) {
-    const rows = await db.query.tenantIntegrations.findMany({
-      where: eq(schema.tenantIntegrations.kind, "whatsapp"),
-    });
-    const match = rows.find((row) => {
-      const meta = row.meta as Record<string, unknown>;
-      return meta.phoneNumberId === phoneNumberId;
-    });
-    if (match) {
-      const tenant = await db.query.tenants.findFirst({
-        where: eq(schema.tenants.id, match.tenantId),
-      });
-      if (tenant) return tenant;
-    }
+    const route = await routeWhatsappNumber(phoneNumberId);
+    if (route) return (await db.query.tenants.findFirst({ where: eq(schema.tenants.id, route.tenantId) })) ?? null;
+    if (process.env.WHATSAPP_PHONE_NUMBER_ID && phoneNumberId === process.env.WHATSAPP_PHONE_NUMBER_ID) return defaultTenant();
+    return null;
   }
-  const slug = process.env.DEFAULT_TENANT_SLUG ?? "palda";
-  return (await db.query.tenants.findFirst({ where: eq(schema.tenants.slug, slug) })) ?? null;
+  return whatsappMode() === "mock" ? defaultTenant() : null;
 }
 
 /**
@@ -120,27 +127,6 @@ async function deliverAgentReply(
   return { sent: false, approvalId: approval.id };
 }
 
-function whatsappMeta(payload: Record<string, unknown>): {
-  phoneNumberId: string | null;
-  contacts: { waId: string; name: string }[];
-} {
-  const entry = Array.isArray(payload.entry) ? (payload.entry[0] as Record<string, unknown>) : null;
-  const change =
-    entry && Array.isArray(entry.changes)
-      ? ((entry.changes[0] as Record<string, unknown>).value as Record<string, unknown>)
-      : null;
-  const metadata = change?.metadata as Record<string, unknown> | undefined;
-  const contacts = Array.isArray(change?.contacts)
-    ? (change!.contacts as Record<string, unknown>[]).map((c) => ({
-        waId: String(c.wa_id ?? ""),
-        name: String(((c.profile as Record<string, unknown> | undefined)?.name ?? "") || "WhatsApp customer"),
-      }))
-    : [];
-  return {
-    phoneNumberId: typeof metadata?.phone_number_id === "string" ? metadata.phone_number_id : null,
-    contacts,
-  };
-}
 
 app.get("/health", (c) =>
   c.json({ ok: true, service: "garden-agent-service", time: new Date().toISOString() }),
@@ -168,11 +154,68 @@ app.post("/webhooks/whatsapp", async (c) => {
     return c.json({ ok: false, error: "Invalid JSON" }, 400);
   }
 
-  const { phoneNumberId, contacts } = whatsappMeta(payload);
-  const tenant = await tenantForPhoneNumberId(phoneNumberId);
-  if (!tenant) return c.json({ ok: true, ignored: "no tenant" });
+  // One request can carry changes for several businesses (each number is its own change), so route every change separately.
+  // A failing change never blocks the others, and we always answer 200 so Meta doesn't keep retrying.
+  let received = 0;
+  let ignored = 0;
+  for (const change of parseWhatsAppPayload(payload)) {
+    try {
+      if (change.field === "account_update") {
+        await handleAccountUpdate(change);
+        continue;
+      }
+      const tenant = await tenantForWhatsappNumber(change.phoneNumberId);
+      if (!tenant) {
+        ignored += 1;
+        console.warn("[whatsapp] ignoring a change for a number no business has connected", change.phoneNumberId ?? "(none)");
+        continue;
+      }
+      if (change.field === "smb_message_echoes") {
+        await handleEchoes(tenant, change);
+      } else if (change.field === "history" || change.field === "smb_app_state_sync") {
+        await withPrincipal(systemPrincipal(tenant.id, "whatsapp"), (ctx) =>
+          recordWhatsappSync(ctx, { field: change.field, phoneNumberId: change.phoneNumberId, raw: change.raw }),
+        );
+      } else if (change.messages.length > 0) {
+        received += await handleMessages(tenant, change.contacts, change.messages);
+      }
+    } catch (error) {
+      console.error("[agent-service] whatsapp change failed", change.field, error);
+    }
+  }
+  return c.json({ ok: true, received, ...(ignored ? { ignored: "no tenant" } : {}) });
+});
 
-  const messages = parseWebhook(payload);
+type TenantRow = typeof schema.tenants.$inferSelect;
+
+/** Messages the business sent from the WhatsApp Business app on the same number: kept in the thread, and the agent goes quiet. */
+async function handleEchoes(tenant: TenantRow, change: WhatsAppChange): Promise<void> {
+  for (const echo of change.echoes) {
+    await withPrincipal(systemPrincipal(tenant.id, "whatsapp"), (ctx) =>
+      recordAppReply(ctx, { customerPhone: echo.to, waMessageId: echo.waMessageId, text: echo.text, type: echo.type }),
+    );
+  }
+}
+
+/** Meta says a connection ended (for example the WhatsApp Business app was idle too long). Stop sending for that business. */
+async function handleAccountUpdate(change: WhatsAppChange): Promise<void> {
+  const update = change.accountUpdate;
+  if (!update || update.event !== "PARTNER_REMOVED") return;
+  const tenantIds = new Set<string>();
+  if (change.phoneNumberId) {
+    const route = await routeWhatsappNumber(change.phoneNumberId);
+    if (route) tenantIds.add(route.tenantId);
+  }
+  if (update.wabaId) for (const id of await routeWhatsappAccount(update.wabaId)) tenantIds.add(id);
+  for (const tenantId of tenantIds) await markWhatsappDisconnected(tenantId, update.reason ?? "WhatsApp ended the connection.");
+}
+
+async function handleMessages(
+  tenant: TenantRow,
+  contacts: { waId: string; name: string }[],
+  messages: InboundWhatsAppMessage[],
+): Promise<number> {
+  const creds = await getWhatsappCreds(tenant.id);
   for (const message of messages) {
     const text = message.text?.trim();
     if (!text) continue;
@@ -295,7 +338,7 @@ app.post("/webhooks/whatsapp", async (c) => {
         phoneE164: prepared.customer.phoneE164,
       });
 
-      void sendTypingIndicator(message.waMessageId);
+      void sendTypingIndicator(message.waMessageId, creds);
       const turn = await runTurn({
         tenantId: tenant.id,
         agentId: "wambo",
@@ -346,8 +389,8 @@ app.post("/webhooks/whatsapp", async (c) => {
     }
   }
 
-  return c.json({ ok: true, received: messages.length });
-});
+  return messages.length;
+}
 
 /* ───────────────────────────── Staff / internal ───────────────────────────── */
 

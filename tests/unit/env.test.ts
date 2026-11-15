@@ -59,12 +59,22 @@ describe("runtime configuration validation", () => {
     );
   });
 
-  it("requires WhatsApp Cloud API credentials when cloud mode is selected", () => {
+  it("requires only the Meta APP values when cloud mode is selected (each customer connects their own number)", () => {
     const problems = missingRuntimeEnv({ ...base, WHATSAPP_MODE: "cloud" });
-    expect(problems).toContain("WHATSAPP_MODE=cloud: WHATSAPP_PHONE_NUMBER_ID is empty");
-    expect(problems).toContain("WHATSAPP_MODE=cloud: WHATSAPP_ACCESS_TOKEN is empty");
+    expect(problems).toContain("WHATSAPP_MODE=cloud: META_APP_ID is empty");
+    expect(problems).toContain("WHATSAPP_MODE=cloud: META_ES_CONFIG_ID is empty");
     expect(problems).toContain("WHATSAPP_MODE=cloud: WHATSAPP_VERIFY_TOKEN is empty");
-    expect(problems).toContain("WHATSAPP_MODE=cloud: WHATSAPP_APP_SECRET is empty");
+    expect(problems.some((p) => /META_APP_SECRET/.test(p))).toBe(true);
+    // the old global, single-number values are no longer required: they belong to each customer now
+    expect(problems.join(" ")).not.toContain("WHATSAPP_PHONE_NUMBER_ID");
+    expect(problems.join(" ")).not.toContain("WHATSAPP_ACCESS_TOKEN");
+  });
+
+  it("accepts a complete Meta app configuration, and the old app-secret name as an alias", () => {
+    const meta = { ...base, WHATSAPP_MODE: "cloud", META_APP_ID: "1", META_ES_CONFIG_ID: "2", WHATSAPP_VERIFY_TOKEN: "v" };
+    expect(missingRuntimeEnv({ ...meta, META_APP_SECRET: "s" })).toEqual([]);
+    expect(missingRuntimeEnv({ ...meta, WHATSAPP_APP_SECRET: "s" })).toEqual([]);
+    expect(missingRuntimeEnv(meta).some((p) => /META_APP_SECRET/.test(p))).toBe(true);
   });
 
   it("rejects an unknown mode instead of silently defaulting", () => {

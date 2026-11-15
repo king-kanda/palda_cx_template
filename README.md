@@ -117,6 +117,8 @@ meeting link, tenant isolation, Swahili and capacity rejection.
   approvals, idempotency, error codes.
 - [`docs/runbook.md`](docs/runbook.md) — environment, migrations, seeds,
   WhatsApp/M-Pesa setup, RLS roles, go-live checklist, troubleshooting.
+- [`docs/WHATSAPP-ONBOARDING.md`](docs/WHATSAPP-ONBOARDING.md) — Meta app setup, Embedded Signup,
+  coexistence, per-customer routing, what is and is not verified.
 - [`PLAN.md`](PLAN.md) — the product/architecture specification.
 
 ## Repository layout

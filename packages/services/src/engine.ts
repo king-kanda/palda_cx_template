@@ -70,7 +70,7 @@ async function summarise(tenant: typeof schema.tenants.$inferSelect): Promise<Cu
       tx.select({ n: count() }).from(schema.customers).where(eq(schema.customers.tenantId, tenant.id)),
       tx.query.tenantIntegrations.findFirst({
         where: and(eq(schema.tenantIntegrations.tenantId, tenant.id), eq(schema.tenantIntegrations.kind, "whatsapp")),
-        columns: { id: true },
+        columns: { id: true, meta: true },
       }),
     ]);
     const cfg = new Map(configRows.map((r) => [r.key, r.value as Record<string, unknown>]));
@@ -100,7 +100,7 @@ async function summarise(tenant: typeof schema.tenants.$inferSelect): Promise<Cu
         intro: brand.agentIntro === "none" ? "none" : "name",
         avatar,
       },
-      whatsappConnected: Boolean(whatsapp),
+      whatsappConnected: Boolean(whatsapp) && whatsapp?.meta?.status !== "disconnected",
       business: {
         location: typeof business.location === "string" ? business.location : "",
         description: typeof business.facts === "string" ? business.facts : preset.businessFacts,

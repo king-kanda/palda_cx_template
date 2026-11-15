@@ -808,3 +808,18 @@ export const businessDocuments = pgTable(
   },
   (t) => [index("business_documents_tenant_idx").on(t.tenantId, t.createdAt)],
 );
+
+/**
+ * Which business owns which WhatsApp number. An incoming message carries only the number it was sent to (Meta's
+ * phone_number_id), and at that moment there is no tenant context yet, so this lookup must work without one. Like login_index
+ * it is deliberately NOT row-level secured and holds no secrets. Its primary key also guarantees one number can only ever be
+ * connected to one business, so a number can't be claimed by a second customer and steal its messages.
+ */
+export const whatsappRoutes = pgTable("whatsapp_routes", {
+  phoneNumberId: text("phone_number_id").primaryKey(),
+  tenantId: uuid("tenant_id")
+    .notNull()
+    .references(() => tenants.id, { onDelete: "cascade" }),
+  wabaId: text("waba_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

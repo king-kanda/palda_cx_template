@@ -1,8 +1,12 @@
 import Link from "next/link";
-import { customerTelemetry, getEngineCustomer, langfuseConfigured } from "@garden/services";
+import { embeddedSignupReady, whatsappMode } from "@garden/integrations";
+import { customerTelemetry, getEngineCustomer, getWhatsappConnection, langfuseConfigured } from "@garden/services";
 import { requireEngineAdmin } from "@/lib/engine-auth";
+import { dateTime } from "@/lib/format";
 import { Panel } from "../../../components/ui";
+import { checkWhatsappAction, disconnectWhatsappAction } from "../actions";
 import { WorkspaceHeader } from "../header";
+import { WhatsappLink } from "./whatsapp-link";
 
 export const dynamic = "force-dynamic";
 
@@ -13,20 +17,96 @@ function Status({ ok, on, off }: { ok: boolean; on: string; off: string }) {
 export default async function ConnectionsPage({ params }: { params: Promise<{ id: string }> }) {
   await requireEngineAdmin();
   const { id } = await params;
-  const [customer, t] = await Promise.all([getEngineCustomer(id), customerTelemetry(id, "month")]);
+  const [customer, t, wa] = await Promise.all([getEngineCustomer(id), customerTelemetry(id, "month"), getWhatsappConnection(id)]);
   const lf = langfuseConfigured();
 
   return (
     <>
       <WorkspaceHeader customer={customer} title="Connections" subtitle="The channels and tools behind this customer's agent." />
       <div className="space-y-5">
-        <Panel title="WhatsApp" aside={<Status ok={customer.whatsappConnected} on="Number connected" off="Not connected" />}>
-          <p className="text-sm text-ink-muted">
-            Customers reach the agent on WhatsApp. Inbound messages are matched to this business by the WhatsApp number linked to it.
-            {customer.whatsappConnected
-              ? " A number is linked, so messages to it reach this agent."
-              : " No number is linked yet, so the agent can't receive customer messages. Linking a number isn't something the Engine can do yet: it has to be added to the customer's integrations record."}
-          </p>
+        <Panel
+          title="WhatsApp"
+          aside={
+            wa ? (
+              <Status ok={wa.status === "active"} on="Connected" off={wa.status === "disconnected" ? "Disconnected" : "Needs attention"} />
+            ) : (
+              <Status ok={false} on="" off="Not connected" />
+            )
+          }
+        >
+          {wa ? (
+            <div className="space-y-4">
+              <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="text-xs text-ink-muted">Number</dt>
+                  <dd className="font-semibold">{wa.displayPhone || "unknown"}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-ink-muted">Verified name</dt>
+                  <dd className="font-semibold">{wa.verifiedName || "not shown"}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-ink-muted">How it is connected</dt>
+                  <dd>{wa.mode === "coexistence" ? "Alongside their WhatsApp Business app (coexistence)" : "Through us only (Cloud API)"}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-ink-muted">Quality</dt>
+                  <dd>{wa.qualityRating ?? "not reported"}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-ink-muted">Connected</dt>
+                  <dd>{wa.connectedAt ? dateTime(wa.connectedAt) : "unknown"}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-ink-muted">Last checked</dt>
+                  <dd>{wa.lastCheckedAt ? dateTime(wa.lastCheckedAt) : "never"}</dd>
+                </div>
+                <div className="font-mono text-xs text-ink-muted sm:col-span-2">
+                  number id {wa.phoneNumberId} · account {wa.wabaId}
+                </div>
+              </dl>
+              {wa.lastError ? <p className="rounded-xl bg-warning-100 px-3 py-2 text-sm text-warning-600">Last problem: {wa.lastError}</p> : null}
+              {wa.status === "disconnected" ? (
+                <p className="rounded-xl bg-warning-100 px-3 py-2 text-sm text-warning-600">
+                  WhatsApp ended this connection, so nothing is sent or received. Send a new connect link to reconnect.
+                </p>
+              ) : null}
+              {wa.mode === "coexistence" ? (
+                <p className="text-xs text-ink-muted">
+                  Their WhatsApp Business app must be opened at least every couple of weeks or WhatsApp pauses the link. When someone replies from their phone, the
+                  agent stays quiet in that chat until it is handed back in the inbox.
+                  {wa.sync ? ` Contacts and history were requested from WhatsApp once, at connection (${wa.sync.history ? "history requested" : "history not requested"}).` : ""}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                <form action={checkWhatsappAction}>
+                  <input type="hidden" name="tenantId" value={id} />
+                  <button className="btn btn-secondary h-10 px-4">Check connection</button>
+                </form>
+                <form action={disconnectWhatsappAction}>
+                  <input type="hidden" name="tenantId" value={id} />
+                  <button className="btn btn-secondary h-10 px-4 text-danger-600">Disconnect</button>
+                </form>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-ink-muted">
+              No WhatsApp number is connected for {customer.name}, so the agent can&apos;t receive customer messages. Make a connect link and send it to them: they sign in with
+              Meta, choose their number, and it is linked to this business only.
+            </p>
+          )}
+
+          <div className="mt-5 border-t border-line pt-4">
+            <p className="mb-2 text-sm font-medium">{wa ? "Reconnect or change the number" : "Connect their number"}</p>
+            {embeddedSignupReady() ? (
+              <WhatsappLink tenantId={id} />
+            ) : (
+              <p className="rounded-xl bg-warning-100 px-3 py-2 text-sm text-warning-600">
+                Meta isn&apos;t configured on this server yet. Set META_APP_ID, META_APP_SECRET and META_ES_CONFIG_ID in .env (see docs/WHATSAPP-ONBOARDING.md).
+              </p>
+            )}
+            {whatsappMode() === "mock" ? <p className="mt-2 text-xs text-ink-muted">Test mode: the link opens a page that simulates a connection, with no real WhatsApp account.</p> : null}
+          </div>
         </Panel>
 
         <Panel title="Langfuse traces" aside={<Status ok={lf} on="Configured" off="Not configured" />}>

@@ -231,7 +231,7 @@ Full reference: [`docs/AGENT-CONTROLS.md`](AGENT-CONTROLS.md). Summary:
 - **Integrations:** the Palda team connects each customer's apps (Zoho Books, Google Workspace, ...) in Engine > Agent > Integrations, picking the app from a catalog, and switches their tools on in Engine > Agent > Tools. The customer's Integrations page is a read-only, plain-language list (no addresses, tokens or tool names). Customers have no write path.
 - **Branding and documents** (`docs/BRANDING.md`): per-business logo, colours, sidebar colour, website, socials and contact set in Engine > Business > Branding, applied across the customer's app, public intake form and invoice PDF; a documents library (Engine > Business > Documents, customer sees Documents). Demo customers have distinct brands (`pnpm engine:demo-brands`).
 - **Not built, deliberately:** editing WhatsApp message wording per business. On real WhatsApp, proactive messages are pre-approved templates with a fixed body and variable order, so local edits would change nothing customers receive and could break sends. A safe version needs a submit-for-approval flow.
-- Test counts: 261 unit, 145 integration, 57 evals.
+- Test counts: 287 unit, 172 integration, 57 evals.
 
 ### 7b. The Engine, managed rollout, cleaning vertical and fixes (2026-11-15)
 
@@ -332,9 +332,7 @@ suspend, and open-as-owner with the banner and return. **Not verified:** the wiz
 - **Customers cannot change their own password** (no screen); the Engine can reset it. Nothing is emailed: the one-time
   password is copied from the Engine and sent by the team (e.g. WhatsApp).
 - **Engine team management** is CLI-only (`engine:admin`); no roles, no per-admin permissions, no login rate limiting or MFA.
-- **WhatsApp is not wired to new customers.** The agent service maps an inbound message to a business through a
-  `tenant_integrations` row (`kind = whatsapp`, `meta.phoneNumberId`) and otherwise falls back to `DEFAULT_TENANT_SLUG`.
-  Neither the wizard nor the Engine creates that row. Do this before going live with a real customer.
+- **WhatsApp uses Embedded Signup with coexistence** (`docs/WHATSAPP-ONBOARDING.md`). Each customer connects its own number; routing is `whatsapp_routes`. Built and tested against mocks and a stubbed Graph API only, never against real Meta. Not built: per-customer message templates, history import, token renewal.
 - The agent's picture is stored as a small data URL (~20-40 KB) inside the business's config. It is shown in the app only; it is
   **not** sent to WhatsApp (a WhatsApp business profile picture is set in Meta Business Manager).
 - Customer owners can still edit the agent's name and voice on their Wambo settings page; decide whether that should be
@@ -391,8 +389,7 @@ Before committing: run `pnpm verify` and the integration suite; keep `.env` untr
 1. **Tuma sandbox (Phase 2)** — `TUMA_EMAIL`, `TUMA_API_KEY`, public HTTPS callback (`TUMA_CALLBACK_URL` or
    `MPESA_CALLBACK_URL`), test phone. Then:
    `pnpm env:check` → `pnpm smoke:mpesa --phone <number> --amount 1` → callback replay check.
-2. **WhatsApp Cloud (real Phase 3)** — `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`,
-   `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`, a test number, and `WHATSAPP_MODE=cloud`.
+2. **WhatsApp Cloud (real Phase 3)** — Meta app values (`META_APP_ID`, `META_APP_SECRET`, `META_ES_CONFIG_ID`, `WHATSAPP_VERIFY_TOKEN`), `WHATSAPP_MODE=cloud`, and a tester's number to connect.
 3. **OpenRouter (Phases 4/5/7/8/9)** — `OPENROUTER_API_KEY` and a real `WAMBO_MODEL`; then `pnpm eval` and a
    live WhatsApp/staff turn.
 4. **Langfuse** (optional) — `LANGFUSE_HOST`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`.

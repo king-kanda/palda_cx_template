@@ -156,13 +156,8 @@ describe.skipIf(!enabled)("WhatsApp webhook flow (needs Postgres)", () => {
     });
     tenantId = result.tenantId;
 
-    // The webhook routes a phone_number_id to its tenant through this row.
-    await getDb().insert(schema.tenantIntegrations).values({
-      tenantId,
-      kind: "whatsapp",
-      configEncrypted: "not-used-in-mock-mode",
-      meta: { phoneNumberId, displayNumber: "+254700000000" },
-    });
+    // The webhook routes a phone_number_id to its tenant through the routing table (each business connects its own number).
+    await getDb().insert(schema.whatsappRoutes).values({ phoneNumberId, tenantId, wabaId: "WABA_TEST" });
   });
 
   afterAll(async () => {

@@ -57,6 +57,13 @@
       "when": 1794751866850,
       "tag": "0007_integration_providers",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794767190538,
+      "tag": "0008_whatsapp_routes",
+      "breakpoints": true
     }
   ]
 }

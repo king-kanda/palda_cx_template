@@ -7,7 +7,7 @@ Put keys in `.env` only (never commit it). Docker reads `.env` through `env_file
 | Provider | Set in `.env` | Notes |
 | --- | --- | --- |
 | OpenRouter | `OPENROUTER_API_KEY`, `WAMBO_MODEL=<real model id>` (e.g. `openai/gpt-4.1-mini`) | `WAMBO_MODEL=mock` forces the scripted mock; change it or the key is ignored |
-| WhatsApp Cloud | `WHATSAPP_MODE=cloud`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET` (+ `WHATSAPP_BUSINESS_ACCOUNT_ID`) | Use a permanent system-user token, not the 24h test token |
+| WhatsApp Cloud | `WHATSAPP_MODE=cloud`, `META_APP_ID`, `META_APP_SECRET`, `META_ES_CONFIG_ID`, `WHATSAPP_VERIFY_TOKEN` | App values only. Each customer connects their own number via Embedded Signup. See `docs/WHATSAPP-ONBOARDING.md`. |
 | Tuma (M-Pesa) | `MPESA_MODE=tuma`, `TUMA_EMAIL`, `TUMA_API_KEY`, `TUMA_CALLBACK_URL` | Sandbox caps payments at KES 1-100 |
 | Langfuse | `LANGFUSE_HOST`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` | Optional; enables trace links in the Engine |
 
@@ -18,9 +18,9 @@ Meta and Tuma cannot reach `localhost`. Use a tunnel (Cloudflare Tunnel or ngrok
 - Web `:3000` -> `APP_URL=https://<host>`, `TUMA_CALLBACK_URL=https://<host>/api/mpesa/callback?tenant=palda`
 - Agent service `:3100` -> Meta webhook `https://<host-for-3100>/webhooks/whatsapp`, verify token = `WHATSAPP_VERIFY_TOKEN`
 
-## 3. WhatsApp routing (known gap)
+## 3. WhatsApp routing
 
-Inbound messages are matched to a business by `tenant_integrations` (`kind=whatsapp`, `meta.phoneNumberId`). The Engine cannot create that row yet. If none matches, the agent falls back to `DEFAULT_TENANT_SLUG` (`palda`), which is fine for a first single-business test. Outbound sends use the global `WHATSAPP_PHONE_NUMBER_ID`.
+Each customer connects its own number from a connect link (Engine > Operations > Connections > WhatsApp). The number is recorded in `whatsapp_routes` and inbound messages are routed by it; a message to a number nobody connected is ignored. See `docs/WHATSAPP-ONBOARDING.md`.
 
 ## 4. Order of checks
 

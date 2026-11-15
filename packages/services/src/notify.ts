@@ -1,15 +1,29 @@
 import { and, eq } from "drizzle-orm";
 import { schema } from "@garden/db";
 import {
+  WhatsAppError,
   sendTemplate,
   sendText,
   whatsappMode,
   type SendResult,
+  type WhatsAppCreds,
 } from "@garden/integrations";
 import type { ServiceContext } from "./context";
+import { getWhatsappCreds } from "./whatsapp-connect";
 import type { Customer } from "@garden/db";
 
 export type TemplateVars = Record<string, string | number | null | undefined>;
+
+/**
+ * The WhatsApp credentials for the business sending this message. Each business sends from its OWN number with its OWN token; a
+ * business with no connected number fails here, and never borrows another business's. (Mock mode needs none.)
+ */
+async function credsFor(ctx: ServiceContext): Promise<WhatsAppCreds | null> {
+  if (whatsappMode() !== "cloud") return null;
+  const creds = await getWhatsappCreds(ctx.tenantId);
+  if (!creds) throw new WhatsAppError("WhatsApp isn't connected for this business.");
+  return creds;
+}
 
 export function renderTemplate(body: string, vars: TemplateVars): string {
   return body.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, key: string) => {
@@ -78,6 +92,7 @@ export async function sendProactive(
 ): Promise<{ sent: boolean; mocked: boolean; body: string }> {
   const text = renderTemplate(input.body, input.vars);
   try {
+    const creds = await credsFor(ctx);
     const result =
       whatsappMode() === "cloud"
         ? await sendTemplate(
@@ -85,6 +100,7 @@ export async function sendProactive(
             input.templateName,
             templateParams(input.body, input.vars),
             input.language === "sw" ? "sw" : "en",
+            creds,
           )
         : await sendText(input.customer.phoneE164, text);
     await logSend(ctx, input.customer, text, result);
@@ -102,7 +118,7 @@ export async function sendFreeform(
   text: string,
 ): Promise<{ sent: boolean; mocked: boolean }> {
   try {
-    const result = await sendText(customer.phoneE164, text);
+    const result = await sendText(customer.phoneE164, text, await credsFor(ctx));
     await logSend(ctx, customer, text, result);
     return { sent: true, mocked: result.mocked };
   } catch (error) {
@@ -127,7 +143,7 @@ export async function sendStaffAlert(
   });
   if (phone && whatsappMode() === "cloud") {
     try {
-      await sendText(phone, text);
+      await sendText(phone, text, await credsFor(ctx));
       return { sent: true };
     } catch {
       return { sent: false };

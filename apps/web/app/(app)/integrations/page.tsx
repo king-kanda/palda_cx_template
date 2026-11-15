@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
 import { CalendarDays, Calculator, FileText, MessageSquare, Plug, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { getCustomerIntegrations, getSettings, withPrincipal } from "@garden/services";
+import { getCustomerIntegrations, getSettings, getWhatsappConnection, withPrincipal } from "@garden/services";
 import { getSession } from "@/lib/auth";
 import { principalOf } from "@/lib/principal";
 import { dateTime } from "@/lib/format";
-import { EmptyState, PageHeader } from "@/components/ui";
+import { EmptyState, PageHeader, Section } from "@/components/ui";
+import { startWhatsappConnectAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -32,10 +33,13 @@ const STATUS = {
 export default async function IntegrationsPage() {
   const session = await getSession();
   if (!session) redirect("/login");
-  const [settings, apps] = await Promise.all([
+  const [settings, apps, whatsapp] = await Promise.all([
     withPrincipal(principalOf(session), (ctx) => getSettings(ctx)),
     getCustomerIntegrations(session.tenantId),
+    getWhatsappConnection(session.tenantId),
   ]);
+  const isOwner = session.role === "owner";
+  const waLive = whatsapp !== null && whatsapp.status !== "disconnected";
 
   return (
     <div className="space-y-5">
@@ -43,6 +47,49 @@ export default async function IntegrationsPage() {
         title="Integrations"
         subtitle={`The apps connected to your business, so ${settings.agentName} can work with them.`}
       />
+
+      <Section title="WhatsApp">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 text-sm">
+            {waLive ? (
+              <>
+                <span className={`pill ${whatsapp.status === "active" ? "bg-lime-100 text-brand-800" : "bg-warning-100 text-warning-600"}`}>
+                  {whatsapp.status === "active" ? "Connected" : "Needs attention"}
+                </span>
+                <p className="mt-2 font-semibold">
+                  {whatsapp.displayPhone || "Your number"}
+                  {whatsapp.verifiedName ? ` · ${whatsapp.verifiedName}` : ""}
+                </p>
+                <p className="mt-1 text-ink-muted">
+                  {whatsapp.mode === "coexistence"
+                    ? `${settings.agentName} works on your existing WhatsApp Business number. You can keep using the app. Replies you send from your phone show in your inbox, and ${settings.agentName} stays quiet in chats you answer yourself.`
+                    : `${settings.agentName} chats with your customers on this number.`}
+                </p>
+              </>
+            ) : whatsapp ? (
+              <>
+                <span className="pill bg-warning-100 text-warning-600">Disconnected</span>
+                <p className="mt-2 text-ink-muted">WhatsApp ended the connection, so {settings.agentName} can&apos;t send or receive messages. Reconnect to start again.</p>
+              </>
+            ) : (
+              <>
+                <span className="pill bg-surface-muted text-ink-muted">Not connected</span>
+                <p className="mt-2 text-ink-muted">
+                  Connect your business WhatsApp number so {settings.agentName} can chat with your customers. It takes a few minutes and you
+                  stay in control of the number.
+                </p>
+              </>
+            )}
+          </div>
+          {isOwner ? (
+            <form action={startWhatsappConnectAction}>
+              <button className="btn btn-primary h-11 px-5">{waLive ? "Reconnect WhatsApp" : "Connect WhatsApp"}</button>
+            </form>
+          ) : (
+            <p className="text-xs text-ink-muted">Only the account owner can connect WhatsApp.</p>
+          )}
+        </div>
+      </Section>
 
       {apps.length === 0 ? (
         <EmptyState

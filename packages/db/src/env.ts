@@ -98,15 +98,15 @@ export function missingRuntimeEnv(env: EnvLike = process.env): string[] {
     problems.push(
       ...requireAll(
         env,
-        [
-          "WHATSAPP_PHONE_NUMBER_ID",
-          "WHATSAPP_ACCESS_TOKEN",
-          "WHATSAPP_VERIFY_TOKEN",
-          "WHATSAPP_APP_SECRET",
-        ],
+        // Only the Meta APP is configured here. Each customer's own number and token are collected when they connect
+        // WhatsApp through Embedded Signup, so there is no global phone number id or access token any more.
+        ["META_APP_ID", "WHATSAPP_VERIFY_TOKEN", "META_ES_CONFIG_ID"],
         "WHATSAPP_MODE=cloud",
       ),
     );
+    if (!value(env, "META_APP_SECRET") && !value(env, "WHATSAPP_APP_SECRET")) {
+      problems.push("WHATSAPP_MODE=cloud needs META_APP_SECRET (or WHATSAPP_APP_SECRET): it verifies Meta's webhooks and exchanges sign-up codes.");
+    }
   }
 
   const meetings = value(env, "MEETINGS_MODE") || "mock";

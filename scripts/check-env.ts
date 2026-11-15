@@ -39,15 +39,12 @@ if (mode("MPESA_MODE", "mock") === "tuma") {
 }
 
 if (mode("WHATSAPP_MODE", "mock") === "cloud") {
-  console.log("WhatsApp Cloud keys:");
-  for (const key of [
-    "WHATSAPP_PHONE_NUMBER_ID",
-    "WHATSAPP_ACCESS_TOKEN",
-    "WHATSAPP_VERIFY_TOKEN",
-    "WHATSAPP_APP_SECRET",
-  ]) {
+  console.log("WhatsApp (Meta app; customers connect their own numbers):");
+  for (const key of ["META_APP_ID", "META_ES_CONFIG_ID", "WHATSAPP_VERIFY_TOKEN"]) {
     console.log(`  ${key}: ${has(key)}`);
   }
+  console.log(`  META_APP_SECRET: ${(env.META_APP_SECRET ?? "").trim() ? "set" : has("WHATSAPP_APP_SECRET") === "set" ? "set (as WHATSAPP_APP_SECRET)" : "empty"}`);
+  console.log(`  GRAPH VERSION: ${mode("WHATSAPP_GRAPH_VERSION", "v21.0")} (set a current one if Meta has retired it)`);
 }
 
 console.log("");

@@ -163,7 +163,7 @@ Customers are set up by the Palda team in the Engine (`/engine`); there is no pu
   no RLS. Re-run the `GRANT ... ON ALL TABLES` statement in section 4 after migrating so `garden_web` can read and write them.
 - A new customer starts **In setup** and cannot sign in. **Roll out** (in the Engine) makes it live and issues the owner's password.
   The password is shown once and is never stored readable; use **Reset owner password** to issue another.
-- WhatsApp is routed to a customer by a `tenant_integrations` row (`kind = whatsapp`, `meta.phoneNumberId`). The Engine does not create it yet.
+- WhatsApp is routed to a customer by `whatsapp_routes`, filled when the customer connects their number (Engine > Operations > Connections). Migration 0008 adds that table and backfills it; like `login_index` it has no RLS, so re-run the GRANT in section 4 after migrating. See `docs/WHATSAPP-ONBOARDING.md`.
 
 ## 5. MCP and the agent engine
 
@@ -194,17 +194,17 @@ vertical.
 
 ## 6. WhatsApp (Meta Cloud API)
 
-1. Create a Meta app with WhatsApp; note the phone number id and WABA id.
-2. Set `WHATSAPP_MODE=cloud`, `WHATSAPP_PHONE_NUMBER_ID`,
-   `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`.
+Full guide: `docs/WHATSAPP-ONBOARDING.md` (Embedded Signup and coexistence).
+
+1. Create a Meta app with WhatsApp and an Embedded Signup configuration.
+2. Set `WHATSAPP_MODE=cloud`, `META_APP_ID`, `META_APP_SECRET`, `META_ES_CONFIG_ID`,
+   `WHATSAPP_VERIFY_TOKEN`. No per-customer values: each customer connects their own number.
 3. In Meta, set the callback URL to
    `https://<host>/webhooks/whatsapp` and the verify token to
    `WHATSAPP_VERIFY_TOKEN`.
-4. Store the same phone number id on
-   `tenant_integrations(kind='whatsapp', meta.phoneNumberId)` so inbound
-   messages route to the right tenant.
+4. Send each customer a connect link from the Engine; routing is recorded automatically.
 5. `GET /webhooks/whatsapp` answers the verification challenge; `POST` verifies
-   `X-Hub-Signature-256` when `WHATSAPP_APP_SECRET` is set.
+   `X-Hub-Signature-256` when the app secret is set.
 
 `WHATSAPP_MODE=mock` logs sends to `integrations_log` and still writes the
 outbound bubble, so the whole flow is testable offline.

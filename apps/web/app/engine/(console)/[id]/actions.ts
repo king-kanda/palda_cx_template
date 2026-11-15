@@ -8,6 +8,9 @@ import {
   rolloutCustomer,
   activateAgentVersion,
   addBusinessDocument,
+  createWhatsappConnectToken,
+  disconnectWhatsapp,
+  refreshWhatsappConnection,
   addExternalServer,
   addKnowledgeDocument,
   deleteBusinessDocument,
@@ -31,7 +34,7 @@ import {
 import { createSession } from "@/lib/auth";
 import { requireEngineAdmin } from "@/lib/engine-auth";
 
-export type EngineFormState = { ok?: boolean; error?: string; message?: string; credentials?: Credentials };
+export type EngineFormState = { ok?: boolean; error?: string; message?: string; credentials?: Credentials; url?: string };
 
 function messageOf(error: unknown): string {
   if (error instanceof ServiceError) return error.message;
@@ -227,6 +230,33 @@ export async function addExternalServerAction(_prev: EngineFormState, formData: 
   } catch (error) {
     return { error: messageOf(error) };
   }
+}
+
+/** A link to send the customer so they can connect their own WhatsApp number. Signed, names this business only, expires in 3 days. */
+export async function createWhatsappLinkAction(_prev: EngineFormState, formData: FormData): Promise<EngineFormState> {
+  await requireEngineAdmin();
+  const tenantId = idOf(formData);
+  try {
+    const token = createWhatsappConnectToken(tenantId, 72);
+    const base = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+    return { ok: true, url: `${base}/connect/whatsapp/${token}`, message: "Send this link to the customer. It works for 3 days." };
+  } catch (error) {
+    return { error: messageOf(error) };
+  }
+}
+
+export async function checkWhatsappAction(formData: FormData): Promise<void> {
+  const admin = await requireEngineAdmin();
+  const tenantId = idOf(formData);
+  await refreshWhatsappConnection(`engine:${admin.id}`, tenantId);
+  revalidatePath(`/engine/${tenantId}/connections`);
+}
+
+export async function disconnectWhatsappAction(formData: FormData): Promise<void> {
+  const admin = await requireEngineAdmin();
+  const tenantId = idOf(formData);
+  await disconnectWhatsapp(`engine:${admin.id}`, tenantId);
+  revalidatePath(`/engine/${tenantId}/connections`);
 }
 
 export async function syncExternalServerAction(_prev: EngineFormState, formData: FormData): Promise<EngineFormState> {
