@@ -675,3 +675,63 @@ export const loginIndex = pgTable(
   },
   (t) => [primaryKey({ columns: [t.email, t.tenantId] })],
 );
+
+/* ───────────────────── Agent knowledge and memory ─────────────────────
+ * The TEXT lives here, under row-level security. Qdrant holds only vectors (same ids as these rows) plus a tenant filter,
+ * so anything Qdrant returns is resolved back through these tables and a foreign id simply finds nothing.
+ */
+
+/** A document the Palda team adds for one customer (policies, FAQs, price notes). */
+export const knowledgeDocuments = pgTable(
+  "knowledge_documents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    status: text("status").notNull().default("indexing"), // indexing | ready | failed
+    error: text("error"),
+    chunkCount: integer("chunk_count").notNull().default(0),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("knowledge_documents_tenant_idx").on(t.tenantId, t.createdAt)],
+);
+
+/** One searchable piece of a document. Its id is the Qdrant point id. */
+export const knowledgeChunks = pgTable(
+  "knowledge_chunks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => knowledgeDocuments.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    text: text("text").notNull(),
+  },
+  (t) => [index("knowledge_chunks_doc_idx").on(t.tenantId, t.documentId, t.position)],
+);
+
+/** A short fact about ONE customer that the agent keeps between conversations ("prefers mornings"). Its id is the Qdrant point id. */
+export const customerMemories = pgTable(
+  "customer_memories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    fact: text("fact").notNull(),
+    source: text("source").notNull().default("agent"), // agent | staff | engine
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("customer_memories_customer_idx").on(t.tenantId, t.customerId, t.createdAt)],
+);

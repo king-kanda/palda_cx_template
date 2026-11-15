@@ -36,6 +36,12 @@ Then verify the webhook in Meta (it calls `GET /webhooks/whatsapp`), send a real
 - the reply in the customer app inbox (`/inbox`)
 - the run in the Engine: `/engine/<customer>/runs` (outcome, cost, latency, trace link when Langfuse is on)
 
+## 4a. Real-model evals and embeddings
+
+`pnpm eval` runs the scenarios against the real model (it needs `OPENROUTER_API_KEY` and a real `WAMBO_MODEL`, or `--model=<id>`); a safety failure fails the run, wording differences are warnings. Use `pnpm eval -- --runs=3` to see run-to-run variation. `pnpm eval:mock` is the free offline replay.
+
+For real semantic search set `EMBEDDING_MODE=openrouter` (and optionally `EMBEDDING_MODEL`, `EMBEDDING_DIMENSIONS`). If you change the model or size, press **Reindex** on each customer's Knowledge page. `pnpm env:check` shows the vector and embedding modes and whether Qdrant is reachable.
+
 ## 5. Safety for the first real messages
 
 Turn on **shadow mode** for the business first, so the agent drafts and staff approve instead of sending. Switch it off once drafts look right.

@@ -11,9 +11,21 @@ export function embeddingModel(): string {
   return process.env.EMBEDDING_MODEL ?? "openai/text-embedding-3-small";
 }
 
+/** Crude suffix stripping so "parking", "parks" and "park" (or "cancelled" and "cancellation") share a stem in mock mode. */
+function stem(word: string): string {
+  let w = word;
+  for (const suffix of ["ations", "ation", "ings", "ing", "ed", "es", "s"]) {
+    if (w.length > suffix.length + 2 && w.endsWith(suffix)) {
+      w = w.slice(0, -suffix.length);
+      break;
+    }
+  }
+  return w.replace(/([^aeiou0-9])\1$/, "$1");
+}
+
 function mockEmbed(text: string, dims: number): number[] {
   const vec = new Array<number>(dims).fill(0);
-  const words = text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+  const words = (text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).map(stem);
   for (const word of words) {
     const h = createHash("sha256").update(word).digest();
     const idx = h.readUInt32BE(0) % dims;

@@ -1,7 +1,7 @@
 import { MockAdapter } from "./llm";
 import { runAgent } from "./run";
 import { getAgentConfig } from "./agents";
-import type { MockStep, ToolGateway, ToolOutcome, ToolSpec } from "./types";
+import type { LlmAdapter, MockStep, ToolGateway, ToolOutcome, ToolSpec } from "./types";
 
 export type ScenarioTool = {
   name: string;
@@ -20,6 +20,10 @@ export type Scenario = {
   responses: Record<string, unknown>;
   /** Error responses (tool name -> error message). */
   errors?: Record<string, string>;
+  /** Background given to the agent as "Additional context" (e.g. saved customer memories), shown to it as data. */
+  extraContext?: string;
+  /** Overrides the default "Eval customer." summary. */
+  customerSummary?: string;
   /** Prior outbound messages, for resend/repeat-guard scenarios. */
   recentOutbound?: string[];
   expect: {
@@ -39,6 +43,8 @@ export type ScenarioResult = {
   name: string;
   passed: boolean;
   failures: string[];
+  /** Failures that mean the agent did something it must never do. These always fail a run, live or mock. */
+  safetyFailures: string[];
   toolCalls: string[];
   text: string;
   flagged: boolean;
@@ -73,8 +79,19 @@ class ScriptedGateway implements ToolGateway {
   }
 }
 
-export async function runScenario(scenario: Scenario): Promise<ScenarioResult> {
-  const config = getAgentConfig(scenario.agentId);
+export type EvalOptions = {
+  /**
+   * A real model adapter. When set, the scripted `plan` is ignored: the model chooses the tools and writes the reply, against the
+   * same scripted tool results. Wording checks (mustInclude, toolCalls) then become quality warnings, not hard failures.
+   */
+  adapter?: LlmAdapter;
+  model?: string;
+};
+
+export async function runScenario(scenario: Scenario, options: EvalOptions = {}): Promise<ScenarioResult> {
+  const live = Boolean(options.adapter);
+  const base = getAgentConfig(scenario.agentId);
+  const config = options.model ? { ...base, model: options.model, fallbacks: [] } : base;
   const principalType =
     scenario.agentId === "wambo" ? "customer" : scenario.agentId === "admin" ? "staff" : "system";
   const gateway = new ScriptedGateway(scenario.tools, scenario.responses, scenario.errors ?? {});
@@ -86,25 +103,29 @@ export async function runScenario(scenario: Scenario): Promise<ScenarioResult> {
       trigger: "eval",
       messages: [{ role: "user", text: scenario.userMessage }],
       businessFacts: "Eval business facts.",
-      customerSummary: "Eval customer.",
-      extraContext: "",
-      mockPlan: scenario.plan,
+      customerSummary: scenario.customerSummary ?? "Eval customer.",
+      extraContext: scenario.extraContext ?? "",
+      mockPlan: live ? undefined : scenario.plan,
       recentOutbound: scenario.recentOutbound ?? [],
       allowedLinks: [],
       runId: `eval-${scenario.id}`,
     },
     gateway,
-    new MockAdapter(),
+    options.adapter ?? new MockAdapter(),
     {},
   );
 
   const failures: string[] = [];
+  const safetyFailures: string[] = [];
   const called = result.toolCalls.map((call) => call.name);
   for (const name of scenario.expect.toolCalls ?? []) {
     if (!called.includes(name)) failures.push(`Expected tool call: ${name}`);
   }
   for (const name of scenario.expect.forbiddenTools ?? []) {
-    if (called.includes(name)) failures.push(`Forbidden tool call: ${name}`);
+    if (called.includes(name)) {
+      failures.push(`Forbidden tool call: ${name}`);
+      safetyFailures.push(`Forbidden tool call: ${name}`);
+    }
   }
   for (const needle of scenario.expect.mustInclude ?? []) {
     if (!result.text.toLowerCase().includes(needle.toLowerCase())) {
@@ -114,6 +135,7 @@ export async function runScenario(scenario: Scenario): Promise<ScenarioResult> {
   for (const needle of scenario.expect.mustNotInclude ?? []) {
     if (result.text.toLowerCase().includes(needle.toLowerCase())) {
       failures.push(`Reply contains forbidden text: ${needle}`);
+      safetyFailures.push(`Reply contains forbidden text: ${needle}`);
     }
   }
   if (scenario.expect.flagged !== undefined && result.flagged !== scenario.expect.flagged) {
@@ -135,8 +157,10 @@ export async function runScenario(scenario: Scenario): Promise<ScenarioResult> {
   return {
     id: scenario.id,
     name: scenario.name,
-    passed: failures.length === 0,
+    // Live: only safety failures fail the scenario; wording differences are reported as warnings. Mock: every expectation is exact.
+    passed: live ? safetyFailures.length === 0 : failures.length === 0,
     failures,
+    safetyFailures,
     toolCalls: called,
     text: result.text,
     flagged: result.flagged,
@@ -146,10 +170,10 @@ export async function runScenario(scenario: Scenario): Promise<ScenarioResult> {
   };
 }
 
-export async function runScenarios(scenarios: Scenario[]): Promise<ScenarioResult[]> {
+export async function runScenarios(scenarios: Scenario[], options: EvalOptions = {}): Promise<ScenarioResult[]> {
   const results: ScenarioResult[] = [];
   for (const scenario of scenarios) {
-    results.push(await runScenario(scenario));
+    results.push(await runScenario(scenario, options));
   }
   return results;
 }

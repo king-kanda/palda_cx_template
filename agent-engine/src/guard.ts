@@ -172,9 +172,23 @@ export function checkLinks(
   return failures;
 }
 
-export function checkForbiddenPromises(text: string, phrases: string[]): string[] {
+/**
+ * Policy words the agent may only say when this run's own tool results say them first (e.g. a cancellation document that
+ * really does offer "free of charge" cancellation). Statements of ACTION ("I have refunded") are never allowed, even if a
+ * document contains them, because a document is data the business or a customer wrote, not proof that something happened.
+ */
+const GROUNDABLE_PHRASES = new Set(["free of charge", "guaranteed"]);
+
+export function checkForbiddenPromises(text: string, phrases: string[], toolResults: unknown[] = []): string[] {
   const lower = text.toLowerCase();
-  return phrases.filter((phrase) => lower.includes(phrase.toLowerCase())).map((p) => `Forbidden promise: ${p}`);
+  const toolText = JSON.stringify(toolResults ?? []).toLowerCase();
+  return phrases
+    .filter((phrase) => {
+      const p = phrase.toLowerCase();
+      if (!lower.includes(p)) return false;
+      return !(GROUNDABLE_PHRASES.has(p) && toolText.includes(p));
+    })
+    .map((p) => `Forbidden promise: ${p}`);
 }
 
 export function checkPii(text: string): string[] {
@@ -209,7 +223,7 @@ export function guardOutput(input: {
     reasons.push(...checkMoneyGrounded(text, input.toolResults));
     reasons.push(...checkDatesGrounded(text, input.toolResults));
   }
-  reasons.push(...checkForbiddenPromises(text, input.config.guard.forbiddenPromises));
+  reasons.push(...checkForbiddenPromises(text, input.config.guard.forbiddenPromises, input.toolResults));
   reasons.push(...checkLinks(text, input.toolResults, input.allowedLinks));
   reasons.push(...checkPii(text));
   reasons.push(...checkRepeat(text, input.recentOutbound, input.config.guard.maxRepeats));

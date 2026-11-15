@@ -8,7 +8,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "eval": "tsx scripts/eval.ts",
+    "eval": "tsx scripts/eval.ts --real",
     "eval:mock": "tsx scripts/eval.ts --mock"
   },
   "dependencies": {

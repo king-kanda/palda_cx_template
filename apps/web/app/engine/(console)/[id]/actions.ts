@@ -7,7 +7,12 @@ import {
   resetOwnerPassword,
   rolloutCustomer,
   activateAgentVersion,
+  addKnowledgeDocument,
+  deleteKnowledgeDocument,
+  deleteMemoryAsAdmin,
   publishAgentOverride,
+  reindexKnowledge,
+  reindexMemories,
   setCustomerStatus,
   startImpersonation,
   updateAgentProfile,
@@ -162,4 +167,43 @@ export async function activateVersionAction(formData: FormData): Promise<void> {
   const versionId = String(formData.get("versionId") ?? "") || null;
   await activateAgentVersion(admin.id, tenantId, agentId, versionId);
   revalidatePath(`/engine/${tenantId}/agent/tools`);
+}
+
+/** Add a knowledge document for this customer's agent. */
+export async function addKnowledgeAction(_prev: EngineFormState, formData: FormData): Promise<EngineFormState> {
+  const admin = await requireEngineAdmin();
+  const tenantId = idOf(formData);
+  try {
+    const res = await addKnowledgeDocument(admin.id, tenantId, {
+      title: String(formData.get("title") ?? ""),
+      body: String(formData.get("body") ?? ""),
+    });
+    revalidatePath(`/engine/${tenantId}/agent/knowledge`);
+    if (res.status === "failed") return { error: `Saved, but indexing failed: ${res.error}. Use Reindex once it is fixed.` };
+    return { ok: true, message: `Added and indexed (${res.chunks} section${res.chunks === 1 ? "" : "s"}).` };
+  } catch (error) {
+    return { error: messageOf(error) };
+  }
+}
+
+export async function deleteKnowledgeAction(formData: FormData): Promise<void> {
+  const admin = await requireEngineAdmin();
+  const tenantId = idOf(formData);
+  await deleteKnowledgeDocument(admin.id, tenantId, String(formData.get("docId") ?? ""));
+  revalidatePath(`/engine/${tenantId}/agent/knowledge`);
+}
+
+export async function reindexKnowledgeAction(formData: FormData): Promise<void> {
+  await requireEngineAdmin();
+  const tenantId = idOf(formData);
+  await reindexKnowledge(tenantId);
+  await reindexMemories(tenantId);
+  revalidatePath(`/engine/${tenantId}/agent/knowledge`);
+}
+
+export async function deleteMemoryAction(formData: FormData): Promise<void> {
+  const admin = await requireEngineAdmin();
+  const tenantId = idOf(formData);
+  await deleteMemoryAsAdmin(admin.id, tenantId, String(formData.get("memoryId") ?? ""));
+  revalidatePath(`/engine/${tenantId}/agent/memory`);
 }

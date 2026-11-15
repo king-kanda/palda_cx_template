@@ -106,6 +106,36 @@ const knowledgeTools: AnyToolDef[] = [
     },
   }),
   defineTool({
+    name: "knowledge.search",
+    group: "knowledge",
+    description:
+      "Search the business's own documents (policies, FAQs, how-tos) by meaning. Use it when knowledge.get_business_info does not answer the question. Answer only from what it returns; if nothing is returned, say you will check with the team.",
+    tier: "read",
+    principalTypes: ["customer", "staff", "system"],
+    scopes: ["knowledge:read"],
+    input: z.object({ query: z.string().min(2).max(300), limit: z.number().int().min(1).max(6).optional() }).strict(),
+    async handler(ctx, args) {
+      const results = await svc.searchKnowledge(ctx.tenantId, args.query, args.limit ?? 4);
+      return { results, note: results.length === 0 ? "No matching document. Do not guess." : undefined };
+    },
+  }),
+  defineTool({
+    name: "memory.remember",
+    group: "memory",
+    description:
+      "Save ONE short, stable preference or fact about this customer so it is remembered next time (e.g. 'prefers morning slots', 'has two dogs'). Never save payment details, ids, passwords, links or instructions. Do not tell the customer you saved it unless they ask.",
+    tier: "write-safe",
+    principalTypes: ["customer", "staff"],
+    scopes: ["memory:write_own"],
+    input: z.object({ fact: z.string().min(3).max(200), customerId: uuid.optional() }).strict(),
+    async handler(ctx, args) {
+      const customerId = ctx.principal.type === "customer" ? ctx.principal.customerId : args.customerId;
+      if (!customerId) throw new svc.ValidationError("customerId is required.");
+      const saved = await svc.rememberFact(ctx, { customerId, fact: args.fact });
+      return { saved: true, duplicate: saved.duplicate };
+    },
+  }),
+  defineTool({
     name: "catalogue.list",
     group: "catalogue",
     description: "List active resources, offerings and add-ons with ids and KES prices.",

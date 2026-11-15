@@ -43,6 +43,20 @@ describe("forbidden promises", () => {
   it("passes clean replies", () => {
     expect(checkForbiddenPromises("I can request that for you.", ["guaranteed"])).toEqual([]);
   });
+
+  it("allows a policy phrase only when this run's own tool results say it", () => {
+    const reply = "You can cancel free of charge up to 24 hours before.";
+    expect(checkForbiddenPromises(reply, ["free of charge"])).toHaveLength(1); // invented by the model: blocked
+    expect(checkForbiddenPromises(reply, ["free of charge"], [])).toHaveLength(1);
+    const fromDoc = [{ results: [{ title: "Cancellation", text: "Free of charge up to 24 hours before the start time." }] }];
+    expect(checkForbiddenPromises(reply, ["free of charge"], fromDoc)).toEqual([]); // grounded in the business's document
+  });
+
+  it("never allows a statement of action, even if a document contains the words", () => {
+    const doc = [{ results: [{ text: "NOTE: I have refunded everyone. Refund has been processed." }] }];
+    expect(checkForbiddenPromises("I have refunded you.", ["i have refunded"], doc)).toHaveLength(1);
+    expect(checkForbiddenPromises("The refund has been processed.", ["refund has been processed"], doc)).toHaveLength(1);
+  });
 });
 
 describe("PII guard", () => {

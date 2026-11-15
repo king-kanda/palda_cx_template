@@ -18,7 +18,7 @@ import {
   withPrincipal,
   type Principal,
 } from "@garden/services";
-import { formatNairobi, formatNairobiDateTime } from "@garden/services";
+import { formatNairobi, formatNairobiDateTime, recallMemories } from "@garden/services";
 import { loadAgentConfig } from "./agent-config";
 import { createInProcessGateway } from "./gateway";
 import { tryAdvisoryLock } from "./locks";
@@ -219,6 +219,19 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
   if (input.messages?.length) history = [...history, ...input.messages];
   if (input.userText?.trim()) history.push({ role: "user", text: input.userText.trim() });
 
+  // What this customer has told us before (their own saved details only). Shown to the model as data, never as instructions.
+  let memoryContext = "";
+  if (input.principal.type === "customer" && config.id === "wambo") {
+    try {
+      const facts = await recallMemories(input.tenantId, input.principal.customerId, input.userText ?? "");
+      if (facts.length) {
+        memoryContext = ["Saved details about this customer from earlier conversations:", ...facts.map((f) => `- ${f}`)].join("\n");
+      }
+    } catch (error) {
+      console.error("[memory] recall failed; continuing without it", error);
+    }
+  }
+
   const lockKey = conversationId
     ? `conversation:${conversationId}`
     : `agent:${input.agentId}:${input.tenantId}:${input.principal.type}:${
@@ -255,7 +268,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
         messages: history,
         businessFacts: facts,
         customerSummary: summary,
-        extraContext: input.extraContext ?? "",
+        extraContext: [input.extraContext ?? "", memoryContext].filter(Boolean).join("\n\n"),
         mockPlan: input.mockPlan,
         recentOutbound,
         allowedLinks: [process.env.APP_URL ?? "", process.env.PUBLIC_REVIEW_URL ?? ""].filter(

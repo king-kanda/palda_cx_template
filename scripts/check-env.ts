@@ -1,4 +1,6 @@
 import { loadEnvFile, missingRuntimeEnv } from "../packages/db/src/env";
+import { embeddingModel } from "../packages/integrations/src/embeddings";
+import { embeddingDimensions, embeddingMode, vectorHealth, vectorMode } from "../packages/integrations/src/vector";
 
 /**
  * `pnpm env:check` prints the selected integration modes and every key that is
@@ -48,7 +50,29 @@ if (mode("WHATSAPP_MODE", "mock") === "cloud") {
   }
 }
 
-const problems = missingRuntimeEnv(env);
+console.log("");
+console.log("Agent model, knowledge and memory:");
+const realModel = mode("WAMBO_MODEL", "mock") !== "mock";
+console.log(`  WAMBO_MODEL: ${realModel ? mode("WAMBO_MODEL", "mock") : "mock (scripted replies, no real model)"}`);
+console.log(`  OPENROUTER_API_KEY: ${has("OPENROUTER_API_KEY")}`);
+console.log(`  vector store: ${vectorMode()}${vectorMode() === "mock" ? " (in-memory: knowledge and memory vectors vanish on restart)" : ""}`);
+console.log(`  embeddings:   ${embeddingMode()}${embeddingMode() === "openrouter" ? ` (${embeddingModel()}, ${embeddingDimensions()} dims)` : " (hash-based, for tests)"}`);
+async function finish(): Promise<void> {
+const vectorProblems: string[] = [];
+if (realModel && !(env.OPENROUTER_API_KEY ?? "").trim()) vectorProblems.push("WAMBO_MODEL is a real model but OPENROUTER_API_KEY is empty.");
+if (vectorMode() === "qdrant") {
+  if (!(env.QDRANT_URL ?? "").trim()) vectorProblems.push("VECTOR_MODE=qdrant needs QDRANT_URL.");
+  else {
+    const health = await vectorHealth();
+    console.log(`  qdrant:       ${health.ok ? "reachable" : "NOT reachable"} (${health.detail})`);
+    if (!health.ok) vectorProblems.push("Qdrant is not reachable. Start it with: docker compose up -d qdrant (and check QDRANT_API_KEY).");
+  }
+}
+if (embeddingMode() === "mock" && realModel) {
+  console.log("  note: embeddings are still in mock mode. Set EMBEDDING_MODE=openrouter for real semantic search.");
+}
+
+const problems = [...missingRuntimeEnv(env), ...vectorProblems];
 if (problems.length > 0) {
   console.error("");
   console.error("Configuration is incomplete; the app will refuse to start:");
@@ -59,3 +83,9 @@ if (problems.length > 0) {
 
 console.log("");
 console.log("Configuration OK for the selected modes.");
+}
+
+finish().catch((error) => {
+  console.error("env:check crashed:", error);
+  process.exit(1);
+});

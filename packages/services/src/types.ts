@@ -5,6 +5,7 @@ export const CUSTOMER_SCOPES = [
   "payments:request_own",
   "reviews:write_own",
   "handoff:create",
+  "memory:write_own",
 ] as const;
 
 export const SYSTEM_SCOPES = [

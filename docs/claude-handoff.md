@@ -216,6 +216,18 @@ Approximate order of the work; dates are the recorded gate/verification dates.
 - Not verified in the container: the integration suite (`docker compose run --rm migrate pnpm test:integration`)
   was not re-run against the new image, and the pages were not checked in a browser after the rebuild.
 
+### 7a2. Agent controls, knowledge, memory and evals (2026-11-15)
+
+Full reference: [`docs/AGENT-CONTROLS.md`](AGENT-CONTROLS.md). Summary:
+
+- **Per-customer tool controls** in the Engine (`Agent > Tools`), stored as versioned `agent_versions` with rollback; an override can only add restrictions.
+- **Qdrant** (docker service, API key, localhost-only) holds vectors; Postgres holds the text under RLS. Access only through `vectorsFor(tenantId)`, which forces a tenant filter, re-checks hits and scopes memories to one customer.
+- **Knowledge** (`knowledge.search`, Engine `Agent > Knowledge`) and **memory** (`memory.remember`, automatic recall into the prompt, Engine `Agent > Memory`). The agent does not relearn each time, but it only keeps short, validated facts.
+- **`pnpm eval` now runs a real model** (it used to silently run the mock). `pnpm eval:mock` is the offline replay. 49 scenarios.
+- **Embeddings** default to a mock until `EMBEDDING_MODE=openrouter` (needs `OPENROUTER_API_KEY`); not yet tried with a real key.
+- **RLS locally:** dev connects as a superuser, so RLS is bypassed; isolation there comes from explicit `tenant_id` filters. The integration suite proves the policies as a restricted role.
+- Test counts: 127 unit, 102 integration, 49 evals.
+
 ### 7b. The Engine, managed rollout, cleaning vertical and fixes (2026-11-15)
 
 **Business model: Palda CX sells a service, not self-serve software.** Customers do **not** register or sign themselves

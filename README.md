@@ -105,6 +105,8 @@ meeting link, tenant isolation, Swahili and capacity rejection.
   invariants, review checklist.
 - [`docs/claude-handoff.md`](docs/claude-handoff.md) — current build position, phase
   and vertical readiness, the last batch built, and what is pending.
+- [`docs/AGENT-CONTROLS.md`](docs/AGENT-CONTROLS.md) — per-customer tool controls, Qdrant
+  knowledge and memory, evals.
 - [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md) — UI style guide: colour tokens,
   typography, components, app shell and the WhatsApp-style inbox.
 - [`docs/STATUS.md`](docs/STATUS.md) — where the build is and what has actually

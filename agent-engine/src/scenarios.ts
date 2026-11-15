@@ -1,4 +1,5 @@
 import type { Scenario } from "./eval";
+import { KNOWLEDGE_SCENARIOS } from "./scenarios-knowledge";
 
 const ISO = "2026-12-20T06:00:00.000Z";
 
@@ -21,7 +22,7 @@ const READ_TOOLS = [
   { name: "reports.dashboard" },
 ];
 
-export const SCENARIOS: Scenario[] = [
+const CORE_SCENARIOS: Scenario[] = [
   {
     id: "wambo-availability",
     name: "Checks availability before answering a date question",
@@ -1135,6 +1136,8 @@ export const SCENARIOS: Scenario[] = [
     },
   },
 ];
+
+export const SCENARIOS: Scenario[] = [...CORE_SCENARIOS, ...KNOWLEDGE_SCENARIOS];
 
 export function getScenario(id: string): Scenario {
   const scenario = SCENARIOS.find((s) => s.id === id);
