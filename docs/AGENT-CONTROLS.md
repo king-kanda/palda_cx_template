@@ -10,6 +10,7 @@ How each customer's agent is configured from the Engine, what it knows, and what
 | Tools | `/engine/<id>/agent/tools` | Which tools the customer-facing agent may use, and the max tool calls per message |
 | Knowledge | `/engine/<id>/agent/knowledge` | Documents the agent can search (policies, FAQs). Has a "Try a question" box showing what it would find |
 | Memory | `/engine/<id>/agent/memory` | Facts the agent has saved about this customer's end-customers, with delete |
+| Integrations | `/engine/<id>/agent/integrations` | External MCP servers (calendar, CRM): connect, review tools, switch on, sync, disable (section 4b) |
 | Runs | `/engine/<id>/runs` | Every agent run, with trace links |
 
 ### Tools: versions, not edits
@@ -55,10 +56,41 @@ The agent saves a fact with `memory.remember` (one short fact). `checkMemoryFact
 
 Not built yet: letting a customer ask to be forgotten through the agent (today it hands over to staff), and summarising long past conversations.
 
+## 4a. Invoices for the customer-facing agent
+
+The agent can create and send an invoice for the customer it is talking to (`invoices.generate`, `invoices.send`, `invoices.get`, `invoices.list`; scopes `invoices:read_own` / `invoices:write_own`). The amount is always computed by the server from the booking and payments; the agent only chooses the kind (deposit, balance, full), so it cannot set a price, and a customer cannot choose the due date.
+
+Ownership is enforced in the services, not just the tool: a customer principal can only touch invoices of its own bookings, and anything else returns "not found" (never "forbidden", so ids can't be probed). Asking twice returns the same open invoice. The invoice is sent only to that customer's own verified WhatsApp number. Staff behaviour is unchanged. Tested with two customers of the same business and a customer of another business (`customer-invoices.test.ts`).
+
+The agent can list the invoices of the customer it is talking to, not other customers. A customer-facing agent never sees the customer list: that would expose one customer's details to another. Staff-side agents (admin, ops) can list customers as before.
+
+## 4b. External MCP servers (Engine, Agent > Integrations)
+
+Lets the Palda team connect an outside MCP server (a calendar, a CRM) to one customer's agent. The customer never sees or edits it.
+
+How it works:
+
+1. Staff add a server: a short name, an https address, and an optional bearer token. The Engine connects once to prove it works and reads its tools. **Every tool starts off.**
+2. Staff read each tool's name, description and inputs and switch on only what that agent needs. Tools appear to the agent as `ext_<server>_<tool>` and never replace a built-in tool.
+3. Each approved tool is bound to a **fingerprint** of exactly what staff reviewed. If the server later changes a tool (name, description or inputs), **Sync tools** switches it off and flags it "changed" until staff review it again. This defends against a server rewriting a description to steer the agent.
+4. A server can be assigned to specific agents (default: the customer-facing one), disabled with one click, or removed. Every change is in `audit_log` (`engine.mcp_*`).
+
+Safety, in layers (`packages/integrations/src/external-mcp.ts`):
+
+- https only, no credentials in the URL, no redirects. Private, loopback, link-local (including the cloud metadata address) and carrier-grade NAT ranges are refused, for IPv4, IPv6 and IPv4-mapped forms.
+- The address check runs **on the actual connection** (undici `lookup`), not only before it, so a host name that resolves to a private address, or changes its answer after the check, cannot reach one.
+- The token is encrypted at rest (`encryptJson`), never returned to a browser, never written to the audit log.
+- What comes back is untrusted: names validated, descriptions cleaned and capped, at most 100 tools, schemas capped at 8,000 characters, results text-only and truncated at 8,000 characters, 15 to 20 second timeouts, request arguments capped at 4,000 characters.
+- Results reach the agent labelled as data from an outside system that can never change its rules. A failing or slow server never stops a customer getting an answer: the built-in tools still work.
+
+Development only: `EXTERNAL_MCP_ALLOW_PRIVATE=true` and `EXTERNAL_MCP_ALLOW_INSECURE=true` let you connect to an MCP server on localhost or your LAN (from Docker use `host.docker.internal`). Both default to false in `docker-compose.yml`; keep them false in production.
+
+Not built yet: per-tool "needs approval" before an external tool runs (today a tool is simply on or off), legacy SSE servers (Streamable HTTP only), OAuth flows (bearer tokens only), and per-customer control of external tools for the staff-side agents.
+
 ## 5. Evals
 
 ```bash
-pnpm eval:mock                        # offline replay of scripted plans; exact; free. 49 scenarios
+pnpm eval:mock                        # offline replay of scripted plans; exact; free. 53 scenarios
 pnpm eval                             # REAL model against scripted tool results (OPENROUTER_API_KEY + a real WAMBO_MODEL, or --model=<id>)
 pnpm eval -- --only=<id> --runs=3     # one scenario, repeated
 ```
@@ -75,4 +107,7 @@ Knowledge and memory scenarios (`agent-engine/src/scenarios-knowledge.ts`): answ
 | `tests/unit/knowledge.test.ts` | Chunking, the memory safety filter |
 | `tests/integration/vector-qdrant.test.ts` | Isolation against a live Qdrant (skipped if unreachable) |
 | `tests/integration/agent-control.test.ts` | Versions, rollback, restrictions-only, audit |
+| `tests/integration/customer-invoices.test.ts` | A customer can invoice only their own booking; other customers and businesses get not-found; staff unchanged |
+| `tests/unit/external-mcp.test.ts` | Address and URL rules (private, metadata, IPv6, mapped), tool fingerprints and the change-detection merge |
+| `tests/integration/external-mcp.test.ts` | A real local MCP server: add, discover, tools start off, token encrypted, isolation, calling, injection labelled as data, changed tool switches off, disable and remove, audit |
 | `tests/integration/knowledge-memory.test.ts` | Tenant and customer isolation, RLS as a restricted role, recall, caps, deletes, the tools |

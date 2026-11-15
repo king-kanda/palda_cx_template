@@ -9,6 +9,15 @@ import { ConflictError, NotFoundError, PolicyError, ValidationError } from "./ty
 
 const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
 
+/**
+ * A customer-facing agent acts as ONE customer. It may only touch that customer's own bookings and invoices, and anything else
+ * is reported as not found (never "forbidden", so it cannot be used to probe which ids exist). Staff and system are unrestricted.
+ */
+function assertOwnBooking(ctx: ServiceContext, booking: { customerId: string } | null | undefined, what: string, id: string): void {
+  if (ctx.principal.type !== "customer") return;
+  if (!booking || booking.customerId !== ctx.principal.customerId) throw new NotFoundError(what, id);
+}
+
 async function nextInvoiceNumber(ctx: ServiceContext): Promise<string> {
   const year = new Date().getUTCFullYear();
   const [row] = await ctx.db
@@ -84,6 +93,7 @@ export async function generateInvoice(
     where: and(eq(schema.bookings.id, input.bookingId), eq(schema.bookings.tenantId, ctx.tenantId)),
   });
   if (!booking) throw new NotFoundError("Booking", input.bookingId);
+  assertOwnBooking(ctx, booking, "Booking", input.bookingId);
   if (["cancelled", "no_show"].includes(booking.status)) {
     throw new PolicyError("Cannot invoice a cancelled booking.");
   }
@@ -110,7 +120,7 @@ export async function generateInvoice(
   const dueAt =
     input.kind === "balance"
       ? new Date(Math.max(now.getTime(), booking.startsAt.getTime() - 14 * 86_400_000))
-      : new Date(now.getTime() + (input.dueInDays ?? 3) * 86_400_000);
+      : new Date(now.getTime() + (ctx.principal.type === "customer" ? 3 : (input.dueInDays ?? 3)) * 86_400_000);
 
   const [invoice] = await ctx.db
     .insert(schema.invoices)
@@ -145,6 +155,7 @@ export async function sendInvoice(ctx: ServiceContext, invoiceId: string): Promi
   const booking = await ctx.db.query.bookings.findFirst({
     where: eq(schema.bookings.id, invoice.bookingId),
   });
+  assertOwnBooking(ctx, booking, "Invoice", invoiceId);
   const customer = booking
     ? await ctx.db.query.customers.findFirst({ where: eq(schema.customers.id, booking.customerId) })
     : null;
@@ -203,6 +214,7 @@ export async function listInvoices(
   filters: { status?: string[]; search?: string; limit?: number } = {},
 ) {
   const conditions = [eq(schema.invoices.tenantId, ctx.tenantId)];
+  if (ctx.principal.type === "customer") conditions.push(eq(schema.bookings.customerId, ctx.principal.customerId));
   if (filters.status?.length) conditions.push(inArray(schema.invoices.status, filters.status));
   if (filters.search) {
     conditions.push(
@@ -239,6 +251,7 @@ export async function getInvoiceDetail(ctx: ServiceContext, invoiceId: string) {
     .limit(1);
   const found = row[0];
   if (!found) throw new NotFoundError("Invoice", invoiceId);
+  assertOwnBooking(ctx, found.booking, "Invoice", invoiceId);
   const payments = await ctx.db.query.payments.findMany({
     where: and(eq(schema.payments.tenantId, ctx.tenantId), eq(schema.payments.invoiceId, invoiceId)),
     orderBy: desc(schema.payments.createdAt),

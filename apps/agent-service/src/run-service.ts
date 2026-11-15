@@ -20,6 +20,7 @@ import {
 } from "@garden/services";
 import { formatNairobi, formatNairobiDateTime, recallMemories } from "@garden/services";
 import { loadAgentConfig } from "./agent-config";
+import { withExternalTools } from "./external-gateway";
 import { createInProcessGateway } from "./gateway";
 import { tryAdvisoryLock } from "./locks";
 
@@ -275,7 +276,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
           Boolean,
         ),
       },
-      createInProcessGateway(input.principal),
+      await withExternalTools(input.tenantId, config.id, createInProcessGateway(input.principal)),
       llmFor(config),
       {
         acquireLock: async () => true,

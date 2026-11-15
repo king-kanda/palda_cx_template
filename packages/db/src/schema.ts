@@ -735,3 +735,42 @@ export const customerMemories = pgTable(
   },
   (t) => [index("customer_memories_customer_idx").on(t.tenantId, t.customerId, t.createdAt)],
 );
+
+/* ───────────────────── External MCP servers (per customer) ─────────────────────
+ * Tools from outside systems (a calendar, a CRM) that one customer's agent may use. Set up and approved by the Palda team in the
+ * Engine; the customer never sees or edits them. The token is encrypted at rest and is never returned to a browser.
+ */
+export type ExternalToolRow = {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+  /** Hash of exactly what staff reviewed. A server that later changes the tool no longer matches, and the tool switches off. */
+  fingerprint: string;
+  enabled: boolean;
+  /** True when a sync found the server changed this tool after it was approved. */
+  changed?: boolean;
+};
+
+export const tenantMcpServers = pgTable(
+  "tenant_mcp_servers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    /** Short lowercase label, used to namespace the tools: ext_<name>_<tool>. */
+    name: text("name").notNull(),
+    url: text("url").notNull(),
+    /** encryptJson({ token }) or null. */
+    secretEnc: text("secret_enc"),
+    /** Which agents may use these tools. Customer-facing is "wambo". */
+    agents: text("agents").array().notNull().default(sql`ARRAY['wambo']::text[]`),
+    status: text("status").notNull().default("active"), // active | disabled
+    tools: jsonb("tools").$type<ExternalToolRow[]>().notNull().default([]),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("tenant_mcp_servers_name_uq").on(t.tenantId, t.name)],
+);

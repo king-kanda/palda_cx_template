@@ -27,6 +27,9 @@ x-app: &app
     QDRANT_URL: http://qdrant:6333
     QDRANT_API_KEY: ${QDRANT_API_KEY:-}
     VECTOR_MODE: ${VECTOR_MODE:-qdrant}
+    # Development only. Off by default: external MCP servers must be public https. See docs/AGENT-CONTROLS.md.
+    EXTERNAL_MCP_ALLOW_PRIVATE: ${EXTERNAL_MCP_ALLOW_PRIVATE:-false}
+    EXTERNAL_MCP_ALLOW_INSECURE: ${EXTERNAL_MCP_ALLOW_INSECURE:-false}
   restart: unless-stopped
 
 services:

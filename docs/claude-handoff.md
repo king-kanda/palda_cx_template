@@ -226,7 +226,9 @@ Full reference: [`docs/AGENT-CONTROLS.md`](AGENT-CONTROLS.md). Summary:
 - **`pnpm eval` now runs a real model** (it used to silently run the mock). `pnpm eval:mock` is the offline replay. 49 scenarios.
 - **Embeddings** default to a mock until `EMBEDDING_MODE=openrouter` (needs `OPENROUTER_API_KEY`); not yet tried with a real key.
 - **RLS locally:** dev connects as a superuser, so RLS is bypassed; isolation there comes from explicit `tenant_id` filters. The integration suite proves the policies as a restricted role.
-- Test counts: 127 unit, 102 integration, 49 evals.
+- **Customer-facing invoices** (`invoices.generate/send/get/list`, own bookings only, ownership enforced in the services).
+- **External MCP servers** per customer (Engine `Agent > Integrations`): tools start off, fingerprint-bound approval, SSRF-safe connection, encrypted token. Dev-only env switches `EXTERNAL_MCP_ALLOW_PRIVATE` / `EXTERNAL_MCP_ALLOW_INSECURE`.
+- Test counts: 178 unit, 125 integration, 53 evals.
 
 ### 7b. The Engine, managed rollout, cleaning vertical and fixes (2026-11-15)
 

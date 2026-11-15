@@ -7,7 +7,12 @@ import {
   resetOwnerPassword,
   rolloutCustomer,
   activateAgentVersion,
+  addExternalServer,
   addKnowledgeDocument,
+  deleteExternalServer,
+  setExternalServerStatus,
+  setExternalToolsEnabled,
+  syncExternalServer,
   deleteKnowledgeDocument,
   deleteMemoryAsAdmin,
   publishAgentOverride,
@@ -199,6 +204,73 @@ export async function reindexKnowledgeAction(formData: FormData): Promise<void> 
   await reindexKnowledge(tenantId);
   await reindexMemories(tenantId);
   revalidatePath(`/engine/${tenantId}/agent/knowledge`);
+}
+
+/** Connect an external MCP server for this customer. Connects once to prove it works; every tool starts switched off. */
+export async function addExternalServerAction(_prev: EngineFormState, formData: FormData): Promise<EngineFormState> {
+  const admin = await requireEngineAdmin();
+  const tenantId = idOf(formData);
+  try {
+    const res = await addExternalServer(admin.id, tenantId, {
+      name: String(formData.get("name") ?? ""),
+      url: String(formData.get("url") ?? ""),
+      token: String(formData.get("token") ?? ""),
+    });
+    revalidatePath(`/engine/${tenantId}/agent/integrations`);
+    return { ok: true, message: `Connected. Found ${res.toolCount} tool${res.toolCount === 1 ? "" : "s"}. Review them below and switch on the ones this agent should use.` };
+  } catch (error) {
+    return { error: messageOf(error) };
+  }
+}
+
+export async function syncExternalServerAction(_prev: EngineFormState, formData: FormData): Promise<EngineFormState> {
+  const admin = await requireEngineAdmin();
+  const tenantId = idOf(formData);
+  try {
+    const res = await syncExternalServer(admin.id, tenantId, String(formData.get("serverId") ?? ""));
+    revalidatePath(`/engine/${tenantId}/agent/integrations`);
+    return {
+      ok: true,
+      message: res.changed.length
+        ? `Synced. ${res.changed.length} tool${res.changed.length === 1 ? " was" : "s were"} changed by the server and switched off until you review ${res.changed.length === 1 ? "it" : "them"}.`
+        : `Synced. ${res.toolCount} tools, nothing changed.`,
+    };
+  } catch (error) {
+    revalidatePath(`/engine/${tenantId}/agent/integrations`);
+    return { error: messageOf(error) };
+  }
+}
+
+export async function saveExternalToolsAction(_prev: EngineFormState, formData: FormData): Promise<EngineFormState> {
+  const admin = await requireEngineAdmin();
+  const tenantId = idOf(formData);
+  try {
+    const { enabled } = await setExternalToolsEnabled(
+      admin.id,
+      tenantId,
+      String(formData.get("serverId") ?? ""),
+      formData.getAll("enabled").map(String),
+    );
+    revalidatePath(`/engine/${tenantId}/agent/integrations`);
+    return { ok: true, message: `Saved. ${enabled} tool${enabled === 1 ? " is" : "s are"} on. It applies from the next message.` };
+  } catch (error) {
+    return { error: messageOf(error) };
+  }
+}
+
+export async function setExternalServerStatusAction(formData: FormData): Promise<void> {
+  const admin = await requireEngineAdmin();
+  const tenantId = idOf(formData);
+  const status = String(formData.get("status")) === "disabled" ? "disabled" : "active";
+  await setExternalServerStatus(admin.id, tenantId, String(formData.get("serverId") ?? ""), status);
+  revalidatePath(`/engine/${tenantId}/agent/integrations`);
+}
+
+export async function deleteExternalServerAction(formData: FormData): Promise<void> {
+  const admin = await requireEngineAdmin();
+  const tenantId = idOf(formData);
+  await deleteExternalServer(admin.id, tenantId, String(formData.get("serverId") ?? ""));
+  revalidatePath(`/engine/${tenantId}/agent/integrations`);
 }
 
 export async function deleteMemoryAction(formData: FormData): Promise<void> {

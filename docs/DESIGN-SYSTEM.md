@@ -165,7 +165,7 @@ It is built with **shadcn/ui and Radix** (section 12).
   Suspended) and a grid of customer cards: avatar, name, internal address in mono, status pill, TYPE / AGENT, RUNS 24H / COST 24H / ATTENTION, and the last-run time.
 - **Workspace** (`/engine/<id>/…`): the **shadcn Sidebar**, full height (256 px; 72 px icon rail). Its top row is the brand (logo, `ENGINE` tag); below it the agent's picture, "WORKSPACE", the customer name with a status pill and a one-line summary.
   Items: Overview, Agent, Business, Access, Operations. **Agent, Business and Operations are dropdown groups** (shadcn `Collapsible`): they open inline with a rotating chevron, a
-  hairline guide on the left and indented sub-pages (Agent: Profile & voice, Tools, Knowledge, Memory, Runs. Business: Details & hours, Team & services. Operations: Rollout, Connections). A group starts open
+  hairline guide on the left and indented sub-pages (Agent: Profile & voice, Tools, Knowledge, Memory, Integrations, Runs. Business: Details & hours, Team & services. Operations: Rollout, Connections). A group starts open
   when one of its pages is current. The active item is `lime-400` with `brand-900` text; the active sub-page is `lime-100`. Footer: **Open their app**.
   The sidebar **collapses to an icon rail** (grip rail on its edge, or **Ctrl/⌘ + B**) with tooltips, and on phones becomes a **sheet** opened by a menu button.
 - **Workspace Overview**: ranked "Needs a decision", four metric cards (Agent, Runs, Run attention, Hit a limit), a Today / Week / Month switch, **three bar charts** (section 11),

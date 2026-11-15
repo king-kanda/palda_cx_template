@@ -638,10 +638,10 @@ const moneyTools: AnyToolDef[] = [
   defineTool({
     name: "invoices.list",
     group: "invoices",
-    description: "List invoices with status and balances (staff/ops).",
+    description: "List invoices with status and balances. A customer sees only their own.",
     tier: "read",
-    principalTypes: ["staff", "system"],
-    scopes: ["invoices:read"],
+    principalTypes: ["customer", "staff", "system"],
+    scopes: ["invoices:read", "invoices:read_own"],
     input: z
       .object({
         status: z.array(z.enum(["draft", "sent", "partial", "paid", "overdue", "void"])).optional(),
@@ -665,10 +665,11 @@ const moneyTools: AnyToolDef[] = [
   defineTool({
     name: "invoices.generate",
     group: "invoices",
-    description: "Generate a deposit, balance or full invoice for a booking (staff/ops).",
+    description:
+      "Generate a deposit, balance or full invoice for a booking. The amount is computed by the server from the booking and payments; never state an amount that is not in the result. A customer can only invoice their own booking.",
     tier: "write-safe",
-    principalTypes: ["staff", "system"],
-    scopes: ["invoices:write"],
+    principalTypes: ["customer", "staff", "system"],
+    scopes: ["invoices:write", "invoices:write_own"],
     input: z
       .object({
         bookingId: uuid,
@@ -691,10 +692,10 @@ const moneyTools: AnyToolDef[] = [
   defineTool({
     name: "invoices.send",
     group: "invoices",
-    description: "Send an invoice to the customer over WhatsApp (staff/ops).",
+    description: "Send an invoice to the customer over WhatsApp. For a customer it is always sent to their own verified number.",
     tier: "write-safe",
-    principalTypes: ["staff", "system"],
-    scopes: ["invoices:write"],
+    principalTypes: ["customer", "staff", "system"],
+    scopes: ["invoices:write", "invoices:write_own"],
     input: z.object({ invoiceId: uuid }).strict(),
     async handler(ctx, args) {
       const invoice = await svc.sendInvoice(ctx, args.invoiceId);
@@ -704,10 +705,10 @@ const moneyTools: AnyToolDef[] = [
   defineTool({
     name: "invoices.get",
     group: "invoices",
-    description: "Invoice detail with payments (staff/ops).",
+    description: "Invoice detail with payments. A customer can only open their own.",
     tier: "read",
-    principalTypes: ["staff", "system"],
-    scopes: ["invoices:read"],
+    principalTypes: ["customer", "staff", "system"],
+    scopes: ["invoices:read", "invoices:read_own"],
     input: z.object({ invoiceId: uuid }).strict(),
     async handler(ctx, args) {
       const detail = await svc.getInvoiceDetail(ctx, args.invoiceId);

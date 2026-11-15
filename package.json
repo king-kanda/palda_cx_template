@@ -27,7 +27,7 @@
     "engine:demo-runs": "pnpm --filter @garden/web engine:demo-runs"
   },
   "devDependencies": {
-    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@types/node": "^24.10.0",
     "drizzle-orm": "^0.45.4",
     "tsx": "^4.20.6",

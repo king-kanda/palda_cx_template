@@ -36,6 +36,13 @@
       "when": 1794745994179,
       "tag": "0004_knowledge_memory",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794747960738,
+      "tag": "0005_external_mcp",
+      "breakpoints": true
     }
   ]
 }

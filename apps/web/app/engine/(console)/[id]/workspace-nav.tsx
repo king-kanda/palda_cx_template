@@ -40,6 +40,7 @@ const NAV: Item[] = [
       { label: "Tools", path: "/agent/tools" },
       { label: "Knowledge", path: "/agent/knowledge" },
       { label: "Memory", path: "/agent/memory" },
+      { label: "Integrations", path: "/agent/integrations" },
       { label: "Runs", path: "/runs" },
     ],
   },
