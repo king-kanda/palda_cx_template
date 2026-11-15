@@ -18,6 +18,14 @@ export function renderTemplate(body: string, vars: TemplateVars): string {
   });
 }
 
+/**
+ * Removes the `{{review_link}}` placeholder (and the ": " or dash before it) from a template.
+ * Used when a business has not configured a review link, so customers never get a blank or foreign link.
+ */
+export function stripReviewLink(template: string): string {
+  return template.replace(/\s*[:–—-]?\s*\{\{\s*review_link\s*\}\}/g, "");
+}
+
 /** Placeholder values in the order they appear — matches WhatsApp template variables. */
 export function templateParams(body: string, vars: TemplateVars): string[] {
   const params: string[] = [];

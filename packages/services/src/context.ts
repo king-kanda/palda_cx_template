@@ -102,7 +102,8 @@ export async function getSettings(ctx: ServiceContext): Promise<TenantSettings> 
     ),
     workingHours: (business.workingHours as WorkingHours | undefined) ?? preset.defaults.workingHours,
     slotIntervalMin: asNumber(business.slotIntervalMin, preset.defaults.slotIntervalMin),
-    reviewLink: asString(business.reviewLink, "https://g.page/r/palda-gardens/review"),
+    // No cross-tenant default: an unset link means "don't include one" (see stripReviewLink).
+    reviewLink: asString(business.reviewLink, ""),
     managerPhone: (business.managerPhone as string | undefined) ?? process.env.WHATSAPP_MANAGER_PHONE ?? null,
     arrivalTime: asString(business.arrivalTime, "10:00"),
     businessFacts: asString(business.facts, preset.businessFacts),

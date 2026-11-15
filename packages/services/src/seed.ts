@@ -66,6 +66,64 @@ function resourcesFor(vertical: VerticalId): ResourceSeed[] {
         { name: "Grace Mwangi", kind: "staff", sort: 0, attributes: { expertise: "Strategy & growth" } },
         { name: "Peter Kariuki", kind: "staff", sort: 1, attributes: { expertise: "Finance & operations" } },
       ];
+    case "cleaning":
+      return [
+        { name: "Crew A", kind: "staff", sort: 0, attributes: { zone: "Kilimani, Kileleshwa, Westlands" } },
+        { name: "Crew B", kind: "staff", sort: 1, attributes: { zone: "Lavington, Karen, Runda" } },
+        { name: "Crew C", kind: "staff", sort: 2, attributes: { zone: "Syokimau, South B, Embakasi" } },
+      ];
+  }
+}
+
+/** Demo copy so each vertical's sample data reads naturally (no gazebo in a dental clinic). */
+function demoCopy(vertical: VerticalId) {
+  switch (vertical) {
+    case "venue":
+      return {
+        location: "Karen, Nairobi",
+        inbound: "Hi, is the gazebo free this Saturday for a birthday?",
+        outbound: "Hi Grace! The gazebo is free from 4pm on Saturday. Would you like a quote for the evening package?",
+        complaint: "Claims the sound system cut out halfway through the corporate event.",
+        reviewGood: "Beautiful garden and great team!",
+        reviewLow: "Lovely venue but the setup was late.",
+      };
+    case "salon":
+      return {
+        location: "Westlands, Nairobi",
+        inbound: "Hi, do you have a slot for braids on Saturday morning?",
+        outbound: "Hi Grace! Amina is free at 9am on Saturday for braiding (about 3 hours). Shall I book it?",
+        complaint: "Says the colour came out lighter than agreed.",
+        reviewGood: "Lovely service and my hair looks amazing!",
+        reviewLow: "Great result but I waited 30 minutes past my appointment.",
+      };
+    case "dental":
+      return {
+        location: "Ngong Road, Nairobi",
+        inbound: "Hello, I'd like to book a scaling and polishing this week.",
+        outbound: "Hi Grace! Dr. Wanjiru has a slot on Thursday at 10:00. Shall I book it for you?",
+        complaint: "Waited 40 minutes past the appointment time.",
+        reviewGood: "Gentle, professional and on time.",
+        reviewLow: "Good care but the wait was long.",
+      };
+    case "consultancy":
+      return {
+        location: "Upper Hill, Nairobi",
+        inbound: "Hi, can we book a strategy session for next week?",
+        outbound: "Hi Grace! Grace Mwangi has Tuesday at 10:00 free for a 60-minute strategy session. Shall I hold it?",
+        complaint: "Says the meeting link arrived too late for the session.",
+        reviewGood: "Practical, focused and worth every shilling.",
+        reviewLow: "Useful content but the session started late.",
+      };
+    case "cleaning":
+      return {
+        location: "Kilimani, Nairobi",
+        inbound: "Hi, do you have a crew free on Thursday morning for a deep clean in Kilimani?",
+        outbound:
+          "Hi Grace! Crew B is free from 8:00am on Thursday. A deep clean is KES 7,500 (about 5 hours). Please share your full address and I'll hold the slot.",
+        complaint: "Says the kitchen wasn't cleaned properly and a plate was chipped during the visit.",
+        reviewGood: "Spotless, and the crew was on time!",
+        reviewLow: "Good clean but they arrived 40 minutes late.",
+      };
   }
 }
 
@@ -79,6 +137,8 @@ type BookingSeed = {
   pay: "none" | "deposit" | "full";
   partySize: number;
   eventType?: string;
+  /** Vertical-specific booking attributes (validated by the preset's booking schema). */
+  attributes?: Record<string, unknown>;
   notes?: string;
 };
 
@@ -113,6 +173,23 @@ function bookingsFor(vertical: VerticalId): BookingSeed[] {
         { customer: 1, offering: "Strategy Session", resource: "Grace Mwangi", offsetDays: 2, time: "10:00", status: "confirmed", pay: "deposit", partySize: 2 },
         { customer: 3, offering: "Discovery Call", resource: "Peter Kariuki", offsetDays: 5, time: "14:00", status: "hold", pay: "none", partySize: 1 },
       ];
+    case "cleaning": {
+      const flat = (address: string, area: string, frequency = "one_off") => ({ address, area, propertyType: "apartment", frequency });
+      const house = (address: string, area: string, frequency = "one_off") => ({ address, area, propertyType: "house", frequency });
+      const office = (address: string, area: string, frequency = "weekly") => ({ address, area, propertyType: "office", frequency });
+      return [
+        { customer: 0, offering: "Standard Home Clean", resource: "Crew A", offsetDays: -14, time: "09:00", status: "completed", pay: "full", partySize: 2, attributes: flat("Apt 4B, Ngong Road Heights, Kilimani", "Kilimani", "biweekly") },
+        { customer: 2, offering: "Deep Clean", resource: "Crew B", offsetDays: -9, time: "08:00", status: "completed", pay: "full", partySize: 3, attributes: house("House 12, Lavington Green", "Lavington") },
+        { customer: 3, offering: "Office Clean", resource: "Crew A", offsetDays: -5, time: "14:00", status: "completed", pay: "full", partySize: 6, attributes: office("4th Floor, Delta Towers, Westlands", "Westlands") },
+        { customer: 1, offering: "Sofa & Carpet Cleaning", resource: "Crew B", offsetDays: -3, time: "11:00", status: "cancelled", pay: "none", partySize: 1, attributes: flat("Apt 9A, Riverside Drive", "Riverside") },
+        { customer: 0, offering: "Standard Home Clean", resource: "Crew A", offsetDays: 1, time: "09:00", status: "confirmed", pay: "none", partySize: 2, attributes: { ...flat("Apt 4B, Ngong Road Heights, Kilimani", "Kilimani", "biweekly"), accessNotes: "Concierge has the spare key." } },
+        { customer: 4, offering: "Deep Clean", resource: "Crew B", offsetDays: 2, time: "08:00", status: "confirmed", pay: "none", partySize: 3, attributes: { ...house("House 7, Karen Brooks", "Karen"), accessNotes: "Two dogs, friendly. Gate code 4471." } },
+        { customer: 3, offering: "Office Clean", resource: "Crew A", offsetDays: 3, time: "14:00", status: "confirmed", pay: "none", partySize: 6, attributes: office("4th Floor, Delta Towers, Westlands", "Westlands") },
+        { customer: 5, offering: "Move-in / Move-out Clean", resource: "Crew C", offsetDays: 5, time: "08:00", status: "hold", pay: "none", partySize: 3, attributes: flat("Block C, Syokimau Estate", "Syokimau") },
+        { customer: 6, offering: "Standard Home Clean", resource: "Crew A", offsetDays: 6, time: "10:00", status: "confirmed", pay: "none", partySize: 2, attributes: flat("Apt 12, Kileleshwa Gardens", "Kileleshwa", "weekly") },
+        { customer: 7, offering: "Sofa & Carpet Cleaning", resource: "Crew B", offsetDays: 8, time: "13:00", status: "hold", pay: "none", partySize: 1, attributes: house("House 3, Runda Mimosa", "Runda") },
+      ];
+    }
   }
 }
 
@@ -129,6 +206,7 @@ export async function seedDemoTenant(options: SeedOptions) {
   }
 
   const preset = getPreset(options.vertical);
+  const demo = demoCopy(options.vertical);
   const [tenant] = await db
     .insert(schema.tenants)
     .values({
@@ -163,17 +241,17 @@ export async function seedDemoTenant(options: SeedOptions) {
       value: {
         workingHours: preset.defaults.workingHours,
         slotIntervalMin: preset.defaults.slotIntervalMin,
-        reviewLink: "https://g.page/r/palda-gardens/review",
+        reviewLink: `https://g.page/r/${options.slug}/review`,
         arrivalTime: options.vertical === "venue" ? "10:00" : "09:45",
         facts: preset.businessFacts,
-        faq: preset.faq,
-        location: "Karen, Nairobi",
+        faq: preset.faq.map(({ q, a }) => ({ q, a })),
+        location: demo.location,
       },
     },
     {
       tenantId,
       key: "brand",
-      value: { agentName: preset.agent.name, accent: "#C2410C" },
+      value: { agentName: preset.agent.name, accent: "#1E4D3F" },
     },
   ]);
 
@@ -227,29 +305,21 @@ export async function seedDemoTenant(options: SeedOptions) {
         durationMin: offering.durationMin,
         basePriceKes: offering.basePriceKes,
         depositPct: offering.depositPct ?? null,
+        bufferBeforeMin: offering.bufferBeforeMin ?? 0,
+        bufferAfterMin: offering.bufferAfterMin ?? 0,
         attributes: offering.attributes ?? {},
       })
       .returning();
     offeringIds.set(offering.name, row!.id);
   }
 
-  if (options.vertical === "venue") {
-    await db.insert(schema.addons).values([
-      { tenantId, name: "Extra chairs (per 50)", priceKes: 5000, unit: "bundle" },
-      { tenantId, name: "Tent (10x10m)", priceKes: 35000, unit: "each" },
-      { tenantId, name: "Sound system", priceKes: 15000, unit: "each" },
-      { tenantId, name: "Catering levy", priceKes: 10000, unit: "each" },
-      { tenantId, name: "Decor package", priceKes: 25000, unit: "each" },
-      { tenantId, name: "Security (per guard)", priceKes: 3000, unit: "guard" },
-    ]);
-  } else if (options.vertical === "salon") {
-    await db.insert(schema.addons).values([
-      { tenantId, name: "Deep conditioning", priceKes: 800, unit: "each" },
-      { tenantId, name: "Scalp massage", priceKes: 500, unit: "each" },
-    ]);
+  if (preset.addons.length > 0) {
+    await db.insert(schema.addons).values(preset.addons.map((addon) => ({ tenantId, ...addon })));
   }
 
   const customerIds: string[] = [];
+  const isVenue = options.vertical === "venue";
+  const zeroDeposit = preset.defaults.depositPct === 0;
   for (const c of CUSTOMERS) {
     const [row] = await db
       .insert(schema.customers)
@@ -258,8 +328,9 @@ export async function seedDemoTenant(options: SeedOptions) {
         name: c.name,
         phoneE164: c.phone,
         language: c.language,
-        tags: c.tags,
-        attributes: { organisation: c.tags.includes("corporate") ? "Acme Kenya Ltd" : undefined },
+        // Event-style tags (wedding, picnic…) only make sense for the venue demo.
+        tags: isVenue ? c.tags : c.tags.filter((t) => ["repeat", "vip", "corporate"].includes(t)),
+        attributes: isVenue ? { organisation: c.tags.includes("corporate") ? "Acme Kenya Ltd" : undefined } : {},
       })
       .returning();
     customerIds.push(row!.id);
@@ -268,6 +339,7 @@ export async function seedDemoTenant(options: SeedOptions) {
   const system = systemPrincipal(tenantId, "seed");
 
   const stats = { bookings: 0, invoices: 0, payments: 0, skipped: 0 };
+  const skipReasons: string[] = [];
   const today = dateKey(new Date());
   const createdBookingIds: string[] = [];
 
@@ -286,7 +358,9 @@ export async function seedDemoTenant(options: SeedOptions) {
           status: "hold",
           source: "staff",
           attributes:
-            options.vertical === "venue" ? { eventType: seed.eventType ?? "other" } : {},
+            options.vertical === "venue"
+              ? { eventType: seed.eventType ?? "other" }
+              : (seed.attributes ?? {}),
           notes: seed.notes,
         });
         stats.bookings += 1;
@@ -298,7 +372,11 @@ export async function seedDemoTenant(options: SeedOptions) {
         }
 
         if (seed.pay !== "none") {
-          const deposit = await generateInvoice(ctx, { bookingId: created.booking.id, kind: "deposit" });
+          // A business with no deposit has nothing to invoice up front: bill the whole job at once.
+          const deposit = await generateInvoice(ctx, {
+            bookingId: created.booking.id,
+            kind: zeroDeposit ? "full" : "deposit",
+          });
           stats.invoices += 1;
           await recordPayment(ctx, {
             bookingId: created.booking.id,
@@ -321,7 +399,7 @@ export async function seedDemoTenant(options: SeedOptions) {
         }
 
         if (seed.status === "completed") {
-          if (seed.pay === "full") {
+          if (seed.pay === "full" && !zeroDeposit) {
             const balance = await generateInvoice(ctx, { bookingId: created.booking.id, kind: "balance" });
             stats.invoices += 1;
             if (balance.balanceKes > 0) {
@@ -340,8 +418,9 @@ export async function seedDemoTenant(options: SeedOptions) {
           await recalculateInvoices(ctx, created.booking.id);
           await markCompleted(ctx, created.booking.id);
         }
-      } catch {
+      } catch (error) {
         stats.skipped += 1;
+        skipReasons.push(`${seed.offering} / ${seed.resource} (${seed.offsetDays}d): ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 
@@ -383,7 +462,7 @@ export async function seedDemoTenant(options: SeedOptions) {
         direction: "inbound",
         waMessageId: "seed-in-1",
         type: "text",
-        body: "Hi, is the gazebo free this Saturday for a birthday?",
+        body: demo.inbound,
         createdAt: new Date(Date.now() - 45 * 60_000),
       },
       {
@@ -392,7 +471,7 @@ export async function seedDemoTenant(options: SeedOptions) {
         direction: "outbound",
         waMessageId: "seed-out-1",
         type: "text",
-        body: "Hi Grace! The gazebo is free from 4pm on Saturday. Would you like a quote for the evening package?",
+        body: demo.outbound,
         createdAt: new Date(Date.now() - 40 * 60_000),
         toolCalls: [{ tool: "bookings.check_availability" }],
       },
@@ -400,7 +479,7 @@ export async function seedDemoTenant(options: SeedOptions) {
 
     await logComplaint(ctx, {
       customerId: customerIds[3]!,
-      summary: "Claims the sound system cut out halfway through the corporate event.",
+      summary: demo.complaint,
       severity: "high",
     });
 
@@ -410,13 +489,13 @@ export async function seedDemoTenant(options: SeedOptions) {
       orderBy: (b, { asc }) => [asc(b.startsAt)],
     });
     if (completed[0]) {
-      await recordReview(ctx, { bookingId: completed[0].id, rating: 5, comment: "Beautiful garden and great team!" });
+      await recordReview(ctx, { bookingId: completed[0].id, rating: 5, comment: demo.reviewGood });
     }
     if (completed[1]) {
       await recordReview(ctx, {
         bookingId: completed[1].id,
         rating: 3,
-        comment: "Lovely venue but the setup was late.",
+        comment: demo.reviewLow,
       });
     }
 
@@ -434,6 +513,7 @@ export async function seedDemoTenant(options: SeedOptions) {
       resources: resourceIdByName.size,
       offerings: offeringIds.size,
       completedBookingIds: createdBookingIds,
+      skipReasons,
     },
   };
 }

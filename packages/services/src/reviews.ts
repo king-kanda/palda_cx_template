@@ -1,7 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { schema } from "@garden/db";
 import { audit, getSettings, type ServiceContext } from "./context";
-import { sendFreeform } from "./notify";
+import { sendFreeform, stripReviewLink } from "./notify";
 import { createHandoff } from "./handoffs";
 import { ForbiddenError, NotFoundError, ValidationError } from "./types";
 
@@ -30,7 +30,8 @@ export async function requestReview(
   });
   const settings = await getSettings(ctx);
   if (customer) {
-    const template = settings.preset.templates.thank_you_review;
+    const rawTemplate = settings.preset.templates.thank_you_review;
+    const template = rawTemplate && !settings.reviewLink ? stripReviewLink(rawTemplate) : rawTemplate;
     if (template) {
       await sendFreeform(
         ctx,
@@ -126,7 +127,9 @@ export async function recordReview(
     await sendFreeform(
       ctx,
       customer,
-      `Asante sana ${customer.name}! We're glad you enjoyed it. Would you share a quick review? ${settings.reviewLink}`,
+      settings.reviewLink
+        ? `Asante sana ${customer.name}! We're glad you enjoyed it. Would you share a quick review? ${settings.reviewLink}`
+        : `Asante sana ${customer.name}! We're glad you enjoyed it.`,
     );
   }
 

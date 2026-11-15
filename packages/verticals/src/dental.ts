@@ -5,6 +5,7 @@ export const dentalPreset: Preset = {
   id: "dental",
   version: "1.0.0",
   title: "Dental clinic",
+  tagline: "Appointments, 24-hour reminders and 6-month recalls, with patient data kept private.",
   bookingMode: "slot",
   labels: {
     resource: "Dentist",
@@ -43,6 +44,12 @@ export const dentalPreset: Preset = {
     { name: "Filling", durationMin: 45, basePriceKes: 5000, resourceKind: "staff" },
     { name: "Root Canal", durationMin: 90, basePriceKes: 15000, resourceKind: "staff" },
   ],
+  bookingFields: [],
+  starterResources: [
+    { name: "Dentist 1", kind: "staff" },
+    { name: "Chair 1", kind: "room", attributes: { roomNumber: "1" } },
+  ],
+  addons: [],
   reminders: [
     { kind: "appointment_minus_1d", offsetHours: -24, template: "reminder_1d" },
     { kind: "recall_6m", offsetHours: 4320, template: "recall" },
@@ -57,7 +64,7 @@ export const dentalPreset: Preset = {
       "Hi {{customer_name}}, just checking in on your {{offering}} quote for {{date}} (KES {{amount}}). Would you like to book it?",
   },
   faq: [
-    { q: "Where are you located?", a: "We are on Ngong Road, Nairobi." },
+    { q: "Where are you located?", a: "We are on Ngong Road, Nairobi.", needsReview: true },
     { q: "What should I bring?", a: "Your ID and any previous dental records." },
   ],
   businessFacts: "A dental clinic in Nairobi focused on preventive and restorative care.",

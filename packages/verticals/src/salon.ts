@@ -5,6 +5,7 @@ export const salonPreset: Preset = {
   id: "salon",
   version: "1.0.0",
   title: "Salon & spa",
+  tagline: "Hair, nails and beauty: stylists, timed services, walk-ins and rebooking nudges.",
   bookingMode: "slot",
   labels: {
     resource: "Stylist",
@@ -40,6 +41,17 @@ export const salonPreset: Preset = {
     { name: "Braiding", durationMin: 180, basePriceKes: 4500, resourceKind: "staff" },
     { name: "Relaxer & Treatment", durationMin: 120, basePriceKes: 3500, resourceKind: "staff" },
     { name: "Manicure & Pedicure", durationMin: 90, basePriceKes: 2500, resourceKind: "staff" },
+  ],
+  bookingFields: [
+    { key: "stylistPreference", label: "Stylist preference", type: "text", placeholder: "Any / a named stylist" },
+  ],
+  starterResources: [
+    { name: "Stylist 1", kind: "staff" },
+    { name: "Stylist 2", kind: "staff" },
+  ],
+  addons: [
+    { name: "Deep conditioning", priceKes: 800, unit: "each" },
+    { name: "Scalp massage", priceKes: 500, unit: "each" },
   ],
   reminders: [
     { kind: "appointment_minus_1d", offsetHours: -24, template: "reminder_1d" },

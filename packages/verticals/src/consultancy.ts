@@ -5,6 +5,7 @@ export const consultancyPreset: Preset = {
   id: "consultancy",
   version: "1.0.0",
   title: "Consultancy",
+  tagline: "Sessions, workshops and retainers with meeting links, intake forms and deposits.",
   bookingMode: "slot",
   labels: {
     resource: "Consultant",
@@ -49,6 +50,21 @@ export const consultancyPreset: Preset = {
     { name: "Half-Day Workshop", durationMin: 240, basePriceKes: 45000, resourceKind: "staff" },
     { name: "Monthly Retainer", durationMin: 60, basePriceKes: 80000, resourceKind: "staff" },
   ],
+  bookingFields: [
+    {
+      key: "mode",
+      label: "Format",
+      type: "select",
+      defaultValue: "online",
+      options: [
+        { value: "online", label: "Online" },
+        { value: "in_person", label: "In person" },
+      ],
+    },
+    { key: "topic", label: "Topic", type: "text", placeholder: "Short topic line (no confidential detail)" },
+  ],
+  starterResources: [{ name: "Consultant 1", kind: "staff" }],
+  addons: [],
   reminders: [
     { kind: "session_minus_1d", offsetHours: -24, template: "reminder_1d" },
     { kind: "session_minus_1h", offsetHours: -1, template: "reminder_1h" },

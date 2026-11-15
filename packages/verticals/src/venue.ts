@@ -15,6 +15,7 @@ export const venuePreset: Preset = {
   id: "venue",
   version: "1.0.0",
   title: "Event venue / garden",
+  tagline: "Weddings, parties and corporate events: spaces, packages, deposits and add-ons.",
   bookingMode: "range",
   labels: {
     resource: "Space",
@@ -71,6 +72,37 @@ export const venuePreset: Preset = {
     { name: "Photoshoot", durationMin: 180, basePriceKes: 12000, resourceKind: "space" },
     { name: "Corporate Day", durationMin: 480, basePriceKes: 55000, resourceKind: "space" },
   ],
+  bookingFields: [
+    {
+      key: "eventType",
+      label: "Event type",
+      type: "select",
+      required: true,
+      defaultValue: "wedding",
+      options: [
+        { value: "wedding", label: "Wedding" },
+        { value: "corporate", label: "Corporate" },
+        { value: "birthday", label: "Birthday" },
+        { value: "picnic", label: "Picnic" },
+        { value: "photoshoot", label: "Photoshoot" },
+        { value: "memorial", label: "Memorial" },
+        { value: "other", label: "Other" },
+      ],
+    },
+    { key: "setupNotes", label: "Setup notes", type: "textarea", placeholder: "Layout, decor, access…" },
+  ],
+  starterResources: [
+    { name: "Main Lawn", kind: "space", capacity: 200 },
+    { name: "Gazebo", kind: "space", capacity: 60 },
+  ],
+  addons: [
+    { name: "Extra chairs (per 50)", priceKes: 5000, unit: "bundle" },
+    { name: "Tent (10x10m)", priceKes: 35000, unit: "each" },
+    { name: "Sound system", priceKes: 15000, unit: "each" },
+    { name: "Catering levy", priceKes: 10000, unit: "each" },
+    { name: "Decor package", priceKes: 25000, unit: "each" },
+    { name: "Security (per guard)", priceKes: 3000, unit: "guard" },
+  ],
   reminders: [
     { kind: "hold_nudge", offsetHours: 12, template: "hold_nudge" },
     { kind: "deposit_due", offsetHours: 0, template: "deposit_request" },
@@ -102,11 +134,11 @@ export const venuePreset: Preset = {
       "Hi {{customer_name}}, just checking in on your {{offering}} quote for {{date}} (KES {{amount}}). Would you like to go ahead, or shall we adjust anything?",
   },
   faq: [
-    { q: "Where are you located?", a: "We are in Karen, Nairobi. Exact directions are sent on booking." },
-    { q: "What time does music stop?", a: "Music must stop by 10:00 PM out of respect for neighbours." },
-    { q: "Can we bring our own alcohol?", a: "Yes, corkage applies. No hard liquor after 10:00 PM." },
-    { q: "Is parking available?", a: "Yes, free parking for up to 80 cars." },
-    { q: "Do you allow outside catering?", a: "Yes, with a catering levy of KES 10,000." },
+    { q: "Where are you located?", a: "We are in Karen, Nairobi. Exact directions are sent on booking.", needsReview: true },
+    { q: "What time does music stop?", a: "Music must stop by 10:00 PM out of respect for neighbours.", needsReview: true },
+    { q: "Can we bring our own alcohol?", a: "Yes, corkage applies. No hard liquor after 10:00 PM.", needsReview: true },
+    { q: "Is parking available?", a: "Yes, free parking for up to 80 cars.", needsReview: true },
+    { q: "Do you allow outside catering?", a: "Yes, with a catering levy of KES 10,000.", needsReview: true },
   ],
   businessFacts:
     "Palda Gardens is a 1.5-acre event garden in Karen, Nairobi, hosting weddings, picnics, corporate events, birthdays and photoshoots. Maximum capacity 500 guests.",

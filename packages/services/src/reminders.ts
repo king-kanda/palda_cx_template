@@ -3,7 +3,7 @@ import { schema } from "@garden/db";
 import type { Booking, Customer, Offering } from "@garden/db";
 import { getSettings, type ServiceContext } from "./context";
 import { addMinutes, formatNairobi, formatNairobiTime, isPast, nairobiTime, dateKey } from "./tz";
-import { renderTemplate, sendProactive, templateParams, baseVars } from "./notify";
+import { renderTemplate, sendProactive, templateParams, baseVars, stripReviewLink } from "./notify";
 
 export type ReminderDTO = typeof schema.reminders.$inferSelect;
 
@@ -128,6 +128,7 @@ export function reminderVars(
     offering: offering.name,
     arrival_time: settings.arrivalTime,
     review_link: settings.reviewLink,
+    address: String((booking.attributes as Record<string, unknown>)?.address ?? "your address"),
     meeting_line: (booking.attributes as Record<string, unknown>)?.meetingUrl
       ? `Join here: ${String((booking.attributes as Record<string, unknown>).meetingUrl)}`
       : "",
@@ -193,7 +194,8 @@ export async function dispatchDueReminders(
         .where(eq(schema.reminders.id, row.reminder.id));
       continue;
     }
-    const template = settings.preset.templates[row.reminder.template];
+    const rawTemplate = settings.preset.templates[row.reminder.template];
+    const template = rawTemplate && !settings.reviewLink ? stripReviewLink(rawTemplate) : rawTemplate;
     if (!template) {
       await ctx.db
         .update(schema.reminders)
