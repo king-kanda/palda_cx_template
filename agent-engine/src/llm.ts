@@ -126,7 +126,7 @@ function heuristicPlan(text: string): MockStep[] {
   if (/(human|person|manager|complaint|refund|lawyer|police|boss|mzee)/.test(lower)) {
     return [
       { tool: "handoffs.create", args: { reason: `Customer asked for a human: ${text.slice(0, 200)}`, priority: "high" } },
-      { text: "A team member will take over from here. Thank you for your patience." },
+      { text: "Someone from the team will take over from here shortly." },
     ];
   }
   if (/(available|free|vacant|date|book|reserve|slot|sam|kesho|leo)/.test(lower)) {
@@ -156,7 +156,7 @@ export class MockAdapter implements LlmAdapter {
     const plan = input.mockPlan?.length ? input.mockPlan : heuristicPlan(lastUserText(input.messages));
     const step = plan[assistantTurns];
     if (!step) {
-      return { text: "Is there anything else I can help you with?", usage: { inputTokens: 0, outputTokens: 0 } };
+      return { text: "Anything else you need?", usage: { inputTokens: 0, outputTokens: 0 } };
     }
     if ("text" in step) {
       return { text: step.text, usage: { inputTokens: 0, outputTokens: 0 } };

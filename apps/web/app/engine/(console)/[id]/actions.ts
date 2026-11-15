@@ -46,6 +46,7 @@ export async function saveAgentAction(_prev: EngineFormState, formData: FormData
       name: String(formData.get("name") ?? ""),
       tone: String(formData.get("tone") ?? ""),
       notes: String(formData.get("notes") ?? ""),
+      intro: formData.get("intro") === "none" ? "none" : "name",
       // Only touch the picture when it was changed: "" means removed, absent means keep.
       avatar: formData.get("avatarChanged") === "1" ? String(formData.get("avatar") ?? "") || null : undefined,
     });

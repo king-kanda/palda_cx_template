@@ -71,6 +71,8 @@ export type GuardConfig = {
   maxChars: number;
   /** Max times the same outbound text may be sent in a row. */
   maxRepeats: number;
+  /** Customer-facing agents: block unprompted talk about being an AI, and any claim to be human. */
+  naturalVoice?: boolean;
 };
 
 export type AgentConfig = {

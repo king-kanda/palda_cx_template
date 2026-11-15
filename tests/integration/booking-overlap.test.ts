@@ -57,7 +57,9 @@ describe.skipIf(!enabled)("booking overlap prevention (needs Postgres)", () => {
     offeringId = offering!.id;
 
     const resource = await db.query.resources.findFirst({
-      where: (r, { and, eq }) => and(eq(r.tenantId, tenantId), eq(r.active, true)),
+      // A space that fits the 20-guest booking below. Without a kind and an order this could pick the 1-capacity sound system.
+      where: (r, { and, eq }) => and(eq(r.tenantId, tenantId), eq(r.active, true), eq(r.kind, "space")),
+      orderBy: (r, { desc }) => [desc(r.capacity)],
     });
     expect(resource).toBeTruthy();
     resourceId = resource!.id;

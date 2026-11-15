@@ -115,7 +115,7 @@ describe("rollout readiness", () => {
       createdAt: new Date(),
       owner: { id: "u1", name: "Owner", email: "o@x.test" },
       counts: { resources: 2, offerings: 3, bookings: 0, customers: 0 },
-      agent: { name: "Zuri", tone: "", notes: "", avatar: null },
+      agent: { name: "Zuri", tone: "", notes: "", intro: "name", avatar: null },
       whatsappConnected: false,
       business: { location: "", description: "", reviewLink: "", workingHours: hours, depositPct: 0, cancellationNoticeHours: 12 },
       ...overrides,
@@ -133,7 +133,7 @@ describe("rollout readiness", () => {
     expect(failing(customer({ counts: { resources: 0, offerings: 3, bookings: 0, customers: 0 } }))).toEqual(["team"]);
     expect(failing(customer({ counts: { resources: 1, offerings: 0, bookings: 0, customers: 0 } }))).toEqual(["services"]);
     expect(failing(customer({ owner: null }))).toEqual(["owner"]);
-    expect(failing(customer({ agent: { name: " ", tone: "", notes: "", avatar: null } }))).toEqual(["agent"]);
+    expect(failing(customer({ agent: { name: " ", tone: "", notes: "", intro: "name", avatar: null } }))).toEqual(["agent"]);
     const closed = { 0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null } as const;
     expect(failing(customer({ business: { ...customer().business, workingHours: closed } }))).toEqual(["hours"]);
   });

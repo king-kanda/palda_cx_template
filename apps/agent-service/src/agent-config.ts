@@ -19,6 +19,7 @@ export async function loadAgentConfig(tenantId: string, agentId: string): Promis
       tone: settings.agentTone,
       verticalInstructions: settings.preset.agent.personaExtras,
       notes: settings.agentNotes,
+      intro: settings.agentIntro,
     });
   } catch {
     // A settings problem must never stop customers getting an answer; the base persona still works.

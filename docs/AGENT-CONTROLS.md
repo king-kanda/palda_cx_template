@@ -87,6 +87,17 @@ Development only: `EXTERNAL_MCP_ALLOW_PRIVATE=true` and `EXTERNAL_MCP_ALLOW_INSE
 
 Not built yet: per-tool "needs approval" before an external tool runs (today a tool is simply on or off), legacy SSE servers (Streamable HTTP only), OAuth flows (bearer tokens only), and per-customer control of external tools for the staff-side agents.
 
+## 4c. Natural conversation
+
+The customer-facing agent should read like the person looking after the booking.
+
+- **It never talks about being software.** The instructions forbid calling itself an AI, bot, assistant or chatbot, mentioning tools or lookups, and stock phrases ("How may I assist you today?", "Certainly!", "Is there anything else I can help you with?"). It mirrors the customer's language (English, Swahili, Sheng), formality and pace, and writes short WhatsApp-style messages.
+- **Introduction is a per-customer setting** (Engine, Agent > Profile & voice): *Say hello with the name* (once, in passing, on the first message of a chat, e.g. "Hi, it's Zuri") or *Don't introduce, just carry on*. It never introduces itself again after that.
+- **A guard enforces it** (`checkSelfReference`): a reply that brings up being software, unasked, is blocked and replaced (after one rewrite attempt with a real model). Customer names that look like model names (Claude, Gemini) and phrases like "I'm real sorry" are not mistaken for it.
+- **The one boundary:** if a customer sincerely asks whether they are talking to a person or a bot, the agent does not claim to be a person. It answers in one short, friendly sentence in its own voice ("I'm Zuri, the virtual assistant for X; I can get someone from the team if you'd rather") and carries on. A reply that claims to be human is always blocked, asked or not. This is deliberate: customers decide what to share and whether to trust a quote based on who they think they are talking to.
+- **Fallbacks sound like a person stepping aside**, not a system: "Let me check that with the team and come back to you shortly", not "One moment please. Thank you for your patience."
+- **Delivery is paced** (`sendNatural`): a long reply goes out as up to three short messages, with a pause scaled to length (about 0.6 to 2.2 seconds, varied, capped at 4.5 seconds total), and a typing indicator while the agent works. On for real WhatsApp, off in mock mode; `HUMAN_PACING=on|off` overrides. The typing indicator uses the Cloud API read-receipt typing field and is best effort. It has not been tried against a real number, so confirm it when you first test with live keys.
+
 ## 5. Evals
 
 ```bash

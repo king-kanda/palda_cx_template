@@ -44,7 +44,7 @@ export async function createHandoff(
     .where(eq(schema.conversations.id, conversation.id));
 
   if (customer && input.notifyCustomer !== false) {
-    await sendFreeform(ctx, customer, "A team member will respond shortly. Thank you for your patience.");
+    await sendFreeform(ctx, customer, "Someone from the team will reply to you shortly.");
   }
   if (customer) {
     await sendStaffAlert(

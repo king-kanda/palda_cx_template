@@ -36,7 +36,7 @@ export type CustomerSummary = {
   createdAt: Date;
   owner: { id: string; name: string; email: string } | null;
   counts: { resources: number; offerings: number; bookings: number; customers: number };
-  agent: { name: string; tone: string; notes: string; avatar: string | null };
+  agent: { name: string; tone: string; notes: string; intro: "name" | "none"; avatar: string | null };
   whatsappConnected: boolean;
   business: {
     location: string;
@@ -96,6 +96,7 @@ async function summarise(tenant: typeof schema.tenants.$inferSelect): Promise<Cu
         name: typeof brand.agentName === "string" && brand.agentName ? brand.agentName : preset.agent.name,
         tone: typeof brand.tone === "string" ? brand.tone : "",
         notes: typeof brand.agentNotes === "string" ? brand.agentNotes : "",
+        intro: brand.agentIntro === "none" ? "none" : "name",
         avatar,
       },
       whatsappConnected: Boolean(whatsapp),
@@ -265,6 +266,7 @@ export async function updateAgentProfile(adminId: string, tenantId: string, raw:
       agentName: agent.name,
       tone: agent.tone,
       agentNotes: agent.notes,
+      agentIntro: agent.intro,
       ...(agent.avatar === undefined ? {} : { agentAvatar: agent.avatar ?? undefined }),
     });
     await audit(tx, adminId, tenantId, "engine.agent_updated", {

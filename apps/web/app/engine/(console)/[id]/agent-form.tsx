@@ -11,7 +11,7 @@ export function AgentForm({
   agent,
 }: {
   tenantId: string;
-  agent: { name: string; tone: string; notes: string; avatar: string | null };
+  agent: { name: string; tone: string; notes: string; intro: "name" | "none"; avatar: string | null };
 }) {
   const [state, action, pending] = useActionState<EngineFormState, FormData>(saveAgentAction, {});
   const [name, setName] = useState(agent.name);
@@ -50,6 +50,25 @@ export function AgentForm({
           ))}
         </div>
       </div>
+
+      <fieldset>
+        <legend className="mb-1.5 block text-sm font-medium">First message of a new chat</legend>
+        <div className="space-y-2">
+          {[
+            { value: "name", title: "Say hello with the name", hint: "e.g. “Hi, it’s " + "{name}" + "”. Said once, in passing." },
+            { value: "none", title: "Don’t introduce, just carry on", hint: "Starts straight in on what the customer needs." },
+          ].map((o) => (
+            <label key={o.value} className="flex cursor-pointer items-start gap-3 rounded-2xl border border-line p-3 has-[:checked]:border-brand-800 has-[:checked]:bg-surface-muted">
+              <input type="radio" name="intro" value={o.value} defaultChecked={agent.intro === o.value} className="mt-1 accent-[#1E4D3F]" />
+              <span>
+                <span className="block text-sm font-medium">{o.title}</span>
+                <span className="block text-xs text-ink-muted">{o.hint.replace("{name}", name || "Zuri")}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-ink-muted">The agent never calls itself an AI or a bot. If a customer sincerely asks what they are talking to, it won’t claim to be a person.</p>
+      </fieldset>
 
       <div>
         <span className="mb-1.5 block text-sm font-medium">Picture</span>

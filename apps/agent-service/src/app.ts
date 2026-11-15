@@ -9,6 +9,7 @@ import {
   getSettings,
   requestApproval,
   sendFreeform,
+  sendNatural,
   sendStaffAlert,
   sendStaffMessage,
   staffPrincipal,
@@ -21,6 +22,7 @@ import {
 } from "@garden/services";
 import {
   parseWebhook,
+  sendTypingIndicator,
   verifyWebhookSignature,
   webhookChallenge,
 } from "@garden/integrations";
@@ -102,7 +104,7 @@ async function deliverAgentReply(
 ): Promise<{ sent: boolean; approvalId?: string }> {
   const settings = await getSettings(ctx);
   if (!settings.shadowMode) {
-    await sendFreeform(ctx, customer, text);
+    await sendNatural(ctx, customer, text);
     return { sent: true };
   }
   const approval = await requestApproval(ctx, {
@@ -293,6 +295,7 @@ app.post("/webhooks/whatsapp", async (c) => {
         phoneE164: prepared.customer.phoneE164,
       });
 
+      void sendTypingIndicator(message.waMessageId);
       const turn = await runTurn({
         tenantId: tenant.id,
         agentId: "wambo",
@@ -304,7 +307,7 @@ app.post("/webhooks/whatsapp", async (c) => {
 
       if (turn.busy) {
         await withPrincipal(systemPrincipal(tenant.id, "whatsapp"), (ctx) =>
-          sendFreeform(ctx, prepared.customer, "Nashughulikia hii sasa hivi — one moment please."),
+          sendFreeform(ctx, prepared.customer, "Nashughulikia hii sasa hivi, give me a minute."),
         );
         continue;
       }

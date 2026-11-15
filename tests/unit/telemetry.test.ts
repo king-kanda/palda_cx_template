@@ -23,7 +23,7 @@ function customer(overrides: Partial<CustomerSummary> = {}): CustomerSummary {
     createdAt: new Date("2026-10-01T09:00:00+03:00"),
     owner: { id: "u1", name: "Owner", email: "o@x.test" },
     counts: { resources: 2, offerings: 3, bookings: 4, customers: 2 },
-    agent: { name: "Zuri", tone: "", notes: "", avatar: null },
+    agent: { name: "Zuri", tone: "", notes: "", intro: "name", avatar: null },
     whatsappConnected: true,
     business: {
       location: "",

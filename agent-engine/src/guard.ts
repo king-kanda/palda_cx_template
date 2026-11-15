@@ -205,11 +205,36 @@ export function checkRepeat(text: string, recentOutbound: string[], maxRepeats: 
   return recent >= maxRepeats ? ["Repeated outbound message"] : [];
 }
 
+/** Words that mean the agent is describing itself as software. */
+const SELF_AS_SOFTWARE =
+  /\b(as an? ai|i'?m an? ai|i am an? ai|an ai (assistant|model|agent|system)|ai[- ](powered|assistant|agent|bot)|virtual assistant|digital assistant|chat ?bot|language model|large language|artificial intelligence|automated (system|assistant|reply|response|message)|i'?m an? (bot|robot|program|machine)|i am an? (bot|robot|program|machine)|i was (programmed|trained|built|designed)|my (programming|training data)|chatgpt|openai|anthropic)\b/i;
+
+/** A claim to be a person. The agent must never say this, whether or not it was asked. */
+const CLAIMS_HUMAN =
+  /\b(i'?m|i am) (a |an )?(real|actual|live|living) (human|person|one)\b|\b(i'?m|i am) (a )?(human|person)\b(?! (who|that|of|with|from|in|at|for|like|you|too))|\b(i'?m|i am) (not|no) (an? )?(bot|robot|ai|machine|program|software|chatbot)\b|\bnot an? (bot|robot|ai|machine|chatbot)\b|\byes,? i'?m (a )?(real|human)\b/i;
+
+/** The customer is asking what they are talking to. Then, and only then, a short honest answer is allowed. */
+const ASKS_WHAT_IT_IS =
+  /\b(bot|robot|chat ?bot|\bai\b|a\.i\.?|chat ?gpt|gpt|machine|automated|automatic|computer|program|software|real (person|human|one)|actual (person|human)|a human|human\b|are you (a |an )?(person|man|woman|girl|guy|human|real)|talking to (a |an )?(person|human|someone|somebody|machine|bot)|am i (talking|speaking|chatting) (to|with))\b/i;
+
+/**
+ * Customer-facing agents should sound like the person looking after the booking, so they never bring up being software.
+ * When the customer sincerely asks, a brief honest answer is allowed. Claiming to be human is never allowed.
+ */
+export function checkSelfReference(text: string, userText: string | undefined): string[] {
+  const failures: string[] = [];
+  if (CLAIMS_HUMAN.test(text)) failures.push("Claimed to be a person");
+  if (SELF_AS_SOFTWARE.test(text) && !ASKS_WHAT_IT_IS.test(userText ?? "")) failures.push("Brought up being software without being asked");
+  return failures;
+}
+
 export function guardOutput(input: {
   text: string;
   config: AgentConfig;
   toolResults: unknown[];
   recentOutbound: string[];
+  /** The customer's latest message, so an honest answer to "are you a bot?" is allowed. */
+  userText?: string;
   /** Hosts the tenant allows links to (own app, review page, pay page). */
   allowedLinks?: string[];
 }): GuardResult {
@@ -227,14 +252,18 @@ export function guardOutput(input: {
   reasons.push(...checkLinks(text, input.toolResults, input.allowedLinks));
   reasons.push(...checkPii(text));
   reasons.push(...checkRepeat(text, input.recentOutbound, input.config.guard.maxRepeats));
+  if (input.config.guard.naturalVoice) reasons.push(...checkSelfReference(text, input.userText));
 
   return { ok: reasons.length === 0, reasons, text };
 }
 
-/** Safe fallback used when the guard rejects a reply. */
+/**
+ * Safe fallback used when the guard rejects a reply. For a customer it reads like a person stepping aside, not a system
+ * message: no "one moment please", no "thank you for your patience", nothing about checks or verification.
+ */
 export function guardFallback(config: AgentConfig): string {
   return config.handoff.enabled
-    ? "Let me get a team member to help with that. One moment please."
+    ? "Let me check that with the team and come back to you shortly."
     : "I do not have a verified answer for that yet. Please check the dashboard or the exact figures in the source record.";
 }
 

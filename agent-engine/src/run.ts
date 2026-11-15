@@ -202,7 +202,7 @@ export async function runAgent(
         stoppedReason = text ? "final" : "tool_loop";
         if (!text) {
           text =
-            "Sorry, I could not complete that. Let me get a team member to help you. One moment please.";
+            "Sorry about that, give me a moment. I'll get someone from the team to help you.";
           stoppedReason = "handoff";
         }
         break;
@@ -304,7 +304,7 @@ export async function runAgent(
       if (capReached) {
         stoppedReason = "tool_loop";
         text =
-          "I need a team member to finish that without risking a wrong answer. One moment please.";
+          "Let me get someone from the team to finish this properly so you get the right details. They'll message you shortly.";
         handoff = { reason: `Tool call cap (${maxToolCalls}) reached`, tool: "engine" };
         break;
       }
@@ -314,7 +314,7 @@ export async function runAgent(
       }
       if (failedToolCalls >= config.handoff.afterFailedToolCalls && config.handoff.enabled) {
         stoppedReason = "handoff";
-        text = "I am having trouble completing that. Let me get a team member to help you. One moment please.";
+        text = "I'm having a bit of trouble with that on my side. Let me get someone from the team to help. They'll message you shortly.";
         handoff = { reason: `${failedToolCalls} tool failures`, tool: "engine" };
         break;
       }
@@ -322,11 +322,11 @@ export async function runAgent(
     }
 
     if (!text && stoppedReason === "handoff") {
-      text = "A team member will take over from here shortly. Thank you for your patience.";
+      text = "Someone from the team will take over from here shortly.";
     }
     if (stoppedReason === "max_steps" && !text) {
       text = config.handoff.enabled
-        ? "This needs a team member to take a look. One moment please."
+        ? "Let me get someone from the team to take a look at this."
         : "I could not finish that with the available tools. Please try a narrower question.";
     }
 
@@ -348,12 +348,14 @@ export async function runAgent(
       latencyMs: Date.now() - started,
     };
 
+    const latestUserText = [...messages].reverse().find((m) => m.role === "user")?.text ?? "";
     let guarded = guardOutput({
       text: baseResult.text,
       config,
       toolResults,
       recentOutbound: input.recentOutbound,
       allowedLinks: input.allowedLinks,
+      userText: latestUserText,
     });
 
     // PLAN §6.4: regenerate once with an explicit correction before falling
@@ -367,7 +369,8 @@ export async function runAgent(
             "## Correction required",
             `Your previous reply was rejected: ${guarded.reasons.join("; ")}.`,
             "Rewrite it using only facts, amounts, dates and links from tool results this turn.",
-            "If you cannot, apologise briefly and hand off to a human.",
+            "If you cannot, apologise briefly and say you will check with the team.",
+            "Keep sounding like a person: never mention being an AI or a bot, and never claim to be a person.",
           ].join("\n"),
           messages: [
             ...messages,
@@ -388,6 +391,7 @@ export async function runAgent(
             toolResults,
             recentOutbound: input.recentOutbound,
             allowedLinks: input.allowedLinks,
+            userText: latestUserText,
           });
           if (retryGuard.ok) guarded = retryGuard;
         }

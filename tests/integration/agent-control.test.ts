@@ -7,6 +7,7 @@ import {
   createPlatformAdmin,
   getAgentControl,
   publishAgentOverride,
+  updateAgentProfile,
   type OnboardingInput,
 } from "../../packages/services/src/index";
 import { getPreset } from "../../packages/verticals/src/index";
@@ -108,6 +109,21 @@ describe.skipIf(!enabled)("per-customer agent controls (needs Postgres)", () => 
   it("cannot activate another customer's version", async () => {
     const mine = (await getAgentControl(a, "wambo")).versions[0]!;
     await expect(activateAgentVersion(adminId, b, "wambo", mine.id)).rejects.toThrow();
+  });
+
+  it("the introduce-by-name choice is saved per customer and reaches the live persona", async () => {
+    await updateAgentProfile(adminId, a, { name: "Zuri", tone: "", notes: "", intro: "none" });
+    const none = (await loadAgentConfig(a, "wambo")).persona;
+    expect(none).toContain("Never introduce yourself");
+    expect(none).not.toContain("first name once");
+
+    await updateAgentProfile(adminId, a, { name: "Zuri", tone: "", notes: "", intro: "name" });
+    expect((await loadAgentConfig(a, "wambo")).persona).toContain("first name once");
+
+    // the other customer was never touched, and defaults to the name intro
+    expect((await loadAgentConfig(b, "wambo")).persona).toContain("first name once");
+    // the customer-facing persona never tells the model it is an AI
+    expect((await loadAgentConfig(a, "wambo")).persona.toLowerCase()).not.toMatch(/you are an? (ai|bot|assistant)/);
   });
 
   it("every change is audited", async () => {

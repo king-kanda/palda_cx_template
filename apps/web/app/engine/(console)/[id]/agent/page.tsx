@@ -20,6 +20,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
     tone: customer.agent.tone,
     verticalInstructions: getPreset(customer.vertical).agent.personaExtras,
     notes: customer.agent.notes,
+    intro: customer.agent.intro,
   }).persona;
 
   return (

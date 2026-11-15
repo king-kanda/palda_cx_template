@@ -66,7 +66,9 @@ describe.skipIf(!enabled)("Nairobi reminders and daily digest (needs Postgres)",
       orderBy: (o, { asc }) => [asc(o.name)],
     });
     const resource = await db.query.resources.findFirst({
-      where: (r, { and, eq }) => and(eq(r.tenantId, tenantId), eq(r.active, true)),
+      // A space (not the 1-capacity sound system), so the booking below fits whatever the physical row order is.
+      where: (r, { and, eq }) => and(eq(r.tenantId, tenantId), eq(r.active, true), eq(r.kind, "space")),
+      orderBy: (r, { desc }) => [desc(r.capacity)],
     });
     const customer = await db.query.customers.findFirst({
       where: (c, { eq }) => eq(c.tenantId, tenantId),

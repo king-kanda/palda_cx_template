@@ -44,6 +44,32 @@ async function graphSend(payload: Record<string, unknown>): Promise<string> {
   return id;
 }
 
+/**
+ * Marks the customer's message as read and shows "typing…" on their phone while we prepare a reply (it clears when we send, or
+ * after a short time). Best effort and silent: a failure here must never affect the conversation. Uses WhatsApp Cloud API's
+ * typing indicator on the read receipt; confirm it is enabled for your number when you first test with real keys.
+ */
+export async function sendTypingIndicator(inboundWaMessageId: string): Promise<void> {
+  if (whatsappMode() === "mock" || !inboundWaMessageId) return;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  if (!phoneNumberId || !token) return;
+  try {
+    await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        status: "read",
+        message_id: inboundWaMessageId,
+        typing_indicator: { type: "text" },
+      }),
+    });
+  } catch {
+    /* cosmetic only */
+  }
+}
+
 export async function sendText(to: string, text: string): Promise<SendResult> {
   if (whatsappMode() === "mock") {
     return { waMessageId: `mock_out_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, mocked: true };

@@ -27,3 +27,4 @@ export * from "./engine";
 export * from "./telemetry";
 export * from "./knowledge";
 export * from "./external-mcp";
+export * from "./natural";

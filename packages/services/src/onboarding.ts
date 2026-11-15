@@ -36,6 +36,8 @@ export const agentProfileSchema = z.object({
   name: z.string().trim().min(2, "Give the agent a name").max(40),
   tone: z.string().trim().max(200).default(""),
   notes: z.string().trim().max(1500).default(""),
+  /** "name": may say hello with its first name on the first message of a chat. "none": never introduces itself. */
+  intro: z.enum(["name", "none"]).default("name"),
   avatar: z
     .string()
     .max(AVATAR_MAX_CHARS, "That picture is too large")
@@ -265,6 +267,7 @@ export async function createBusiness(raw: OnboardingInput): Promise<OnboardingRe
             accent: "#1E4D3F",
             ...(input.agent?.tone ? { tone: input.agent.tone } : {}),
             ...(input.agent?.notes ? { agentNotes: input.agent.notes } : {}),
+            ...(input.agent?.intro === "none" ? { agentIntro: "none" } : {}),
             ...(input.agent?.avatar ? { agentAvatar: input.agent.avatar } : {}),
           },
         },

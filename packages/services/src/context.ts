@@ -57,6 +57,8 @@ export type TenantSettings = {
   agentTone: string;
   /** Extra instructions the Palda team wrote for this customer’s agent. */
   agentNotes: string;
+  /** Whether the agent may greet with its first name on the first message of a chat. */
+  agentIntro: "name" | "none";
   /** Small data: URL (png/jpeg/webp) shown wherever the agent appears, or null. */
   agentAvatar: string | null;
   /** Phase 6 pilot: Wambo drafts replies for staff approval instead of sending. */
@@ -118,6 +120,7 @@ export async function getSettings(ctx: ServiceContext): Promise<TenantSettings> 
     agentName: asString(brand.agentName, preset.agent.name),
     agentTone: asString(brand.tone, ""),
     agentNotes: asString(brand.agentNotes, ""),
+    agentIntro: brand.agentIntro === "none" ? "none" : "name",
     agentAvatar: typeof brand.agentAvatar === "string" && brand.agentAvatar.startsWith("data:image/") ? brand.agentAvatar : null,
     shadowMode: business.shadowMode === true,
   };
