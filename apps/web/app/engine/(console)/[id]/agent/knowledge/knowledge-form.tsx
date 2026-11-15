@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { startTransition, useActionState, useRef } from "react";
 import { addKnowledgeAction, type EngineFormState } from "../../actions";
 
 export function KnowledgeForm({ tenantId }: { tenantId: string }) {
@@ -12,7 +12,16 @@ export function KnowledgeForm({ tenantId }: { tenantId: string }) {
   const formRef = useRef<HTMLFormElement>(null);
 
   return (
-    <form ref={formRef} action={action} className="space-y-4">
+    <form
+      ref={formRef}
+      // Not `action={action}`: React 19 clears every field after an action returns, even when it returns an error, which would
+      // wipe what was typed. Submitting by hand keeps the fields; the success path below resets them on purpose.
+      onSubmit={(e) => {
+        e.preventDefault();
+        const data = new FormData(e.currentTarget);
+        startTransition(() => action(data));
+      }}
+      className="space-y-4">
       <input type="hidden" name="tenantId" value={tenantId} />
       <div>
         <label htmlFor="kd-title" className="mb-1.5 block text-sm font-medium">

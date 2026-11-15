@@ -123,6 +123,27 @@ describe.skipIf(!enabled)("business branding and documents (needs Postgres)", ()
     expect((await settingsOf(a)).brand.primary).toBe("#0F4C81");
   });
 
+  it("saves a sidebar colour, which reaches that customer's settings and CSS only", async () => {
+    await updateBrand(adminId, a, { primary: "#0F4C81", accent: "#8FD3F4", sidebar: "#14201B" });
+    const sa = await settingsOf(a);
+    expect(sa.brand.sidebar).toBe("#14201B");
+    expect(brandCss(sa.brand)).toContain("--sb-bg:#14201b");
+    expect(brandCss(sa.brand)).toContain("--sb-fg:#ffffff");
+    expect((await settingsOf(b)).brand.sidebar).toBe("");
+    expect(brandCss((await settingsOf(b)).brand)).not.toContain("--sb-");
+
+    // saving again without a sidebar returns to the default white sidebar
+    await updateBrand(adminId, a, { primary: "#0F4C81", accent: "#8FD3F4" });
+    expect((await settingsOf(a)).brand.sidebar).toBe("");
+  });
+
+  it("refuses an unreadable sidebar colour and saves nothing", async () => {
+    await expect(updateBrand(adminId, a, { primary: "#0F4C81", accent: "#8FD3F4", sidebar: "#7C7C7C" })).rejects.toThrow(/middle/);
+    await expect(updateBrand(adminId, a, { primary: "#0F4C81", accent: "#8FD3F4", sidebar: "javascript:alert(1)" })).rejects.toThrow();
+    await expect(updateBrand(adminId, a, { primary: "#0F4C81", accent: "#B6EB8F", sidebar: "#B8EC92" })).rejects.toThrow(/accent/i);
+    expect((await settingsOf(a)).brand.sidebar).toBe("");
+  });
+
   it("branding changes are audited", async () => {
     const rows = await getDb().query.auditLog.findMany({ where: eq(schema.auditLog.tenantId, a) });
     expect(rows.some((r) => r.action === "engine.brand_updated")).toBe(true);

@@ -1,103 +1,88 @@
 import { redirect } from "next/navigation";
-import { Lock, Trash2 } from "lucide-react";
-import { getSettings, listExternalServers, withPrincipal } from "@garden/services";
+import { CalendarDays, Calculator, FileText, MessageSquare, Plug, Users } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { getCustomerIntegrations, getSettings, withPrincipal } from "@garden/services";
 import { getSession } from "@/lib/auth";
 import { principalOf } from "@/lib/principal";
 import { dateTime } from "@/lib/format";
-import { EmptyState, PageHeader, Section } from "@/components/ui";
-import { removeIntegrationAction, setIntegrationStatusAction } from "./actions";
-import { ConnectForm, RecheckButton } from "./forms";
+import { EmptyState, PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
+const ICONS: Record<string, LucideIcon> = {
+  Accounting: Calculator,
+  "Calendar and email": CalendarDays,
+  CRM: Users,
+  Documents: FileText,
+  "Team chat": MessageSquare,
+  Scheduling: CalendarDays,
+  Other: Plug,
+};
+
+const STATUS = {
+  connected: { label: "Connected", cls: "bg-lime-100 text-brand-800" },
+  paused: { label: "Paused", cls: "bg-surface-muted text-ink-muted" },
+  attention: { label: "Needs attention", cls: "bg-warning-100 text-warning-600" },
+} as const;
+
+/**
+ * The apps connected to the business, set up by the Palda team. Read-only on purpose: customers never handle the technical side
+ * (addresses, tokens, permissions), and the page shows none of it.
+ */
 export default async function IntegrationsPage() {
   const session = await getSession();
   if (!session) redirect("/login");
-  const [settings, servers] = await Promise.all([
+  const [settings, apps] = await Promise.all([
     withPrincipal(principalOf(session), (ctx) => getSettings(ctx)),
-    listExternalServers(session.tenantId),
+    getCustomerIntegrations(session.tenantId),
   ]);
-  const isOwner = session.role === "owner";
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="Integrations"
-        subtitle={`Connect the tools you already use, such as a calendar or CRM, so ${settings.agentName} can work with them.`}
+        subtitle={`The apps connected to your business, so ${settings.agentName} can work with them.`}
       />
 
-      <Section title="How it works">
-        <ul className="list-disc space-y-1 pl-5 text-sm text-ink-muted">
-          <li>Connect a tool with its address and, if it needs one, an access token.</li>
-          <li>The Palda team reviews what each tool can do and switches on the ones that are right for you. Until then they are marked as waiting.</li>
-          <li>You can pause or remove an integration at any time. Your token is stored encrypted and is never shown again.</li>
-        </ul>
-      </Section>
-
-      {isOwner ? (
-        <Section title="Connect a tool">
-          <ConnectForm />
-        </Section>
+      {apps.length === 0 ? (
+        <EmptyState
+          title="No apps connected yet"
+          body="Want your accounting, calendar or CRM connected? Ask the Palda team and we will set it up for you."
+        />
       ) : (
-        <p className="rounded-2xl bg-surface-muted px-4 py-3 text-sm text-ink-muted">Only the account owner can connect or change integrations.</p>
-      )}
-
-      {servers.length === 0 ? (
-        <EmptyState title="Nothing connected yet" body="Tools you connect will be listed here with their status." />
-      ) : (
-        servers.map((s) => (
-          <Section key={s.id} title={s.name}>
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0 text-sm">
-                <span className={`pill ${s.status === "active" ? "bg-lime-100 text-brand-800" : "bg-surface-muted text-ink-muted"}`}>
-                  {s.status === "active" ? "Connected" : "Paused"}
-                </span>
-                <p className="mt-2 truncate font-mono text-xs text-ink-muted">{s.host}</p>
-                <p className="mt-1 flex flex-wrap items-center gap-1 text-xs text-ink-muted">
-                  {s.hasToken ? (
-                    <>
-                      <Lock className="size-3" /> token saved
-                    </>
-                  ) : (
-                    "no token"
-                  )}
-                  {" · "}added by {s.addedBy === "customer" ? "you" : "the Palda team"}
-                  {s.lastSyncedAt ? ` · checked ${dateTime(s.lastSyncedAt)}` : ""}
-                </p>
-                {s.lastError ? <p className="mt-1 text-xs text-danger-600">Last problem: {s.lastError}</p> : null}
-              </div>
-              {isOwner ? (
-                <div className="flex items-start gap-2">
-                  <RecheckButton serverId={s.id} />
-                  <form action={setIntegrationStatusAction}>
-                    <input type="hidden" name="serverId" value={s.id} />
-                    <input type="hidden" name="status" value={s.status === "active" ? "disabled" : "active"} />
-                    <button className="btn btn-secondary h-10 px-4">{s.status === "active" ? "Pause" : "Resume"}</button>
-                  </form>
-                  <form action={removeIntegrationAction}>
-                    <input type="hidden" name="serverId" value={s.id} />
-                    <button aria-label={`Remove ${s.name}`} className="grid size-10 place-items-center rounded-full text-ink-muted hover:bg-surface-muted hover:text-danger-600">
-                      <Trash2 className="size-4" />
-                    </button>
-                  </form>
-                </div>
-              ) : null}
-            </div>
-            <ul className="divide-y divide-line rounded-2xl border border-line">
-              {s.tools.map((t) => (
-                <li key={t.name} className="flex items-start justify-between gap-3 px-4 py-3">
-                  <span className="min-w-0">
-                    <span className="block font-mono text-sm font-medium">{t.name}</span>
-                    <span className="mt-0.5 block break-words text-xs text-ink-muted">{t.description}</span>
-                  </span>
-                  <span className={`pill shrink-0 ${t.enabled ? "bg-lime-100 text-brand-800" : "bg-surface-muted text-ink-muted"}`}>
-                    {t.enabled ? "active" : t.changed ? "paused: changed" : "waiting for review"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </Section>
-        ))
+        <>
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {apps.map((app) => {
+              const Icon = ICONS[app.category] ?? Plug;
+              const status = STATUS[app.status];
+              return (
+                <section key={app.id} className="card min-w-0 p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="grid size-11 place-items-center rounded-xl bg-surface-muted text-brand-800">
+                      <Icon className="size-5" strokeWidth={1.75} />
+                    </span>
+                    <span className={`pill ${status.cls}`}>{status.label}</span>
+                  </div>
+                  <h2 className="mt-4 text-lg font-semibold">{app.name}</h2>
+                  <p className="text-xs text-ink-muted">{app.category}</p>
+                  <p className="mt-2 text-sm text-ink-muted">{app.summary}</p>
+                  <p className="mt-4 border-t border-line pt-3 text-xs text-ink-muted">
+                    {app.status === "paused"
+                      ? "Switched off for now."
+                      : app.capabilities > 0
+                        ? `${settings.agentName} can use ${app.capabilities} ${app.capabilities === 1 ? "feature" : "features"} of this app.`
+                        : "Being set up by the Palda team."}
+                    {app.lastCheckedAt ? ` Checked ${dateTime(app.lastCheckedAt)}.` : ""}
+                  </p>
+                  {app.status === "attention" ? (
+                    <p className="mt-2 text-xs text-warning-600">We couldn&apos;t reach this app at the last check. Please let the Palda team know.</p>
+                  ) : null}
+                </section>
+              );
+            })}
+          </div>
+          <p className="text-sm text-ink-muted">Want another app connected? Ask the Palda team and we will set it up for you.</p>
+        </>
       )}
     </div>
   );

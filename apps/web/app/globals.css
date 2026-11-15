@@ -53,6 +53,18 @@ body {
   box-sizing: border-box;
 }
 
+/*
+ * Sidebar colours. The default is the white sidebar. A business can choose its own sidebar colour in the Engine, and the app
+ * overrides these variables with values derived from it (text, muted text, hover and divider are all picked to stay readable).
+ */
+:root {
+  --sb-bg: var(--color-surface);
+  --sb-fg: var(--color-ink);
+  --sb-muted: var(--color-ink-muted);
+  --sb-hover: var(--color-surface-muted);
+  --sb-border: var(--color-line);
+}
+
 @layer base {
   /* shadcn/ui expects every border to default to the palette hairline, not currentColor (that was the dark line on the sidebar). */
   *,

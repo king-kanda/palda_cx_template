@@ -35,7 +35,7 @@ export default async function AgentToolsPage({ params }: { params: Promise<{ id:
       <WorkspaceHeader
         customer={customer}
         title="Tools"
-        subtitle={`Everything ${customer.agent.name} is allowed to do for ${customer.name}: the built-in actions, then the tools from integrations the customer connected. Built-in changes are saved as a new version you can roll back.`}
+        subtitle={`Everything ${customer.agent.name} is allowed to do for ${customer.name}: the built-in actions, then the tools from the apps you connected. Built-in changes are saved as a new version you can roll back.`}
       />
       <div className="grid items-start gap-5 xl:grid-cols-[1.6fr_1fr]">
         <Panel
@@ -89,12 +89,12 @@ export default async function AgentToolsPage({ params }: { params: Promise<{ id:
       </div>
 
       <Panel
-        title="Tools from the customer's integrations"
+        title="Tools from the connected apps"
         aside={servers.length ? `${servers.reduce((n, x) => n + x.enabledCount, 0)} of ${servers.reduce((n, x) => n + x.tools.length, 0)} on` : "none connected"}
       >
         {servers.length === 0 ? (
           <p className="text-sm text-ink-muted">
-            When {customer.name} connects a tool from their own app, its tools appear here, switched off, for you to review. See the list on Integrations.
+            When you connect an app for {customer.name} on the Integrations screen, its tools appear here, switched off, for you to review.
           </p>
         ) : (
           <div className="space-y-6">
@@ -114,13 +114,13 @@ export default async function AgentToolsPage({ params }: { params: Promise<{ id:
                   <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-                        <span className="font-mono">{srv.name}</span>
+                        <span>{srv.displayName}</span>
                         <span className={`pill ${srv.status === "active" ? "bg-lime-100 text-brand-800" : "bg-surface-muted text-ink-muted"}`}>
                           {srv.status === "active" ? "connected" : "paused"}
                         </span>
                       </h3>
                       <p className="font-mono text-xs text-ink-muted">
-                        {srv.host} · added by {srv.addedBy === "customer" ? "the customer" : "the Palda team"}
+                        {srv.host} · {srv.category}
                       </p>
                       {srv.lastError ? <p className="text-xs text-danger-600">Last problem: {srv.lastError}</p> : null}
                     </div>

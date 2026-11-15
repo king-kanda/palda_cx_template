@@ -30,3 +30,4 @@ export * from "./external-mcp";
 export * from "./natural";
 export * from "./brand";
 export * from "./documents";
+export * from "./integrations-catalog";

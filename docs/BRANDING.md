@@ -8,7 +8,7 @@ Engine, open a customer, **Business**:
 
 | Screen | Path | What it holds |
 | --- | --- | --- |
-| Branding | `/engine/<id>/business/branding` | Logo, main and accent colours, tagline, website, Instagram, Facebook, TikTok, LinkedIn, business email and phone. Has a live preview of the customer's app wearing the brand |
+| Branding | `/engine/<id>/business/branding` | Logo, main and accent colours, **sidebar colour**, tagline, website, Instagram, Facebook, TikTok, LinkedIn, business email and phone. Has a live preview of the customer's app wearing the brand |
 | Documents | `/engine/<id>/business/documents` | Brochures, price lists, terms, contracts, and quote or letter templates. Upload, download, delete |
 
 ## Colours
@@ -25,13 +25,22 @@ Seven ready-made palettes are offered (Forest, Ocean, Plum, Terracotta, Slate, B
 
 Safety: only validated `#RRGGBB` values ever reach the injected stylesheet. A stored colour that is malformed, tampered with, or unreadable is ignored and the default theme is used.
 
+## Sidebar colour
+
+The sidebar can be white (the default), the main colour, a darker shade of it, charcoal, or any custom colour. The text, muted text, hover and divider switch automatically (white on dark, dark on light) so the whole sidebar stays readable (`deriveSidebar`). A colour is refused when:
+
+- it sits in the narrow mid-tone band where neither white nor dark text reaches 4.5:1 (for example a medium grey), or
+- the accent colour would disappear on it, so the current page wouldn't stand out (for example pale lime on cream).
+
+Choosing "Main colour" or "Darker" and then switching palette carries the sidebar along to the new palette; any other sidebar colour is left as it is. The sidebar is a stored hex value, validated like the rest, and only validated hex values reach the page's CSS (`--sb-bg`, `--sb-fg`, `--sb-muted`, `--sb-hover`, `--sb-border`).
+
 ## Logo
 
 PNG, JPEG or WebP, shrunk in the browser to fit (420 px) and stored as a small data URL (about 280 KB limit). SVG is refused because it can carry scripts. The invoice PDF draws PNG and JPEG logos only; a WebP logo shows in the app but is skipped on the PDF.
 
 ## Where the brand shows
 
-- **The customer's app:** the colours throughout, and the logo in the sidebar instead of the default mark.
+- **The customer's app:** the colours throughout, the sidebar colour, and the logo in the sidebar instead of the default mark.
 - **Public forms** (the session intake form): the colours and the logo.
 - **Invoice PDFs:** logo, main colour, tagline, address, and a contact line (website, email, phone). The hard-coded "Karen, Nairobi, Kenya" default address was removed: it printed the wrong address on every other business's invoices. The address now comes from the business's own details and is omitted if empty.
 - **Not yet applied:** the sign-in page (one email-only login for everyone, so it has no tenant at that point), WhatsApp message wording, and emails.
@@ -53,7 +62,7 @@ WhatsApp messages sent outside the 24-hour window (reminders, confirmations, rev
 
 ## Demo customers
 
-`pnpm engine:demo-brands` gives the demo customers distinct brands, logos, contact details and sample documents (Palda Gardens: Terracotta, Sparkle Cleaners: Ocean). Re-runnable. For another customer: `pnpm engine:demo-brands --slug <slug> --preset Plum`.
+`pnpm engine:demo-brands` gives the demo customers distinct brands, logos, sidebars, contact details and sample documents (Palda Gardens: Terracotta with a deep terracotta sidebar, Sparkle Cleaners: Ocean with a white sidebar). Re-runnable. For another customer: `pnpm engine:demo-brands --slug <slug> --preset Plum`.
 
 ## Tests
 

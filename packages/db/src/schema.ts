@@ -761,6 +761,10 @@ export const tenantMcpServers = pgTable(
       .references(() => tenants.id, { onDelete: "cascade" }),
     /** Short lowercase label, used to namespace the tools: ext_<name>_<tool>. */
     name: text("name").notNull(),
+    /** Which app this is (see integrations-catalog): "zoho_books", "google_workspace", ... or "custom". */
+    provider: text("provider").notNull().default("custom"),
+    /** What the customer sees for a custom app. Known providers use their catalog name. */
+    label: text("label"),
     url: text("url").notNull(),
     /** encryptJson({ token }) or null. */
     secretEnc: text("secret_enc"),

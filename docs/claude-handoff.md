@@ -228,10 +228,10 @@ Full reference: [`docs/AGENT-CONTROLS.md`](AGENT-CONTROLS.md). Summary:
 - **RLS locally:** dev connects as a superuser, so RLS is bypassed; isolation there comes from explicit `tenant_id` filters. The integration suite proves the policies as a restricted role.
 - **Customer-facing invoices** (`invoices.generate/send/get/list`, own bookings only, ownership enforced in the services).
 - **External MCP servers** per customer (Engine `Agent > Integrations`): tools start off, fingerprint-bound approval, SSRF-safe connection, encrypted token. Dev-only env switches `EXTERNAL_MCP_ALLOW_PRIVATE` / `EXTERNAL_MCP_ALLOW_INSECURE`.
-- **Integrations restructured:** the customer connects external MCP servers from their own app (owner only); the Engine lists what each customer connected and the Palda team switches tools on in Engine > Agent > Tools. Owners can never switch a tool on.
-- **Branding and documents** (`docs/BRANDING.md`): per-business logo, colours, website, socials and contact set in Engine > Business > Branding, applied across the customer's app, public intake form and invoice PDF; a documents library (Engine > Business > Documents, customer sees Documents). Demo customers have distinct brands (`pnpm engine:demo-brands`).
+- **Integrations:** the Palda team connects each customer's apps (Zoho Books, Google Workspace, ...) in Engine > Agent > Integrations, picking the app from a catalog, and switches their tools on in Engine > Agent > Tools. The customer's Integrations page is a read-only, plain-language list (no addresses, tokens or tool names). Customers have no write path.
+- **Branding and documents** (`docs/BRANDING.md`): per-business logo, colours, sidebar colour, website, socials and contact set in Engine > Business > Branding, applied across the customer's app, public intake form and invoice PDF; a documents library (Engine > Business > Documents, customer sees Documents). Demo customers have distinct brands (`pnpm engine:demo-brands`).
 - **Not built, deliberately:** editing WhatsApp message wording per business. On real WhatsApp, proactive messages are pre-approved templates with a fixed body and variable order, so local edits would change nothing customers receive and could break sends. A safe version needs a submit-for-approval flow.
-- Test counts: 247 unit, 139 integration, 57 evals.
+- Test counts: 261 unit, 145 integration, 57 evals.
 
 ### 7b. The Engine, managed rollout, cleaning vertical and fixes (2026-11-15)
 

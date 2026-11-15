@@ -11,6 +11,7 @@ import {
   createEngineCustomer,
   createPlatformAdmin,
   deleteExternalServer,
+  getCustomerIntegrations,
   listExternalServers,
   loadEnabledExternalTools,
   setExternalServerStatus,
@@ -153,7 +154,7 @@ describe.skipIf(!enabled)("external MCP servers (needs Postgres)", () => {
     delete process.env.EXTERNAL_MCP_ALLOW_INSECURE;
     try {
       for (const bad of ["http://example.com/mcp", "https://169.254.169.254/latest", "https://127.0.0.1/mcp", "https://localhost/mcp", "https://10.0.0.1/mcp"]) {
-        await expect(addExternalServer(adminId, a, { name: "bad", url: bad })).rejects.toThrow();
+        await expect(addExternalServer(adminId, a, { label: "Bad app", name: "bad", url: bad })).rejects.toThrow();
       }
     } finally {
       process.env.EXTERNAL_MCP_ALLOW_PRIVATE = saved.EXTERNAL_MCP_ALLOW_PRIVATE;
@@ -165,16 +166,16 @@ describe.skipIf(!enabled)("external MCP servers (needs Postgres)", () => {
   });
 
   it("a wrong token is reported plainly and nothing is saved", async () => {
-    await expect(addExternalServer(adminId, a, { name: "calendar", url, token: "wrong" })).rejects.toThrow(/refused the token/);
+    await expect(addExternalServer(adminId, a, { label: "Test calendar", name: "calendar", url, token: "wrong" })).rejects.toThrow(/refused the token/);
     expect(await listExternalServers(a)).toEqual([]);
   });
 
   it("an unreachable server is reported plainly and nothing is saved", async () => {
-    await expect(addExternalServer(adminId, a, { name: "dead", url: "http://127.0.0.1:1/mcp" })).rejects.toThrow(/connect/);
+    await expect(addExternalServer(adminId, a, { label: "Dead app", name: "dead", url: "http://127.0.0.1:1/mcp" })).rejects.toThrow(/connect/);
   });
 
   it("adds a server: tools are discovered but every one starts switched OFF", async () => {
-    const res = await addExternalServer(adminId, a, { name: "Calendar", url, token: "secret-token-123" });
+    const res = await addExternalServer(adminId, a, { label: "Test calendar", name: "Calendar", url, token: "secret-token-123" });
     serverId = res.id;
     expect(res.toolCount).toBe(3);
     const [s] = await listExternalServers(a);
@@ -298,36 +299,72 @@ describe.skipIf(!enabled)("external MCP servers (needs Postgres)", () => {
     expect(await listExternalServers(a)).toEqual([]);
   });
 
-  it("a customer's owner can connect and manage their own integration, but cannot switch a tool on", async () => {
-    const owner = { kind: "owner" as const, id: "owner-user-1" };
-    const res = await addExternalServer(owner, b, { name: "crm", url, token: "secret-token-123" });
+  it("the Palda team connects a known app by name; the short name and friendly name come from the catalog", async () => {
+    const res = await addExternalServer(adminId, b, { provider: "zoho_books", url, token: "secret-token-123" });
     const [s] = await listExternalServers(b);
-    expect(s!.addedBy).toBe("customer");
+    expect(s!.id).toBe(res.id);
+    expect(s).toMatchObject({ provider: "zoho_books", name: "zohobooks", displayName: "Zoho Books", category: "Accounting" });
     expect(s!.tools.every((t) => !t.enabled)).toBe(true);
+  });
 
-    // Only the Palda team decides what the agent may do
-    await expect(setExternalToolsEnabled(owner, b, res.id, ["create_event"])).rejects.toThrow(/Palda team/);
-    expect(await loadEnabledExternalTools(b, "wambo")).toEqual([]);
+  it("an unknown app, or a custom app without a name, is refused", async () => {
+    await expect(addExternalServer(adminId, b, { provider: "evil_app", url })).rejects.toThrow(/listed apps/);
+    await expect(addExternalServer(adminId, b, { provider: "custom", url })).rejects.toThrow(/name the customer will recognise/);
+    await expect(addExternalServer(adminId, b, { provider: "zoho_books", url, token: "secret-token-123" })).rejects.toThrow(/already has a connection/);
+    expect((await listExternalServers(b)).length).toBe(1);
+  });
 
-    // Another customer's owner cannot reach this server by id
-    await expect(syncExternalServer({ kind: "owner", id: "someone-else" }, a, res.id)).rejects.toThrow();
-    await expect(deleteExternalServer({ kind: "owner", id: "someone-else" }, a, res.id)).rejects.toThrow();
+  it("the customer's view is plain language: no address, token, tool names or raw errors", async () => {
+    const [srv] = await listExternalServers(b);
+    const view = await getCustomerIntegrations(b);
+    expect(view).toHaveLength(1);
+    expect(view[0]).toMatchObject({ name: "Zoho Books", category: "Accounting", status: "connected", capabilities: 0 });
+    expect(view[0]!.summary).toMatch(/accounting/i);
 
-    await syncExternalServer(owner, b, res.id);
-    await setExternalServerStatus(owner, b, res.id, "disabled");
-    await setExternalServerStatus(owner, b, res.id, "active");
+    const dump = JSON.stringify(view);
+    for (const secret of [url, "127.0.0.1", "secret-token-123", "create_event", "list_events", "explode", srv!.name, "localhost"]) {
+      expect(dump).not.toContain(secret);
+    }
+    expect(Object.keys(view[0]!).sort()).toEqual(["capabilities", "category", "id", "lastCheckedAt", "name", "status", "summary"]);
 
-    // The Palda team reviews and switches one tool on; it reaches only this customer's agent
-    await setExternalToolsEnabled(adminId, b, res.id, ["list_events"]);
-    expect((await loadEnabledExternalTools(b, "wambo")).map((x) => x.tool.name)).toEqual(["list_events"]);
-    expect(await loadEnabledExternalTools(a, "wambo")).toEqual([]);
+    // the count follows what the Palda team switches on
+    await setExternalToolsEnabled(adminId, b, srv!.id, ["list_events", "create_event"]);
+    expect((await getCustomerIntegrations(b))[0]!.capabilities).toBe(2);
 
-    await deleteExternalServer(owner, b, res.id);
-    expect(await listExternalServers(b)).toEqual([]);
+    // paused by the Palda team
+    await setExternalServerStatus(adminId, b, srv!.id, "disabled");
+    expect((await getCustomerIntegrations(b))[0]!.status).toBe("paused");
+    await setExternalServerStatus(adminId, b, srv!.id, "active");
 
-    const rows = await getDb().query.auditLog.findMany({ where: eq(schema.auditLog.tenantId, b) });
-    expect(rows.some((r) => r.action === "engine.mcp_added" && r.actor === "owner:owner-user-1")).toBe(true);
-    expect(JSON.stringify(rows)).not.toContain("secret-token-123");
+    // a failed check shows as "needs attention" and never leaks the reason
+    requireToken = "rotated-token";
+    try {
+      await expect(syncExternalServer(adminId, b, srv!.id)).rejects.toThrow();
+    } finally {
+      requireToken = "secret-token-123";
+    }
+    const failing = await getCustomerIntegrations(b);
+    expect(failing[0]!.status).toBe("attention");
+    expect(JSON.stringify(failing)).not.toMatch(/token|refused|unauthori/i);
+
+    await syncExternalServer(adminId, b, srv!.id);
+    expect((await getCustomerIntegrations(b))[0]!.status).toBe("connected");
+  });
+
+  it("customers have no way to change integrations, and see only their own", async () => {
+    const a1 = await getCustomerIntegrations(a);
+    const b1 = await getCustomerIntegrations(b);
+    expect(a1.every((x) => !b1.some((y) => y.id === x.id))).toBe(true);
+    // The customer module exposes no write path at all.
+    const services = await import("../../packages/services/src/index");
+    const names = Object.keys(services).filter((k) => /customer.*integration|integration.*customer/i.test(k));
+    expect(names).toEqual(["getCustomerIntegrations"]);
+  });
+
+  it("the Palda team deletes it; the customer's view empties", async () => {
+    const [srv] = await listExternalServers(b);
+    await deleteExternalServer(adminId, b, srv!.id);
+    expect(await getCustomerIntegrations(b)).toEqual([]);
   });
 
   it("every change is audited", async () => {

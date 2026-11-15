@@ -113,17 +113,17 @@ function SidebarContent({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={logo} alt="" className="size-8 shrink-0 rounded-lg object-contain" />
         ) : (
-          <LogoMark />
+          <LogoMark className="size-7 text-[color:var(--sb-fg)]" />
         )}
         {!collapsed && (
-          <span className="truncate text-lg font-bold tracking-tight text-ink">
+          <span className="truncate text-lg font-bold tracking-tight text-[color:var(--sb-fg)]">
             {businessName.toUpperCase()}
           </span>
         )}
         <button
           type="button"
           onClick={onClose}
-          className="ml-auto rounded-lg p-2 text-ink-muted hover:bg-surface-muted md:hidden"
+          className="ml-auto rounded-lg p-2 text-[color:var(--sb-muted)] hover:bg-[var(--sb-hover)] md:hidden"
           aria-label="Close navigation"
         >
           <X className="size-5" />
@@ -145,7 +145,7 @@ function SidebarContent({
               className={`group flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors ${
                 active
                   ? "bg-lime-400 text-brand-900"
-                  : "text-ink-muted hover:bg-surface-muted hover:text-ink"
+                  : "text-[color:var(--sb-muted)] hover:bg-[var(--sb-hover)] hover:text-[color:var(--sb-fg)]"
               } ${collapsed ? "justify-center px-0" : ""}`}
             >
               <Icon className="size-5 shrink-0" strokeWidth={1.75} />
@@ -157,7 +157,7 @@ function SidebarContent({
 
       <div className={`space-y-3 p-4 ${collapsed ? "px-3" : ""}`}>
         {!collapsed && (
-          <div className="relative overflow-hidden rounded-2xl bg-brand-800 p-4 text-white">
+          <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-brand-800 p-4 text-white">
             <LogoMark className="pointer-events-none absolute -right-4 -top-4 size-24 text-white/10" />
             <div className="flex items-center gap-2">
               {agent.avatar ? (
@@ -186,7 +186,7 @@ function SidebarContent({
         <button
           type="button"
           onClick={onToggle}
-          className={`hidden h-10 w-full items-center gap-3 rounded-xl px-3 text-sm text-ink-muted hover:bg-surface-muted md:flex ${
+          className={`hidden h-10 w-full items-center gap-3 rounded-xl px-3 text-sm text-[color:var(--sb-muted)] hover:bg-[var(--sb-hover)] md:flex ${
             collapsed ? "justify-center px-0" : ""
           }`}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -313,7 +313,7 @@ export function AppShell({
     <div className="flex min-h-screen">
       {/* Desktop / tablet */}
       <aside
-        className={`sticky top-0 hidden h-screen shrink-0 border-r border-line bg-surface transition-[width] md:block ${
+        className={`sticky top-0 hidden h-screen shrink-0 border-r border-[color:var(--sb-border)] bg-[var(--sb-bg)] transition-[width] md:block ${
           collapsed ? "w-[72px]" : "w-64"
         }`}
       >
@@ -333,7 +333,7 @@ export function AppShell({
       {mobileOpen && (
         <div className="fixed inset-0 z-40 md:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
           <div className="absolute inset-0 bg-ink/40" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 w-72 bg-surface shadow-lg">
+          <aside className="absolute inset-y-0 left-0 w-72 bg-[var(--sb-bg)] shadow-lg">
             <SidebarContent
               businessName={businessName}
               logo={logo}

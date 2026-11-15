@@ -8,6 +8,7 @@ import {
   rolloutCustomer,
   activateAgentVersion,
   addBusinessDocument,
+  addExternalServer,
   addKnowledgeDocument,
   deleteBusinessDocument,
   deleteExternalServer,
@@ -209,6 +210,25 @@ export async function reindexKnowledgeAction(formData: FormData): Promise<void> 
   revalidatePath(`/engine/${tenantId}/agent/knowledge`);
 }
 
+/** Connect an app for this customer. Connects once to prove it works; every tool starts switched off. */
+export async function addExternalServerAction(_prev: EngineFormState, formData: FormData): Promise<EngineFormState> {
+  const admin = await requireEngineAdmin();
+  const tenantId = idOf(formData);
+  try {
+    const res = await addExternalServer(admin.id, tenantId, {
+      provider: String(formData.get("provider") ?? "custom"),
+      label: String(formData.get("label") ?? ""),
+      name: String(formData.get("name") ?? ""),
+      url: String(formData.get("url") ?? ""),
+      token: String(formData.get("token") ?? ""),
+    });
+    revalidatePath(`/engine/${tenantId}/agent/integrations`);
+    return { ok: true, message: `Connected. Found ${res.toolCount} tool${res.toolCount === 1 ? "" : "s"}. Review them on the Tools screen and switch on the ones the agent should use.` };
+  } catch (error) {
+    return { error: messageOf(error) };
+  }
+}
+
 export async function syncExternalServerAction(_prev: EngineFormState, formData: FormData): Promise<EngineFormState> {
   const admin = await requireEngineAdmin();
   const tenantId = idOf(formData);
@@ -267,6 +287,7 @@ export async function saveBrandAction(_prev: EngineFormState, formData: FormData
     await updateBrand(admin.id, tenantId, {
       primary: String(formData.get("primary") ?? ""),
       accent: String(formData.get("accent") ?? ""),
+      sidebar: String(formData.get("sidebar") ?? ""),
       website: String(formData.get("website") ?? ""),
       tagline: String(formData.get("tagline") ?? ""),
       instagram: String(formData.get("instagram") ?? ""),

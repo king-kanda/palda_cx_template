@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { startTransition, useActionState, useRef } from "react";
 import { DOCUMENT_ACCEPT, DOCUMENT_KINDS } from "@garden/services/documents-meta";
 import { addDocumentAction, type EngineFormState } from "../../actions";
 
@@ -13,7 +13,16 @@ export function DocumentForm({ tenantId }: { tenantId: string }) {
   }, {});
 
   return (
-    <form ref={formRef} action={action} className="space-y-4">
+    <form
+      ref={formRef}
+      // Not `action={action}`: React 19 clears every field after an action returns, even when it returns an error, which would
+      // wipe what was typed. Submitting by hand keeps the fields; the success path below resets them on purpose.
+      onSubmit={(e) => {
+        e.preventDefault();
+        const data = new FormData(e.currentTarget);
+        startTransition(() => action(data));
+      }}
+      className="space-y-4">
       <input type="hidden" name="tenantId" value={tenantId} />
       <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
         <div>

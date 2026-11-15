@@ -68,8 +68,49 @@ export function deriveTheme(primary: string, accent: string): Record<string, str
   };
 }
 
+/** The dark text colour the app uses (its "ink"). Used on light sidebars. */
+const INK = "#14201B";
+
+/**
+ * The CSS variables for a coloured sidebar. Text is whichever of white or the app's dark ink reads better on the chosen colour;
+ * the muted text, hover and divider are mixed from the two so the whole sidebar stays readable on any colour that passes
+ * checkSidebar.
+ */
+export function deriveSidebar(bg: string): Record<string, string> {
+  const fg = contrast(bg, "#FFFFFF") >= contrast(bg, INK) ? "#FFFFFF" : INK;
+  // The most muted secondary text that is still readable (4.5:1), so menu items look quieter than the active one.
+  let muted = fg;
+  for (const t of [0.4, 0.3, 0.2, 0.1]) {
+    const candidate = mix(fg, bg, t);
+    if (contrast(candidate, bg) >= 4.5) {
+      muted = candidate;
+      break;
+    }
+  }
+  return {
+    "--sb-bg": bg.toLowerCase(),
+    "--sb-fg": fg.toLowerCase(),
+    "--sb-muted": muted,
+    "--sb-hover": mix(bg, fg, 0.1),
+    "--sb-border": mix(bg, fg, 0.16),
+  };
+}
+
+/** Why a sidebar colour can't be used, in plain words. Empty when it is fine. */
+export function checkSidebar(bg: string, accent: string): string[] {
+  if (!HEX.test(bg)) return ["Use a sidebar colour written like #14201B."];
+  const best = Math.max(contrast(bg, "#FFFFFF"), contrast(bg, INK));
+  if (best < 4.5) {
+    return ["That sidebar colour sits in the middle, so neither white nor dark text is easy to read on it. Pick a lighter or a darker one."];
+  }
+  if (HEX.test(accent) && contrast(accent, bg) < 1.3) {
+    return ["The accent colour would disappear on that sidebar, so the current page wouldn't stand out. Pick a different sidebar or accent colour."];
+  }
+  return [];
+}
+
 /** Why a pair of colours can't be used, in plain words. Empty when it is fine. */
-export function checkBrandColors(primary: string, accent: string): string[] {
+export function checkBrandColors(primary: string, accent: string, sidebar = ""): string[] {
   const problems: string[] = [];
   if (!HEX.test(primary) || !HEX.test(accent)) return ["Use colours written like #1E4D3F."];
   if (contrast(primary, "#FFFFFF") < 4.5) {
@@ -80,6 +121,7 @@ export function checkBrandColors(primary: string, accent: string): string[] {
     problems.push("The accent colour is too close to the main colour: active menu items would be hard to read. Pick a lighter accent or a darker main colour.");
   }
   if (contrast(accent, "#FFFFFF") < 1.15) problems.push("The accent colour is almost white and would disappear on the page.");
+  if (sidebar) problems.push(...checkSidebar(sidebar, accent));
   return problems;
 }
 
@@ -113,6 +155,12 @@ export const brandSchema = z.object({
     .nullable()
     .optional(),
   primary: z.string().trim().regex(HEX, "Use a colour like #1E4D3F").default(BRAND_DEFAULTS.primary),
+  /** The sidebar background. Empty means the default white sidebar. */
+  sidebar: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || HEX.test(v), { message: "Use a sidebar colour like #14201B" })
+    .default(""),
   accent: z.string().trim().regex(HEX, "Use a colour like #B6EB8F").default(BRAND_DEFAULTS.accent),
   website: https("The website"),
   tagline: z.string().trim().max(90, "Keep the tagline under 90 characters").default(""),
@@ -143,6 +191,8 @@ export type Brand = {
   accent: string;
   /** True when the business has chosen its own colours (so the app should override the default theme). */
   custom: boolean;
+  /** The sidebar background, or "" for the default white sidebar. Only set when it is readable. */
+  sidebar: string;
   website: string;
   tagline: string;
   instagram: string;
@@ -164,12 +214,16 @@ export function parseBrand(raw: Record<string, unknown> | null | undefined): Bra
   const mainColour = hexOr(stored.primary, primary);
   const accentColour = hexOr(stored.accent, BRAND_DEFAULTS.accent);
   const custom = typeof stored.primary === "string" && HEX.test(stored.primary);
+  const effectiveAccent = custom ? accentColour : BRAND_DEFAULTS.accent;
+  const sidebarRaw = typeof b.sidebar === "string" && HEX.test(b.sidebar) ? b.sidebar : "";
+  const sidebar = sidebarRaw && checkSidebar(sidebarRaw, effectiveAccent).length === 0 ? sidebarRaw : "";
   const logo = typeof b.logo === "string" && LOGO_PATTERN.test(b.logo) && b.logo.length <= LOGO_MAX_CHARS ? b.logo : null;
   return {
     logo,
     primary: custom ? mainColour : BRAND_DEFAULTS.primary,
     accent: custom ? accentColour : BRAND_DEFAULTS.accent,
     custom: custom && checkBrandColors(mainColour, accentColour).length === 0,
+    sidebar,
     website: str(b.website),
     tagline: str(b.tagline, 90),
     instagram: str(b.instagram),
@@ -183,9 +237,10 @@ export function parseBrand(raw: Record<string, unknown> | null | undefined): Bra
 
 /** The CSS to inject for a brand, or "" when it uses the default theme. Only validated hex values ever reach it. */
 export function brandCss(brand: Brand): string {
-  if (!brand.custom) return "";
-  const vars = deriveTheme(brand.primary, brand.accent);
-  return `:root{${Object.entries(vars)
-    .map(([k, v]) => `${k}:${v}`)
-    .join(";")}}`;
+  const vars: Record<string, string> = {
+    ...(brand.custom ? deriveTheme(brand.primary, brand.accent) : {}),
+    ...(brand.sidebar ? deriveSidebar(brand.sidebar) : {}),
+  };
+  const entries = Object.entries(vars);
+  return entries.length ? `:root{${entries.map(([k, v]) => `${k}:${v}`).join(";")}}` : "";
 }

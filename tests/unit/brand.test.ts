@@ -5,7 +5,9 @@ import {
   brandCss,
   brandSchema,
   checkBrandColors,
+  checkSidebar,
   contrast,
+  deriveSidebar,
   deriveTheme,
   hexToRgb,
   mix,
@@ -64,6 +66,80 @@ describe("brand colours are checked for readability", () => {
     expect(Object.keys(deriveTheme("#0F4C81", "#8FD3F4")).sort()).toEqual(
       ["--color-brand-100", "--color-brand-700", "--color-brand-800", "--color-brand-900", "--color-lime-100", "--color-lime-300", "--color-lime-400"].sort(),
     );
+  });
+});
+
+describe("sidebar colour", () => {
+  it("is optional: the default is the white sidebar and emits no sidebar CSS", () => {
+    expect(brandCss(parseBrand({ colors: { primary: "#0F4C81", accent: "#8FD3F4" } }))).not.toContain("--sb-");
+    expect(parseBrand(undefined).sidebar).toBe("");
+  });
+
+  it("picks white text on a dark sidebar and dark text on a light one, and keeps every pair readable", () => {
+    const dark = deriveSidebar("#14201B");
+    expect(dark["--sb-fg"]).toBe("#ffffff");
+    const light = deriveSidebar("#F4EFE6");
+    expect(light["--sb-fg"]).toBe("#14201b");
+    for (const bg of ["#14201B", "#1E4D3F", "#0F4C81", "#5B2A6B", "#8A3B1E", "#F4EFE6", "#FFFFFF", "#E8F1FA", "#000000"]) {
+      const t = deriveSidebar(bg);
+      expect(contrast(t["--sb-fg"]!, t["--sb-bg"]!), `${bg} text`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(t["--sb-muted"]!, t["--sb-bg"]!), `${bg} muted text`).toBeGreaterThanOrEqual(4.5);
+      expect(Object.keys(t).sort()).toEqual(["--sb-bg", "--sb-border", "--sb-fg", "--sb-hover", "--sb-muted"]);
+    }
+  });
+
+  it("accepts dark and light sidebars and refuses mid-tones where neither text colour is readable", () => {
+    expect(checkSidebar("#14201B", "#B6EB8F")).toEqual([]);
+    expect(checkSidebar("#1E4D3F", "#B6EB8F")).toEqual([]);
+    expect(checkSidebar("#FFFFFF", "#B6EB8F")).toEqual([]);
+    expect(checkSidebar("#F4EFE6", "#8FD3F4")).toEqual([]); // cream with a sky-blue accent: the current page still stands out
+    expect(checkSidebar("#F4EFE6", "#B6EB8F")[0]).toMatch(/accent/i); // cream with pale lime: it would barely show
+    expect(checkSidebar("#808080", "#B6EB8F")[0]).toMatch(/middle/);
+    expect(checkSidebar("#7C7C7C", "#B6EB8F")[0]).toMatch(/middle/); // the narrow band where white and dark text are both poor
+    expect(checkSidebar("#7A8F85", "#B6EB8F")).toEqual([]); // dark text reads fine on this one (about 4.8:1), so it is allowed
+    expect(checkSidebar("blue", "#B6EB8F")[0]).toMatch(/Use a sidebar colour/);
+  });
+
+  it("refuses a sidebar the accent would disappear on", () => {
+    expect(checkSidebar("#B8EC92", "#B6EB8F")[0]).toMatch(/accent/i);
+  });
+
+  it("is included in the whole-brand check", () => {
+    expect(checkBrandColors("#0F4C81", "#8FD3F4", "#14201B")).toEqual([]);
+    expect(checkBrandColors("#0F4C81", "#8FD3F4", "#808080")[0]).toMatch(/middle/);
+  });
+
+  it("every palette works with a main-colour, darker and charcoal sidebar", () => {
+    for (const p of BRAND_PRESETS) {
+      for (const bg of [p.primary, mix(p.primary, "#000000", 0.45), "#14201B", "#FFFFFF"]) {
+        expect(checkSidebar(bg, p.accent), `${p.name} on ${bg}`).toEqual([]);
+      }
+    }
+  });
+
+  it("emits only validated hex values, and ignores a tampered or unreadable stored sidebar", () => {
+    const ok = brandCss(parseBrand({ colors: { primary: "#0F4C81", accent: "#8FD3F4" }, sidebar: "#14201B" }));
+    expect(ok).toContain("--sb-bg:#14201b");
+    expect(ok).toContain("--color-brand-800:#0f4c81");
+    expect(ok).toMatch(/^:root\{(--[a-z0-9-]+:#[0-9a-f]{6};?)+\}$/);
+    for (const bad of ["red;}body{display:none}", "#808080", "url(javascript:alert(1))", "#12345"]) {
+      const css = brandCss(parseBrand({ sidebar: bad }));
+      expect(css, bad).toBe("");
+    }
+  });
+
+  it("works with the default colours too (a business that only chose a sidebar)", () => {
+    const css = brandCss(parseBrand({ sidebar: "#14201B" }));
+    expect(css).toContain("--sb-bg:#14201b");
+    expect(css).not.toContain("--color-brand-800");
+  });
+
+  it("the schema accepts empty or a hex colour only", () => {
+    const ok = { primary: "#0F4C81", accent: "#8FD3F4" };
+    expect(brandSchema.safeParse({ ...ok, sidebar: "" }).success).toBe(true);
+    expect(brandSchema.safeParse({ ...ok, sidebar: "#14201B" }).success).toBe(true);
+    expect(brandSchema.safeParse({ ...ok, sidebar: "dark" }).success).toBe(false);
+    expect(brandSchema.parse(ok).sidebar).toBe("");
   });
 });
 

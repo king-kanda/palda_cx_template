@@ -8,7 +8,8 @@ import {
   listExternalTools,
   toolFingerprint,
 } from "@garden/integrations";
-import { ForbiddenError, NotFoundError, ValidationError } from "./types";
+import { CUSTOM_PROVIDER_ID, INTEGRATION_PROVIDERS, integrationDisplay, isKnownProvider } from "./integrations-catalog";
+import { NotFoundError, ValidationError } from "./types";
 
 /**
  * External MCP servers for ONE customer's agent, set up by the Palda team in the Engine.
@@ -20,12 +21,11 @@ import { ForbiddenError, NotFoundError, ValidationError } from "./types";
  */
 
 /**
- * Who is acting. A plain string is a Palda admin id (the Engine). `{ kind: "owner" }` is a customer's owner connecting or
- * removing THEIR OWN integrations from their app. An owner can add, re-check, disable and remove; only the Palda team can switch
- * a tool on, because that decides what the agent is allowed to do.
+ * Who is acting: always a Palda admin (the Engine). Customers never connect, change or even see the technical side of an
+ * integration; the Palda team connects each customer's apps for them. What a customer sees is `getCustomerIntegrations`.
  */
-export type McpActor = string | { kind: "engine" | "owner"; id: string };
-const actorLabel = (by: McpActor) => (typeof by === "string" ? `engine:${by}` : `${by.kind}:${by.id}`);
+export type McpActor = string;
+const actorLabel = (by: McpActor) => `engine:${by}`;
 
 async function audit(
   tx: Parameters<Parameters<typeof withTenant>[1]>[0],
@@ -52,8 +52,11 @@ export type ExternalServerInfo = {
   hasToken: boolean;
   agents: string[];
   status: string;
-  /** Who connected it: the customer from their own app, or the Palda team. */
-  addedBy: "customer" | "palda";
+  /** Which app this is (catalog id, or "custom"). */
+  provider: string;
+  /** The friendly name: the app's catalog name, or the label given to a custom one. */
+  displayName: string;
+  category: string;
   tools: ExternalToolRow[];
   enabledCount: number;
   lastSyncedAt: Date | null;
@@ -77,7 +80,9 @@ function present(row: typeof schema.tenantMcpServers.$inferSelect): ExternalServ
     hasToken: Boolean(row.secretEnc),
     agents: row.agents,
     status: row.status,
-    addedBy: row.createdBy.startsWith("owner:") ? "customer" : "palda",
+    provider: row.provider,
+    displayName: integrationDisplay(row.provider, row.label).name,
+    category: integrationDisplay(row.provider, row.label).category,
     tools: row.tools,
     enabledCount: row.tools.filter((t) => t.enabled).length,
     lastSyncedAt: row.lastSyncedAt,
@@ -130,10 +135,18 @@ export function mergeTools(existing: ExternalToolRow[], fresh: { name: string; d
 export async function addExternalServer(
   by: McpActor,
   tenantId: string,
-  input: { name: string; url: string; token?: string },
+  input: { provider?: string; label?: string; name?: string; url: string; token?: string },
 ): Promise<{ id: string; toolCount: number }> {
-  const name = input.name.trim().toLowerCase();
-  if (!NAME.test(name)) throw new ValidationError("Name it with 2 to 16 lowercase letters or digits, starting with a letter (e.g. calendar).");
+  const provider = (input.provider ?? CUSTOM_PROVIDER_ID).trim();
+  if (!isKnownProvider(provider)) throw new ValidationError("Choose one of the listed apps, or Other.");
+  const label = (input.label ?? "").trim();
+  if (provider === CUSTOM_PROVIDER_ID && (label.length < 2 || label.length > 40)) {
+    throw new ValidationError("Give the app a name the customer will recognise (2 to 40 characters).");
+  }
+  // The short name labels the tools. It defaults from the app, so staff rarely type it.
+  const suggested = INTEGRATION_PROVIDERS.find((p) => p.id === provider)?.defaultName ?? "";
+  const name = (input.name?.trim() || suggested).toLowerCase();
+  if (!NAME.test(name)) throw new ValidationError("The short name must be 2 to 16 lowercase letters or digits, starting with a letter (e.g. calendar).");
   let url: string;
   try {
     url = assertSafeUrl(input.url).toString();
@@ -157,12 +170,14 @@ export async function addExternalServer(
     const clash = await tx.query.tenantMcpServers.findFirst({
       where: and(eq(schema.tenantMcpServers.tenantId, tenantId), eq(schema.tenantMcpServers.name, name)),
     });
-    if (clash) throw new ValidationError(`There is already a server called "${name}" for this customer.`);
+    if (clash) throw new ValidationError(`This customer already has a connection called "${name}". Use a different short name.`);
     const [row] = await tx
       .insert(schema.tenantMcpServers)
       .values({
         tenantId,
         name,
+        provider,
+        label: provider === CUSTOM_PROVIDER_ID ? label : null,
         url,
         secretEnc: token ? encryptJson({ token }) : null,
         tools: mergeTools([], specs),
@@ -201,7 +216,6 @@ export async function syncExternalServer(by: McpActor, tenantId: string, serverI
 
 /** Switches exactly these tools on (everything else off). Binds each to the fingerprint staff just reviewed. */
 export async function setExternalToolsEnabled(by: McpActor, tenantId: string, serverId: string, enabled: string[]) {
-  if (typeof by !== "string" && by.kind === "owner") throw new ForbiddenError("Only the Palda team can switch a tool on.");
   const row = await getRow(tenantId, serverId);
   const want = new Set(enabled);
   const tools = row.tools.map((t) => ({ ...t, enabled: want.has(t.name), changed: want.has(t.name) ? undefined : t.changed }));
@@ -253,4 +267,43 @@ export async function loadEnabledExternalTools(tenantId: string, agentId: string
     }
   }
   return out;
+}
+
+/* ───────────────────────────── What the customer sees ───────────────────────────── */
+
+export type CustomerIntegration = {
+  id: string;
+  name: string;
+  category: string;
+  summary: string;
+  /** "connected" (working), "paused" (switched off by the Palda team), or "attention" (the last check failed). */
+  status: "connected" | "paused" | "attention";
+  /** How many things the assistant is currently allowed to do with this app. Never tool names. */
+  capabilities: number;
+  lastCheckedAt: Date | null;
+};
+
+/**
+ * The customer's read-only view of their connected apps. It deliberately carries no address, token, tool names or raw error
+ * text: those are technical, and an error message could reveal the address of the server behind it.
+ */
+export async function getCustomerIntegrations(tenantId: string): Promise<CustomerIntegration[]> {
+  const rows = await withTenant(tenantId, (tx) =>
+    tx.query.tenantMcpServers.findMany({
+      where: eq(schema.tenantMcpServers.tenantId, tenantId),
+      orderBy: asc(schema.tenantMcpServers.createdAt),
+    }),
+  );
+  return rows.map((row) => {
+    const display = integrationDisplay(row.provider, row.label);
+    return {
+      id: row.id,
+      name: display.name,
+      category: display.category,
+      summary: display.summary,
+      status: row.status !== "active" ? "paused" : row.lastError ? "attention" : "connected",
+      capabilities: row.tools.filter((t) => t.enabled && !t.changed).length,
+      lastCheckedAt: row.lastSyncedAt,
+    };
+  });
 }

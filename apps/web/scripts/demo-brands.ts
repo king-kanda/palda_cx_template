@@ -1,7 +1,7 @@
 import { deflateSync, crc32 } from "node:zlib";
 import { eq } from "drizzle-orm";
 import { closeDb, getDb, loadEnv, schema } from "@garden/db";
-import { BRAND_PRESETS, addBusinessDocument, listBusinessDocuments, updateBrand } from "@garden/services";
+import { BRAND_PRESETS, addBusinessDocument, listBusinessDocuments, mix, updateBrand } from "@garden/services";
 
 loadEnv();
 
@@ -89,6 +89,8 @@ type Demo = {
   slug: string;
   preset: string;
   shape: "circle" | "rounded" | "hex";
+  /** "dark" = a deep shade of the main colour; "white" = the default white sidebar. */
+  sidebar: "dark" | "white";
   tagline: string;
   website: string;
   instagram: string;
@@ -103,6 +105,7 @@ const DEMOS: Demo[] = [
     slug: "palda",
     preset: "Terracotta",
     shape: "circle",
+    sidebar: "dark",
     tagline: "Gardens for every occasion",
     website: "https://www.paldagardens.example",
     instagram: "https://instagram.com/paldagardens",
@@ -128,6 +131,7 @@ const DEMOS: Demo[] = [
     slug: "sparkle",
     preset: "Ocean",
     shape: "rounded",
+    sidebar: "white",
     tagline: "A spotless home, every time",
     website: "https://www.sparklecleaners.example",
     instagram: "https://instagram.com/sparklecleaners",
@@ -163,6 +167,7 @@ async function apply(demo: Demo, adminId: string, presetName: string) {
     logo: logoPng(preset.primary, preset.accent, demo.shape),
     primary: preset.primary,
     accent: preset.accent,
+    sidebar: demo.sidebar === "dark" ? mix(preset.primary, "#000000", 0.45).toUpperCase() : "",
     website: demo.website,
     tagline: demo.tagline,
     instagram: demo.instagram,
@@ -177,7 +182,7 @@ async function apply(demo: Demo, adminId: string, presetName: string) {
     await addBusinessDocument(adminId, tenant.id, { title: doc.title, kind: doc.kind, filename: doc.filename, bytes: new TextEncoder().encode(doc.text) });
     added += 1;
   }
-  console.log(`done  ${demo.slug}: ${preset.name} (${preset.primary} / ${preset.accent}), logo, ${added} new document${added === 1 ? "" : "s"}`);
+  console.log(`done  ${demo.slug}: ${preset.name} (${preset.primary} / ${preset.accent}), ${demo.sidebar} sidebar, logo, ${added} new document${added === 1 ? "" : "s"}`);
 }
 
 async function main() {
@@ -192,6 +197,7 @@ async function main() {
       slug,
       preset: arg("preset") ?? "Forest",
       shape: "circle" as const,
+      sidebar: "white" as const,
       tagline: "",
       website: "",
       instagram: "",

@@ -7,10 +7,10 @@ How each customer's agent is configured from the Engine, what it knows, and what
 | Screen | Path | What it controls |
 | --- | --- | --- |
 | Profile & voice | `/engine/<id>/agent` | Name, picture, tone, notes (built into the persona by `applyAgentProfile`) |
-| Tools | `/engine/<id>/agent/tools` | Everything the agent may do: the built-in tools, then the tools from integrations the customer connected, each switched on or off here. Also max tool calls per message |
+| Tools | `/engine/<id>/agent/tools` | Everything the agent may do: the built-in tools, then the tools from the apps connected for the customer, each switched on or off here. Also max tool calls per message |
 | Knowledge | `/engine/<id>/agent/knowledge` | Documents the agent can search (policies, FAQs). Has a "Try a question" box showing what it would find |
 | Memory | `/engine/<id>/agent/memory` | Facts the agent has saved about this customer's end-customers, with delete |
-| Integrations | `/engine/<id>/agent/integrations` | A list of the outside tools this customer has connected themselves (section 4b). Read-mostly: pause or remove for support |
+| Integrations | `/engine/<id>/agent/integrations` | Connect and list the apps for this customer (Zoho Books, Google Workspace, ...). Section 4b |
 | Runs | `/engine/<id>/runs` | Every agent run, with trace links |
 
 ### Tools: versions, not edits
@@ -64,24 +64,26 @@ Ownership is enforced in the services, not just the tool: a customer principal c
 
 The agent can list the invoices of the customer it is talking to, not other customers. A customer-facing agent never sees the customer list: that would expose one customer's details to another. Staff-side agents (admin, ops) can list customers as before.
 
-## 4b. External MCP servers (customer connects, Palda team decides)
+## 4b. Connected apps (the Palda team connects them; the customer just sees them)
 
-A customer connects an outside tool (a calendar, a CRM) to their own agent from **Integrations in their app**. The Palda team then decides, on the Engine's **Tools** screen, which of its tools the agent may use. The Engine's **Integrations** screen is a list of what each customer has connected, so the team knows what is in play.
+A customer's business apps (Zoho Books, Google Workspace, QuickBooks, HubSpot and so on) are connected to their agent **by the Palda team in the Engine**. The customer never connects, configures or even sees the technical side (server addresses, tokens, tool names). In their app, **Integrations** is a read-only list of the apps connected for them, in plain language.
 
-Who can do what:
+Under the hood each app is reached through an MCP server whose address the Palda team enters, because the addresses differ by provider and plan. The catalog (`packages/services/src/integrations-catalog.ts`) gives each app a friendly name, a category and a one-line description for the customer: Zoho Books, Google Workspace, Microsoft 365, QuickBooks, Xero, Zoho CRM, HubSpot, Calendly, Notion, Slack, or "Other app" with a name the team chooses. It deliberately holds no connection details.
 
-| | Customer owner | Customer staff | Palda team (Engine) |
-| --- | --- | --- | --- |
-| Connect a server (address, optional token) | yes | no | no (the customer does this) |
-| Re-check, pause, resume, remove | yes | no | pause or remove, for support |
-| See the tools and their status | yes | yes | yes |
-| **Switch a tool on or off** | **no** | no | **yes, on the Tools screen** |
+| | Customer | Palda team (Engine) |
+| --- | --- | --- |
+| Connect an app (pick it, enter its address and token) | no | yes, Engine > Agent > **Integrations** |
+| See which apps are connected and their status | yes, read-only, plain language | yes, with addresses |
+| Pause, resume, remove | no | yes |
+| **Switch a tool on or off** | no | yes, Engine > Agent > **Tools** |
 
-The tenant always comes from the signed-in session, never the form, and the service refuses an owner switching a tool on (`ForbiddenError`).
+The two Engine screens split cleanly: **Integrations** is where apps are connected and listed; **Tools** is where each of an app's tools is switched on or off (alongside the built-in tools).
+
+What the customer's page can show is limited by construction (`getCustomerIntegrations`): the app name, category and summary, a status (Connected, Paused, Needs attention), how many features the assistant may use, and when it was last checked. It carries no address, token, tool names or raw error text (an error could reveal the server's address), and there is no customer write path at all.
 
 How it works:
 
-1. The owner adds a server: a short name, an https address, and an optional bearer token. The app connects once to prove it works and reads its tools. **Every tool starts off.** The customer sees each tool as "waiting for review".
+1. The Palda team connects an app: picks it from the catalog (the short name fills in), enters its address and an optional bearer token. The Engine connects once to prove it works and reads its tools. **Every tool starts off.**
 2. The Palda team reads each tool's name, description and inputs on the Tools screen and switches on only what that agent needs. Tools appear to the agent as `ext_<server>_<tool>` and never replace a built-in tool.
 3. Each approved tool is bound to a **fingerprint** of exactly what staff reviewed. If the server later changes a tool (name, description or inputs), **Sync tools** switches it off and flags it "changed" until staff review it again. This defends against a server rewriting a description to steer the agent.
 4. A server can be assigned to specific agents (default: the customer-facing one), disabled with one click, or removed. Every change is in `audit_log` (`engine.mcp_*`).

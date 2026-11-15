@@ -25,6 +25,7 @@ export default async function BrandingPage({ params }: { params: Promise<{ id: s
           logo: brand.logo,
           primary: brand.primary,
           accent: brand.accent,
+          sidebar: brand.sidebar,
           website: brand.website,
           tagline: brand.tagline,
           instagram: brand.instagram,

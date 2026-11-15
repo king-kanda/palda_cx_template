@@ -588,12 +588,13 @@ export async function updateBrand(adminId: string, tenantId: string, raw: BrandI
   const parsed = brandSchema.safeParse(raw);
   if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "Invalid branding");
   const b = parsed.data;
-  const problems = checkBrandColors(b.primary, b.accent);
+  const problems = checkBrandColors(b.primary, b.accent, b.sidebar);
   if (problems.length) throw new ValidationError(problems[0]!);
   await requireTenant(tenantId);
   await withTenant(tenantId, async (tx) => {
     await mergeConfig(tx, tenantId, "brand", {
       colors: { primary: b.primary.toUpperCase(), accent: b.accent.toUpperCase() },
+      sidebar: b.sidebar ? b.sidebar.toUpperCase() : undefined,
       website: b.website,
       tagline: b.tagline,
       instagram: b.instagram,
@@ -607,6 +608,7 @@ export async function updateBrand(adminId: string, tenantId: string, raw: BrandI
     await audit(tx, adminId, tenantId, "engine.brand_updated", {
       primary: b.primary,
       accent: b.accent,
+      sidebar: b.sidebar || "default",
       logo: b.logo === undefined ? "unchanged" : b.logo ? "set" : "removed",
       website: Boolean(b.website),
     });

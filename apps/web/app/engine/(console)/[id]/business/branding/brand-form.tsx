@@ -2,7 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { Check, TriangleAlert } from "lucide-react";
-import { BRAND_PRESETS, LOGO_MAX_CHARS, checkBrandColors, deriveTheme } from "@garden/services/brand";
+import { BRAND_PRESETS, LOGO_MAX_CHARS, checkBrandColors, deriveSidebar, deriveTheme, mix } from "@garden/services/brand";
 import { LogoPicker } from "../../../../components/logo-picker";
 import { saveBrandAction, type EngineFormState } from "../../actions";
 
@@ -10,6 +10,8 @@ export type BrandValues = {
   logo: string | null;
   primary: string;
   accent: string;
+  /** The sidebar background. Empty means the default white sidebar. */
+  sidebar: string;
   website: string;
   tagline: string;
   instagram: string;
@@ -48,10 +50,17 @@ export function BrandForm({ tenantId, businessName, initial }: { tenantId: strin
   const [logoChanged, setLogoChanged] = useState(false);
   const set = <K extends keyof BrandValues>(key: K, value: BrandValues[K]) => setV((prev) => ({ ...prev, [key]: value }));
 
-  const problems = useMemo(() => checkBrandColors(v.primary, v.accent), [v.primary, v.accent]);
+  const problems = useMemo(() => checkBrandColors(v.primary, v.accent, v.sidebar), [v.primary, v.accent, v.sidebar]);
   const theme = useMemo(() => (problems.length ? null : deriveTheme(v.primary, v.accent)), [problems, v.primary, v.accent]);
   // The preview applies the brand to a small mock of the customer's app, using the same variable names the real app uses.
-  const previewStyle = (theme ?? {}) as React.CSSProperties;
+  const sb = useMemo(() => (v.sidebar && !problems.length ? deriveSidebar(v.sidebar) : null), [v.sidebar, problems]);
+  const previewStyle = { ...(theme ?? {}), ...(sb ?? {}) } as React.CSSProperties;
+  const sidebarChoices = [
+    { label: "White", value: "" },
+    { label: "Main colour", value: v.primary.toUpperCase() },
+    { label: "Darker", value: mix(v.primary, "#000000", 0.45).toUpperCase() },
+    { label: "Charcoal", value: "#14201B" },
+  ];
 
   return (
     <form action={action} className="grid items-start gap-5 xl:grid-cols-[1.3fr_1fr]">
@@ -78,7 +87,20 @@ export function BrandForm({ tenantId, businessName, initial }: { tenantId: strin
                       key={p.name}
                       type="button"
                       aria-pressed={active}
-                      onClick={() => setV((prev) => ({ ...prev, primary: p.primary, accent: p.accent }))}
+                      onClick={() =>
+                        setV((prev) => {
+                          // A sidebar that was "the main colour" or "a darker shade of it" follows the new palette, so the
+                          // choice keeps meaning what its label says. Any other sidebar colour is left as it is.
+                          const was = prev.sidebar.toLowerCase();
+                          const sidebar =
+                            was && was === prev.primary.toLowerCase()
+                              ? p.primary.toUpperCase()
+                              : was && was === mix(prev.primary, "#000000", 0.45).toLowerCase()
+                                ? mix(p.primary, "#000000", 0.45).toUpperCase()
+                                : prev.sidebar;
+                          return { ...prev, primary: p.primary, accent: p.accent, sidebar };
+                        })
+                      }
                       className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium ${active ? "border-ink bg-surface-muted" : "border-line bg-surface hover:bg-surface-muted"}`}
                     >
                       <span className="flex">
@@ -99,6 +121,40 @@ export function BrandForm({ tenantId, businessName, initial }: { tenantId: strin
             </div>
             <input type="hidden" name="primary" value={v.primary} />
             <input type="hidden" name="accent" value={v.accent} />
+            <input type="hidden" name="sidebar" value={v.sidebar} />
+
+            <div>
+              <span className="mb-2 block text-sm font-medium">Sidebar colour</span>
+              <div className="flex flex-wrap items-center gap-2">
+                {sidebarChoices.map((c) => {
+                  const active = c.value.toLowerCase() === v.sidebar.toLowerCase();
+                  return (
+                    <button
+                      key={c.label}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => set("sidebar", c.value)}
+                      className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium ${active ? "border-ink bg-surface-muted" : "border-line bg-surface hover:bg-surface-muted"}`}
+                    >
+                      <span className="size-4 rounded-full border border-line" style={{ background: c.value || "#FFFFFF" }} />
+                      {c.label}
+                      {active ? <Check className="size-3" /> : null}
+                    </button>
+                  );
+                })}
+                <label className="flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium">
+                  Custom
+                  <input
+                    type="color"
+                    aria-label="Custom sidebar colour"
+                    value={/^#[0-9a-fA-F]{6}$/.test(v.sidebar) ? v.sidebar : "#FFFFFF"}
+                    onChange={(e) => set("sidebar", e.target.value.toUpperCase())}
+                    className="size-6 cursor-pointer rounded border-0 bg-transparent p-0"
+                  />
+                </label>
+              </div>
+              <p className="mt-1 text-xs text-ink-muted">The text on it switches between white and dark automatically so it stays readable.</p>
+            </div>
             {problems.length ? (
               <p role="alert" className="flex items-start gap-2 rounded-xl bg-warning-100 px-3 py-2 text-sm text-warning-600">
                 <TriangleAlert className="mt-0.5 size-4 shrink-0" /> {problems[0]}
@@ -170,7 +226,7 @@ export function BrandForm({ tenantId, businessName, initial }: { tenantId: strin
         <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-muted">Preview</p>
         <div className="overflow-hidden rounded-2xl border border-line bg-canvas" style={previewStyle} data-testid="brand-preview">
           <div className="flex">
-            <div className="w-40 shrink-0 border-r border-line bg-surface p-3">
+            <div className="w-40 shrink-0 border-r p-3" style={{ background: sb?.["--sb-bg"] ?? "#FFFFFF", borderColor: sb?.["--sb-border"] ?? "#E6EAE7" }}>
               <div className="mb-3 flex items-center gap-2">
                 {v.logo ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -178,14 +234,14 @@ export function BrandForm({ tenantId, businessName, initial }: { tenantId: strin
                 ) : (
                   <span className="size-7 rounded-md" style={{ background: theme?.["--color-brand-800"] ?? v.primary }} />
                 )}
-                <span className="truncate text-xs font-bold tracking-tight">{businessName.toUpperCase()}</span>
+                <span className="truncate text-xs font-bold tracking-tight" style={{ color: sb?.["--sb-fg"] ?? "#14201B" }}>{businessName.toUpperCase()}</span>
               </div>
               <div className="space-y-1 text-xs">
                 <div className="rounded-lg px-2 py-1.5 font-medium" style={{ background: theme?.["--color-lime-400"] ?? v.accent, color: theme?.["--color-brand-900"] ?? "#000" }}>
                   Dashboard
                 </div>
-                <div className="px-2 py-1.5 text-ink-muted">Bookings</div>
-                <div className="px-2 py-1.5 text-ink-muted">Customers</div>
+                <div className="px-2 py-1.5" style={{ color: sb?.["--sb-muted"] ?? "#6B7570" }}>Bookings</div>
+                <div className="px-2 py-1.5" style={{ color: sb?.["--sb-muted"] ?? "#6B7570" }}>Customers</div>
               </div>
             </div>
             <div className="min-w-0 flex-1 space-y-3 p-4">
