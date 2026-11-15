@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getIntakeForm, getTenantBySlug, systemPrincipal, withPrincipal } from "@garden/services";
 import { dateTime } from "@/lib/format";
+import { LogoMark } from "@/components/ui";
 import { submitIntakeAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -36,11 +37,9 @@ export default async function IntakePage({
     return (
       <main className="min-h-screen grid place-items-center px-4 py-12">
         <div className="w-full max-w-xl card p-8 text-center">
-          <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-[#c2410c] text-2xl">
-            🌿
-          </div>
+          <LogoMark className="mx-auto mb-3 size-12 text-brand-800" />
           <h1 className="text-xl font-semibold">This booking was cancelled</h1>
-          <p className="mt-2 text-sm text-[#78716c]">
+          <p className="mt-2 text-sm text-ink-muted">
             The form is closed. Contact {form.businessName} if you need a new session.
           </p>
         </div>
@@ -52,11 +51,9 @@ export default async function IntakePage({
     <main className="min-h-screen grid place-items-center px-4 py-12">
       <div className="w-full max-w-xl">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-[#c2410c] text-2xl">
-            🌿
-          </div>
+          <LogoMark className="mx-auto mb-3 size-12 text-brand-800" />
           <h1 className="text-2xl font-semibold tracking-tight">Session intake</h1>
-          <p className="mt-1 text-sm text-[#78716c]">
+          <p className="mt-1 text-sm text-ink-muted">
             {form.businessName} · {form.offeringName} · {dateTime(form.startsAt)}
           </p>
         </div>
@@ -65,25 +62,25 @@ export default async function IntakePage({
           <input type="hidden" name="bookingId" value={form.bookingId} />
           <input type="hidden" name="tenant" value={tenant.slug} />
 
-          <p className="text-sm text-[#57534e]">
+          <p className="text-sm text-ink-muted">
             Hi {form.customerName.split(" ")[0] || "there"} — a few quick questions so the session
             starts on time. Only {form.businessName} sees these answers.
           </p>
 
           {query.submitted ? (
-            <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            <p className="rounded-xl border border-success-600/30 bg-success-100 px-3 py-2 text-sm text-success-600">
               Thank you — your answers were received. You can update them below if something
               changes.
             </p>
           ) : null}
           {query.error ? (
-            <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            <p className="rounded-xl border border-danger-600/30 bg-danger-100 px-3 py-2 text-sm text-danger-600">
               {query.error}
             </p>
           ) : null}
 
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+            <label className="mb-1.5 block text-sm font-medium">
               What is the session about?
             </label>
             <input
@@ -98,7 +95,7 @@ export default async function IntakePage({
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+            <label className="mb-1.5 block text-sm font-medium">
               Who will attend?
             </label>
             <input
@@ -111,7 +108,7 @@ export default async function IntakePage({
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+            <label className="mb-1.5 block text-sm font-medium">
               What should we prepare?
             </label>
             <textarea
@@ -124,7 +121,7 @@ export default async function IntakePage({
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+            <label className="mb-1.5 block text-sm font-medium">
               Anything else? <span className="font-normal normal-case">(optional)</span>
             </label>
             <textarea
@@ -136,7 +133,7 @@ export default async function IntakePage({
             />
           </div>
 
-          <label className="flex items-start gap-2 text-sm text-[#57534e]">
+          <label className="flex items-start gap-2 text-sm text-ink-muted">
             <input className="mt-1 h-4 w-4" type="checkbox" name="consent" required />
             <span>
               {form.businessName} may use these answers to prepare for this session. They are
@@ -149,7 +146,7 @@ export default async function IntakePage({
           </button>
 
           {form.submittedAt ? (
-            <p className="text-center text-xs text-[#78716c]">
+            <p className="text-center text-xs text-ink-muted">
               Last sent {dateTime(form.submittedAt)}.
             </p>
           ) : null}

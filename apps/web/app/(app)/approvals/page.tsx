@@ -58,11 +58,11 @@ export default async function ApprovalsPage({
       />
 
       {params.error ? (
-        <p className="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{params.error}</p>
+        <p className="mb-4 rounded-xl border border-danger-600/30 bg-danger-100 px-4 py-3 text-sm text-danger-600">{params.error}</p>
       ) : null}
 
       {params.requested ? (
-        <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <p className="mb-4 rounded-xl border border-warning-600/30 bg-warning-100 px-4 py-3 text-sm text-warning-600">
           Approval request {params.requested.slice(0, 8)} created. A customer or system action is
           waiting for your decision.
         </p>
@@ -87,24 +87,24 @@ export default async function ApprovalsPage({
               <section key={approval.id} className="card p-5">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <StatusPill status={approval.status} />
-                  <span className="pill bg-slate-100 capitalize text-slate-600">
+                  <span className="pill bg-neutral-100 capitalize text-neutral-600">
                     {approval.kind.replace(/_/g, " ")}
                   </span>
-                  <span className="text-xs text-[#a8a29e]">asked {timeAgo(approval.createdAt)}</span>
+                  <span className="text-xs text-ink-subtle">asked {timeAgo(approval.createdAt)}</span>
                 </div>
 
                 <h2 className="text-base font-semibold">{approvalTitle(approval.kind, payload)}</h2>
-                <p className="mt-1 text-xs text-[#78716c]">
+                <p className="mt-1 text-xs text-ink-muted">
                   Requested by <span className="font-mono">{approval.requestedBy}</span>
                   {approval.expiresAt ? ` · expires ${dateTime(approval.expiresAt)}` : ""}
                 </p>
 
-                <pre className="mt-3 max-h-40 overflow-auto rounded-lg bg-[#fafaf9] p-3 text-[11px] leading-relaxed text-[#57534e]">
+                <pre className="mt-3 max-h-40 overflow-auto rounded-lg bg-surface-muted p-3 text-[11px] leading-relaxed text-ink-muted">
                   {JSON.stringify(payload, null, 2)}
                 </pre>
 
                 {typeof payload.tool === "string" ? (
-                  <p className="mt-2 text-xs text-[#78716c]">
+                  <p className="mt-2 text-xs text-ink-muted">
                     This executes the MCP tool <span className="font-mono">{payload.tool}</span> once.
                   </p>
                 ) : null}
@@ -121,7 +121,7 @@ export default async function ApprovalsPage({
                     </form>
                   </div>
                 ) : (
-                  <p className="mt-4 text-xs text-[#a8a29e]">
+                  <p className="mt-4 text-xs text-ink-subtle">
                     Decided {dateTime(approval.decidedAt)} by {approval.decidedBy ?? "—"}.
                   </p>
                 )}

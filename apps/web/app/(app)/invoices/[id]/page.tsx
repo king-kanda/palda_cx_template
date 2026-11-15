@@ -1,11 +1,18 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getInvoiceDetail, kes, withPrincipal } from "@garden/services";
+import {
+  getInvoiceDetail,
+  kes,
+  listUnmatchedPayments,
+  withPrincipal,
+} from "@garden/services";
 import { getSession } from "@/lib/auth";
 import { principalOf } from "@/lib/principal";
 import { dateTime, shortDate } from "@/lib/format";
 import { PageHeader, Section, StatusPill } from "@/components/ui";
 import {
+  initiateStkAction,
+  matchPaymentAction,
   recordInvoicePaymentAction,
   sendInvoiceFromListAction,
   simulateMpesaAction,
@@ -27,8 +34,11 @@ export default async function InvoiceDetailPage({
   const query = await searchParams;
 
   let detail: Awaited<ReturnType<typeof getInvoiceDetail>>;
+  let unmatched: Awaited<ReturnType<typeof listUnmatchedPayments>>;
   try {
-    detail = await withPrincipal(principalOf(session), (ctx) => getInvoiceDetail(ctx, id));
+    const principal = principalOf(session);
+    detail = await withPrincipal(principal, (ctx) => getInvoiceDetail(ctx, id));
+    unmatched = await withPrincipal(principal, (ctx) => listUnmatchedPayments(ctx));
   } catch {
     notFound();
   }
@@ -58,7 +68,7 @@ export default async function InvoiceDetailPage({
       />
 
       {query.error ? (
-        <p className="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{query.error}</p>
+        <p className="mb-4 rounded-xl border border-danger-600/30 bg-danger-100 px-4 py-3 text-sm text-danger-600">{query.error}</p>
       ) : null}
 
       <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
@@ -66,9 +76,9 @@ export default async function InvoiceDetailPage({
           <Section title="Invoice">
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <StatusPill status={invoice.status} />
-              <span className="pill bg-slate-100 capitalize text-slate-600">{invoice.kind}</span>
-              <span className="text-xs text-[#78716c]">Issued {shortDate(invoice.issuedAt)}</span>
-              <span className="text-xs text-[#78716c]">Due {shortDate(invoice.dueAt)}</span>
+              <span className="pill bg-neutral-100 capitalize text-neutral-600">{invoice.kind}</span>
+              <span className="text-xs text-ink-muted">Issued {shortDate(invoice.issuedAt)}</span>
+              <span className="text-xs text-ink-muted">Due {shortDate(invoice.dueAt)}</span>
             </div>
 
             {items.length > 0 ? (
@@ -96,15 +106,15 @@ export default async function InvoiceDetailPage({
 
             <dl className="mt-4 ml-auto max-w-xs space-y-1.5 text-sm">
               <div className="flex justify-between">
-                <dt className="text-[#78716c]">Total</dt>
+                <dt className="text-ink-muted">Total</dt>
                 <dd className="font-medium">{kes(invoice.totalKes)}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-[#78716c]">Balance</dt>
-                <dd className="font-semibold text-[#c2410c]">{kes(invoice.balanceKes)}</dd>
+                <dt className="text-ink-muted">Balance</dt>
+                <dd className="font-semibold text-brand-800">{kes(invoice.balanceKes)}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-[#78716c]">Paid</dt>
+                <dt className="text-ink-muted">Paid</dt>
                 <dd>{kes(invoice.totalKes - invoice.balanceKes)}</dd>
               </div>
             </dl>
@@ -112,7 +122,7 @@ export default async function InvoiceDetailPage({
 
           <Section title="Payments">
             {payments.length === 0 ? (
-              <p className="text-sm text-[#78716c]">No payments recorded.</p>
+              <p className="text-sm text-ink-muted">No payments recorded.</p>
             ) : (
               <table className="table">
                 <thead>
@@ -140,7 +150,7 @@ export default async function InvoiceDetailPage({
                           <form action={simulateMpesaAction}>
                             <input type="hidden" name="invoiceId" value={invoice.id} />
                             <input type="hidden" name="paymentId" value={payment.id} />
-                            <button className="text-xs font-medium text-[#c2410c]">Simulate success</button>
+                            <button className="text-sm font-medium text-brand-700 hover:underline">Simulate success</button>
                           </form>
                         ) : null}
                       </td>
@@ -150,14 +160,69 @@ export default async function InvoiceDetailPage({
               </table>
             )}
             {pending.length > 0 ? (
-              <p className="mt-2 text-xs text-[#a8a29e]">
+              <p className="mt-2 text-xs text-ink-subtle">
                 {pending.length} pending STK request(s). In mock mode you can simulate success.
               </p>
             ) : null}
           </Section>
+
+          {unmatched.length > 0 ? (
+            <Section title="Unmatched M-Pesa receipts">
+              <p className="mb-3 text-xs text-ink-muted">
+                Receipts with no booking. Matching one attaches it to this invoice and updates the
+                balance.
+              </p>
+              <ul className="space-y-2">
+                {unmatched.map((payment) => (
+                  <li
+                    key={payment.id}
+                    className="flex items-center justify-between gap-2 rounded-xl border border-line p-3 text-sm"
+                  >
+                    <div>
+                      <p className="font-mono text-xs font-medium">{payment.mpesaReceipt ?? payment.id.slice(0, 8)}</p>
+                      <p className="text-xs text-ink-subtle">
+                        {kes(payment.amountKes)} · {payment.phone ?? "unknown phone"}
+                      </p>
+                    </div>
+                    <form action={matchPaymentAction}>
+                      <input type="hidden" name="invoiceId" value={invoice.id} />
+                      <input type="hidden" name="bookingId" value={booking.id} />
+                      <input type="hidden" name="paymentId" value={payment.id} />
+                      <button className="btn btn-secondary text-xs">Match</button>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          ) : null}
         </div>
 
         <div className="space-y-5">
+          <Section title="M-Pesa STK push">
+            <p className="mb-2 text-xs text-ink-muted">
+              Send a payment prompt to the customer&apos;s phone for the balance.
+            </p>
+            <form action={initiateStkAction} className="space-y-2">
+              <input type="hidden" name="invoiceId" value={invoice.id} />
+              <input
+                className="input"
+                name="phone"
+                defaultValue={customer.phoneE164}
+                placeholder="2547…"
+                required
+              />
+              <input
+                className="input"
+                type="number"
+                name="amountKes"
+                min={1}
+                defaultValue={invoice.balanceKes || undefined}
+                placeholder="Amount KES"
+              />
+              <button className="btn btn-primary w-full">Send STK push</button>
+            </form>
+          </Section>
+
           <Section title="Record a payment">
             <form action={recordInvoicePaymentAction} className="space-y-2">
               <input type="hidden" name="invoiceId" value={invoice.id} />
@@ -183,21 +248,21 @@ export default async function InvoiceDetailPage({
           <Section title="Customer">
             <dl className="space-y-2 text-sm">
               <div className="flex justify-between gap-2">
-                <dt className="text-[#78716c]">Name</dt>
+                <dt className="text-ink-muted">Name</dt>
                 <dd>
-                  <Link className="font-medium hover:text-[#c2410c]" href={`/customers/${customer.id}`}>
+                  <Link className="font-medium hover:text-brand-800" href={`/customers/${customer.id}`}>
                     {customer.name}
                   </Link>
                 </dd>
               </div>
               <div className="flex justify-between gap-2">
-                <dt className="text-[#78716c]">Phone</dt>
+                <dt className="text-ink-muted">Phone</dt>
                 <dd className="font-mono text-xs">{customer.phoneE164}</dd>
               </div>
               <div className="flex justify-between gap-2">
-                <dt className="text-[#78716c]">Booking</dt>
+                <dt className="text-ink-muted">Booking</dt>
                 <dd>
-                  <Link className="font-medium hover:text-[#c2410c]" href={`/bookings/${booking.id}`}>
+                  <Link className="font-medium hover:text-brand-800" href={`/bookings/${booking.id}`}>
                     {shortDate(booking.startsAt)}
                   </Link>
                 </dd>
@@ -207,7 +272,7 @@ export default async function InvoiceDetailPage({
 
           {invoice.status !== "paid" && invoice.status !== "void" ? (
             <Section title="Danger zone">
-              <p className="mb-2 text-xs text-[#78716c]">
+              <p className="mb-2 text-xs text-ink-muted">
                 Voiding keeps the audit trail but removes the balance from reports.
               </p>
               <form action={voidInvoiceAction}>

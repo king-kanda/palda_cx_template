@@ -47,13 +47,13 @@ export default async function NewBookingPage({
       />
 
       {params.error ? (
-        <p className="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{params.error}</p>
+        <p className="mb-4 rounded-xl border border-danger-600/30 bg-danger-100 px-4 py-3 text-sm text-danger-600">{params.error}</p>
       ) : null}
 
       <form action={createBookingAction} className="card space-y-5 p-6">
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+            <label className="mb-1.5 block text-sm font-medium">
               Existing customer
             </label>
             <select className="input" name="customerId" defaultValue="">
@@ -67,13 +67,13 @@ export default async function NewBookingPage({
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+              <label className="mb-1.5 block text-sm font-medium">
                 New name
               </label>
               <input className="input" name="customerName" placeholder="Wanjiku Kamau" />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+              <label className="mb-1.5 block text-sm font-medium">
                 New phone
               </label>
               <input className="input" name="customerPhone" placeholder="+254712345678" />
@@ -83,7 +83,7 @@ export default async function NewBookingPage({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+            <label className="mb-1.5 block text-sm font-medium">
               {settings.labels.offering}
             </label>
             <select className="input" name="offeringId" required defaultValue={offerings[0]?.id ?? ""}>
@@ -95,7 +95,7 @@ export default async function NewBookingPage({
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+            <label className="mb-1.5 block text-sm font-medium">
               {settings.labels.resource}
             </label>
             <select
@@ -116,7 +116,7 @@ export default async function NewBookingPage({
 
         <div className="grid gap-4 sm:grid-cols-4">
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+            <label className="mb-1.5 block text-sm font-medium">
               Date
             </label>
             <input
@@ -128,19 +128,19 @@ export default async function NewBookingPage({
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+            <label className="mb-1.5 block text-sm font-medium">
               Start time
             </label>
             <input className="input" type="time" name="time" required defaultValue="09:00" />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+            <label className="mb-1.5 block text-sm font-medium">
               {settings.labels.partySize}
             </label>
             <input className="input" type="number" min={1} name="partySize" defaultValue={1} />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+            <label className="mb-1.5 block text-sm font-medium">
               Event type
             </label>
             <select className="input" name="eventType" defaultValue="wedding">
@@ -155,7 +155,7 @@ export default async function NewBookingPage({
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+          <label className="mb-1.5 block text-sm font-medium">
             Status
           </label>
           <select className="input max-w-xs" name="status" defaultValue="hold">
@@ -166,7 +166,7 @@ export default async function NewBookingPage({
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+          <label className="mb-1.5 block text-sm font-medium">
             Notes
           </label>
           <textarea className="input min-h-24" name="notes" placeholder="Setup, decor, access notes…" />

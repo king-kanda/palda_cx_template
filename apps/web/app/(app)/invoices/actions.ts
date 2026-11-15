@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   getInvoiceDetail,
+  initiateStk,
+  matchUnmatchedPayment,
   recordPayment,
   sendInvoice,
   simulateMpesaSuccess,
@@ -66,6 +68,49 @@ export async function recordInvoicePaymentAction(formData: FormData): Promise<vo
     revalidatePath("/invoices");
     revalidatePath(`/invoices/${invoiceId}`);
     revalidatePath(`/bookings/${detail.booking.id}`);
+  } catch (error) {
+    fail(`/invoices/${invoiceId}`, error);
+  }
+}
+
+/** STK push for the invoice balance (mock mode records a pending payment). */
+export async function initiateStkAction(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  const invoiceId = String(formData.get("invoiceId") ?? "");
+  const phone = String(formData.get("phone") ?? "").trim();
+  const amount = Number(formData.get("amountKes") ?? 0);
+  try {
+    const principal = principalOf(session);
+    const detail = await withPrincipal(principal, (ctx) => getInvoiceDetail(ctx, invoiceId));
+    await withPrincipal(principal, (ctx) =>
+      initiateStk(ctx, {
+        bookingId: detail.booking.id,
+        invoiceId: detail.invoice.id,
+        phone: phone || undefined,
+        amountKes: amount > 0 ? amount : undefined,
+      }),
+    );
+    revalidatePath(`/invoices/${invoiceId}`);
+    revalidatePath("/invoices");
+    revalidatePath(`/bookings/${detail.booking.id}`);
+  } catch (error) {
+    fail(`/invoices/${invoiceId}`, error);
+  }
+}
+
+/** Attach an unmatched M-Pesa receipt to this invoice's booking. */
+export async function matchPaymentAction(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  const invoiceId = String(formData.get("invoiceId") ?? "");
+  const paymentId = String(formData.get("paymentId") ?? "");
+  const bookingId = String(formData.get("bookingId") ?? "");
+  try {
+    await withPrincipal(principalOf(session), (ctx) =>
+      matchUnmatchedPayment(ctx, paymentId, { bookingId, invoiceId }),
+    );
+    revalidatePath(`/invoices/${invoiceId}`);
+    revalidatePath("/invoices");
+    revalidatePath(`/bookings/${bookingId}`);
   } catch (error) {
     fail(`/invoices/${invoiceId}`, error);
   }

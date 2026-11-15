@@ -63,7 +63,7 @@ export default async function ExpensesPage({
       />
 
       {params.error ? (
-        <p className="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{params.error}</p>
+        <p className="mb-4 rounded-xl border border-danger-600/30 bg-danger-100 px-4 py-3 text-sm text-danger-600">{params.error}</p>
       ) : null}
 
       <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -75,7 +75,7 @@ export default async function ExpensesPage({
 
       <div className="grid gap-5 xl:grid-cols-[1.5fr_1fr]">
         <section className="card overflow-hidden">
-          <form className="flex flex-wrap items-center gap-2 border-b border-[#e7e5e0] p-3" action="/expenses">
+          <form className="flex flex-wrap items-center gap-2 border-b border-line p-3" action="/expenses">
             <input type="hidden" name="month" value={month} />
             <select className="input max-w-44" name="category" defaultValue={params.category ?? ""}>
               <option value="">All categories</option>
@@ -86,7 +86,7 @@ export default async function ExpensesPage({
               ))}
             </select>
             <button className="btn btn-secondary">Filter</button>
-            <Link className="text-xs text-[#78716c] underline" href={`/expenses?month=${month}`}>
+            <Link className="text-xs text-ink-muted underline" href={`/expenses?month=${month}`}>
               Reset
             </Link>
           </form>
@@ -116,17 +116,17 @@ export default async function ExpensesPage({
                     <tr key={expense.id}>
                       <td className="whitespace-nowrap">{shortDate(expense.incurredOn)}</td>
                       <td>
-                        <span className="pill bg-slate-100 text-slate-600">
+                        <span className="pill bg-neutral-100 text-neutral-600">
                           {titleCase(expense.category)}
                         </span>
                       </td>
                       <td>{expense.vendor ?? "—"}</td>
                       <td className="font-medium">{kes(expense.amountKes)}</td>
-                      <td className="max-w-52 truncate text-xs text-[#78716c]">{expense.notes ?? "—"}</td>
+                      <td className="max-w-52 truncate text-xs text-ink-muted">{expense.notes ?? "—"}</td>
                       <td>
                         <form action={deleteExpenseAction}>
                           <input type="hidden" name="expenseId" value={expense.id} />
-                          <button className="text-[11px] font-medium text-rose-600">Delete</button>
+                          <button className="text-[11px] font-medium text-danger-600">Delete</button>
                         </form>
                       </td>
                     </tr>
@@ -139,7 +139,7 @@ export default async function ExpensesPage({
 
         <div className="space-y-5">
           <section className="card p-5">
-            <h2 className="mb-3 text-sm font-semibold">Add expense</h2>
+            <h2 className="mb-3 text-lg font-semibold">Add expense</h2>
             <form action={createExpenseAction} className="space-y-2">
               <select className="input" name="category" defaultValue="supplies">
                 {EXPENSE_CATEGORIES.map((category) => (
@@ -158,14 +158,14 @@ export default async function ExpensesPage({
           </section>
 
           <section className="card p-5">
-            <h2 className="mb-3 text-sm font-semibold">By category</h2>
+            <h2 className="mb-3 text-lg font-semibold">By category</h2>
             {pnl.byCategory.length === 0 ? (
-              <p className="text-sm text-[#78716c]">Nothing recorded this month.</p>
+              <p className="text-sm text-ink-muted">Nothing recorded this month.</p>
             ) : (
               <ul className="space-y-2">
                 {pnl.byCategory.map((row) => (
                   <li key={row.category} className="flex items-center justify-between text-sm">
-                    <span className="text-[#57534e]">{titleCase(row.category)}</span>
+                    <span className="text-ink-muted">{titleCase(row.category)}</span>
                     <span className="font-medium">{kes(row.amountKes)}</span>
                   </li>
                 ))}

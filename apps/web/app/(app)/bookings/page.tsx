@@ -84,19 +84,19 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
       />
 
       {params.error ? (
-        <p className="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{params.error}</p>
+        <p className="mb-4 rounded-xl border border-danger-600/30 bg-danger-100 px-4 py-3 text-sm text-danger-600">{params.error}</p>
       ) : null}
 
       <section className="card mb-5 p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">
+          <h2 className="text-lg font-semibold">
             {settings.labels.resource} availability · next 14 days
           </h2>
-          <span className="text-xs text-[#78716c]">
-            <span className="pill bg-emerald-50 text-emerald-700">free</span>{" "}
-            <span className="pill bg-[#fff7ed] text-[#c2410c]">booked</span>{" "}
-            <span className="pill bg-amber-50 text-amber-700">hold</span>{" "}
-            <span className="pill bg-slate-100 text-slate-500">blocked</span>
+          <span className="text-xs text-ink-muted">
+            <span className="pill bg-success-100 text-success-600">free</span>{" "}
+            <span className="pill bg-lime-100 text-brand-800">booked</span>{" "}
+            <span className="pill bg-warning-100 text-warning-600">hold</span>{" "}
+            <span className="pill bg-neutral-100 text-neutral-600">blocked</span>
           </span>
         </div>
         <div className="overflow-x-auto">
@@ -107,9 +107,9 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
                 {grid.days.map((day) => {
                   const label = dayLabel(day);
                   return (
-                    <th key={day} className="min-w-9 text-center text-[10px] font-medium text-[#a8a29e]">
+                    <th key={day} className="min-w-9 text-center text-[10px] font-medium text-ink-subtle">
                       <div>{label.weekday}</div>
-                      <div className="text-xs font-semibold text-[#57534e]">{label.day}</div>
+                      <div className="text-xs font-semibold text-ink-muted">{label.day}</div>
                     </th>
                   );
                 })}
@@ -121,7 +121,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
                   <td className="pr-2 text-xs font-medium">
                     {resource.name}
                     {resource.capacity ? (
-                      <span className="ml-1 text-[10px] text-[#a8a29e]">({resource.capacity})</span>
+                      <span className="ml-1 text-[10px] text-ink-subtle">({resource.capacity})</span>
                     ) : null}
                   </td>
                   {grid.days.map((day) => {
@@ -129,12 +129,12 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
                     const status = cell?.status ?? "free";
                     const tone =
                       status === "booked"
-                        ? "bg-[#c2410c]/85"
+                        ? "bg-brand-800/85"
                         : status === "hold"
-                          ? "bg-amber-300"
+                          ? "bg-warning-600"
                           : status === "blocked"
-                            ? "bg-slate-300"
-                            : "bg-emerald-100";
+                            ? "bg-ink-subtle"
+                            : "bg-success-100";
                     return (
                       <td key={`${resource.id}:${day}`} className="p-0">
                         {cell?.bookingId ? (
@@ -168,7 +168,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
       </div>
 
       <section className="card overflow-hidden">
-        <form className="flex flex-wrap items-center gap-2 border-b border-[#e7e5e0] p-3" action="/bookings">
+        <form className="flex flex-wrap items-center gap-2 border-b border-line p-3" action="/bookings">
           <input
             className="input max-w-xs"
             name="q"
@@ -186,7 +186,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
           <input className="input max-w-40" type="date" name="from" defaultValue={from} />
           <input className="input max-w-40" type="date" name="to" defaultValue={to} />
           <button className="btn btn-secondary">Filter</button>
-          <Link className="text-xs text-[#78716c] underline" href="/bookings">
+          <Link className="text-xs text-ink-muted underline" href="/bookings">
             Reset
           </Link>
         </form>
@@ -219,10 +219,10 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
                 {bookings.map((row) => (
                   <tr key={row.booking.id}>
                     <td>
-                      <Link className="font-medium hover:text-[#c2410c]" href={`/bookings/${row.booking.id}`}>
+                      <Link className="font-medium hover:text-brand-800" href={`/bookings/${row.booking.id}`}>
                         {row.customer.name}
                       </Link>
-                      <div className="text-[11px] text-[#a8a29e]">{row.customer.phoneE164}</div>
+                      <div className="text-[11px] text-ink-subtle">{row.customer.phoneE164}</div>
                     </td>
                     <td className="capitalize">
                       {String((row.booking.attributes as Record<string, unknown>)?.eventType ?? "—")}
@@ -230,7 +230,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
                     <td>{row.resources.map((r) => r.name).join(", ") || "—"}</td>
                     <td className="whitespace-nowrap">
                       {shortDate(row.booking.startsAt)}
-                      <div className="text-[11px] text-[#a8a29e]">{dateTime(row.booking.startsAt).split("·")[1]}</div>
+                      <div className="text-[11px] text-ink-subtle">{dateTime(row.booking.startsAt).split("·")[1]}</div>
                     </td>
                     <td>{row.booking.partySize}</td>
                     <td className="whitespace-nowrap font-medium">{kes(row.booking.totalKes)}</td>
@@ -248,7 +248,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
         )}
       </section>
 
-      <p className="mt-3 text-xs text-[#a8a29e]">
+      <p className="mt-3 text-xs text-ink-subtle">
         Packages: {offerings.map((o) => `${o.name} (${kes(o.basePriceKes)})`).join(" · ")} ·{" "}
         {resources.length} {settings.labels.resource.toLowerCase()} resources ·{" "}
         {titleCase(status?.[0] ?? "all statuses")}

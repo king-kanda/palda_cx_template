@@ -30,6 +30,7 @@ export async function saveWamboAction(formData: FormData): Promise<void> {
   const faqRaw = String(formData.get("faq") ?? "");
   const reviewLink = String(formData.get("reviewLink") ?? "").trim();
   const agentEnabled = formData.get("agentEnabled") === "on";
+  const shadowMode = formData.get("shadowMode") === "on";
   const arrivalTime = String(formData.get("arrivalTime") ?? "10:00");
   const managerPhone = String(formData.get("managerPhone") ?? "").trim();
 
@@ -42,6 +43,7 @@ export async function saveWamboAction(formData: FormData): Promise<void> {
         arrivalTime,
         managerPhone: managerPhone || null,
         agentEnabled,
+        shadowMode,
       }),
     );
     revalidatePath("/wambo/settings");

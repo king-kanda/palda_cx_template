@@ -85,6 +85,10 @@ meeting link, tenant isolation, Swahili and capacity rejection.
 
 - [`docs/HANDOFF.md`](docs/HANDOFF.md) — cold-start setup, verification, repo map,
   invariants, review checklist.
+- [`docs/claude-handoff.md`](docs/claude-handoff.md) — current build position, phase
+  and vertical readiness, the last batch built, and what is pending.
+- [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md) — UI style guide: colour tokens,
+  typography, components, app shell and the WhatsApp-style inbox.
 - [`docs/STATUS.md`](docs/STATUS.md) — where the build is and what has actually
   been verified.
 - [`docs/tool-contract.md`](docs/tool-contract.md) — tools, tiers, scopes,

@@ -44,7 +44,7 @@ export default async function InvoicesPage({
       />
 
       {params.error ? (
-        <p className="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{params.error}</p>
+        <p className="mb-4 rounded-xl border border-danger-600/30 bg-danger-100 px-4 py-3 text-sm text-danger-600">{params.error}</p>
       ) : null}
 
       <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -56,8 +56,8 @@ export default async function InvoicesPage({
 
       {unmatched.length > 0 ? (
         <section className="card mb-5 p-5">
-          <h2 className="mb-1 text-sm font-semibold">Unmatched M-Pesa receipts</h2>
-          <p className="mb-3 text-xs text-[#78716c]">
+          <h2 className="mb-1 text-lg font-semibold">Unmatched M-Pesa receipts</h2>
+          <p className="mb-3 text-xs text-ink-muted">
             These payments have no booking. Match them from the booking page.
           </p>
           <table className="table">
@@ -84,7 +84,7 @@ export default async function InvoicesPage({
       ) : null}
 
       <section className="card overflow-hidden">
-        <form className="flex flex-wrap items-center gap-2 border-b border-[#e7e5e0] p-3" action="/invoices">
+        <form className="flex flex-wrap items-center gap-2 border-b border-line p-3" action="/invoices">
           <input className="input max-w-xs" name="q" placeholder="Invoice number or customer…" defaultValue={params.q} />
           <select className="input max-w-44" name="status" defaultValue={params.status ?? ""}>
             <option value="">All statuses</option>
@@ -96,7 +96,7 @@ export default async function InvoicesPage({
             <option value="void">Void</option>
           </select>
           <button className="btn btn-secondary">Filter</button>
-          <Link className="text-xs text-[#78716c] underline" href="/invoices">
+          <Link className="text-xs text-ink-muted underline" href="/invoices">
             Reset
           </Link>
         </form>
@@ -129,35 +129,35 @@ export default async function InvoicesPage({
                 {rows.map((row) => (
                   <tr
                     key={row.invoice.id}
-                    className={params.highlight === row.invoice.id ? "bg-[#fff7ed]" : ""}
+                    className={params.highlight === row.invoice.id ? "bg-lime-100" : ""}
                   >
                     <td>
-                      <Link className="font-medium hover:text-[#c2410c]" href={`/invoices/${row.invoice.id}`}>
+                      <Link className="font-medium hover:text-brand-800" href={`/invoices/${row.invoice.id}`}>
                         {row.invoice.number}
                       </Link>
-                      <div className="text-[11px] text-[#a8a29e]">{shortDate(row.invoice.createdAt)}</div>
+                      <div className="text-[11px] text-ink-subtle">{shortDate(row.invoice.createdAt)}</div>
                     </td>
                     <td>
-                      <Link className="hover:text-[#c2410c]" href={`/customers/${row.customer.id}`}>
+                      <Link className="hover:text-brand-800" href={`/customers/${row.customer.id}`}>
                         {row.customer.name}
                       </Link>
                     </td>
                     <td className="capitalize">{row.invoice.kind}</td>
                     <td className="font-medium">{kes(row.invoice.totalKes)}</td>
                     <td>{kes(row.invoice.balanceKes)}</td>
-                    <td className="text-xs text-[#78716c]">{shortDate(row.invoice.dueAt)}</td>
+                    <td className="text-xs text-ink-muted">{shortDate(row.invoice.dueAt)}</td>
                     <td>
                       <StatusPill status={row.invoice.status} />
                     </td>
                     <td>
                       <div className="flex items-center gap-2">
-                        <Link className="text-xs font-medium text-[#c2410c]" href={`/invoices/${row.invoice.id}`}>
+                        <Link className="text-sm font-medium text-brand-700 hover:underline" href={`/invoices/${row.invoice.id}`}>
                           Open
                         </Link>
                         {["draft", "sent", "partial", "overdue"].includes(row.invoice.status) ? (
                           <form action={sendInvoiceFromListAction}>
                             <input type="hidden" name="invoiceId" value={row.invoice.id} />
-                            <button className="text-xs font-medium text-[#57534e]">Send</button>
+                            <button className="text-xs font-medium text-ink-muted">Send</button>
                           </form>
                         ) : null}
                       </div>

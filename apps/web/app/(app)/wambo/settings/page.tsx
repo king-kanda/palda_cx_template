@@ -42,14 +42,14 @@ export default async function WamboSettingsPage({
       />
 
       {params.error ? (
-        <p className="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{params.error}</p>
+        <p className="mb-4 rounded-xl border border-danger-600/30 bg-danger-100 px-4 py-3 text-sm text-danger-600">{params.error}</p>
       ) : null}
 
       <div className="space-y-5">
         <Section title="Business facts">
           <form action={saveWamboAction} className="space-y-3">
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+              <label className="mb-1.5 block text-sm font-medium">
                 Facts Wambo must know
               </label>
               <textarea
@@ -57,17 +57,17 @@ export default async function WamboSettingsPage({
                 name="facts"
                 defaultValue={String(business.facts ?? settings.businessFacts)}
               />
-              <p className="mt-1 text-xs text-[#a8a29e]">
+              <p className="mt-1 text-xs text-ink-subtle">
                 Location, access, parking, noise rules, catering policy, anything customers ask.
               </p>
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+              <label className="mb-1.5 block text-sm font-medium">
                 FAQ (blank line between entries)
               </label>
               <textarea className="input min-h-40 font-mono text-xs" name="faq" defaultValue={faqText} />
-              <p className="mt-1 text-xs text-[#a8a29e]">
+              <p className="mt-1 text-xs text-ink-subtle">
                 Format: <span className="font-mono">Q: question</span> then{" "}
                 <span className="font-mono">A: answer</span>, separated by a blank line.
               </p>
@@ -75,19 +75,19 @@ export default async function WamboSettingsPage({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+                <label className="mb-1.5 block text-sm font-medium">
                   Review link
                 </label>
                 <input className="input" name="reviewLink" defaultValue={settings.reviewLink} />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+                <label className="mb-1.5 block text-sm font-medium">
                   Guest arrival time
                 </label>
                 <input className="input" name="arrivalTime" defaultValue={settings.arrivalTime} />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+                <label className="mb-1.5 block text-sm font-medium">
                   Manager phone (alerts)
                 </label>
                 <input
@@ -106,6 +106,21 @@ export default async function WamboSettingsPage({
                 />
                 Wambo answers new messages
               </label>
+              <label className="flex items-start gap-2 pt-6 text-sm">
+                <input
+                  type="checkbox"
+                  name="shadowMode"
+                  defaultChecked={business.shadowMode === true}
+                  className="mt-0.5 h-4 w-4"
+                />
+                <span>
+                  Shadow mode: draft replies for staff approval
+                  <span className="mt-0.5 block text-xs text-ink-subtle">
+                    Use this for the pilot. Drafts wait in Approvals; nothing reaches the customer
+                    until a staff member approves it.
+                  </span>
+                </span>
+              </label>
             </div>
 
             <div className="flex justify-end">
@@ -117,13 +132,13 @@ export default async function WamboSettingsPage({
         <Section title="Voice & brand">
           <form action={saveBrandAction} className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+              <label className="mb-1.5 block text-sm font-medium">
                 Agent name
               </label>
               <input className="input" name="agentName" defaultValue={settings.agentName} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+              <label className="mb-1.5 block text-sm font-medium">
                 Tone
               </label>
               <input
@@ -140,24 +155,24 @@ export default async function WamboSettingsPage({
 
         <Section title="Policies the agent follows">
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            <div className="rounded-xl bg-[#fafaf9] p-3">
-              <dt className="text-xs text-[#78716c]">Deposit</dt>
+            <div className="rounded-xl bg-surface-muted p-3">
+              <dt className="text-xs text-ink-muted">Deposit</dt>
               <dd className="font-semibold">{settings.depositPct}%</dd>
             </div>
-            <div className="rounded-xl bg-[#fafaf9] p-3">
-              <dt className="text-xs text-[#78716c]">Tax</dt>
+            <div className="rounded-xl bg-surface-muted p-3">
+              <dt className="text-xs text-ink-muted">Tax</dt>
               <dd className="font-semibold">{settings.taxPct}%</dd>
             </div>
-            <div className="rounded-xl bg-[#fafaf9] p-3">
-              <dt className="text-xs text-[#78716c]">Hold expiry</dt>
+            <div className="rounded-xl bg-surface-muted p-3">
+              <dt className="text-xs text-ink-muted">Hold expiry</dt>
               <dd className="font-semibold">{settings.holdHours} hours</dd>
             </div>
-            <div className="rounded-xl bg-[#fafaf9] p-3">
-              <dt className="text-xs text-[#78716c]">Cancellation notice</dt>
+            <div className="rounded-xl bg-surface-muted p-3">
+              <dt className="text-xs text-ink-muted">Cancellation notice</dt>
               <dd className="font-semibold">{settings.cancellationNoticeHours} hours</dd>
             </div>
           </dl>
-          <p className="mt-3 text-xs text-[#a8a29e]">
+          <p className="mt-3 text-xs text-ink-subtle">
             Change these in <Link className="underline" href="/settings">Settings → Policies</Link>.
           </p>
         </Section>

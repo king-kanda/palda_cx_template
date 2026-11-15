@@ -63,7 +63,7 @@ export default async function SettingsPage({
       />
 
       {params.error ? (
-        <p className="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{params.error}</p>
+        <p className="mb-4 rounded-xl border border-danger-600/30 bg-danger-100 px-4 py-3 text-sm text-danger-600">{params.error}</p>
       ) : null}
 
       <div className="grid gap-5 xl:grid-cols-2">
@@ -91,13 +91,13 @@ export default async function SettingsPage({
               value={settings.slotIntervalMin}
             />
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+              <label className="mb-1.5 block text-sm font-medium">
                 Arrival time
               </label>
               <input className="input" name="arrivalTime" defaultValue={settings.arrivalTime} />
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+              <label className="mb-1.5 block text-sm font-medium">
                 Location
               </label>
               <input
@@ -113,22 +113,22 @@ export default async function SettingsPage({
         </Section>
 
         <Section title={`${titleCase(settings.labels.resource)}s`}>
-          <p className="mb-3 text-xs text-[#78716c]">
+          <p className="mb-3 text-xs text-ink-muted">
             Spaces, staff, rooms or equipment. Parent spaces block their children.
           </p>
-          <ul className="mb-3 divide-y divide-[#f5f5f4]">
+          <ul className="mb-3 divide-y divide-line">
             {resources.map((resource) => (
               <li key={resource.id} className="flex items-center justify-between gap-2 py-2 text-sm">
                 <div>
                   <p className="font-medium">{resource.name}</p>
-                  <p className="text-[11px] capitalize text-[#a8a29e]">
+                  <p className="text-[11px] capitalize text-ink-subtle">
                     {resource.kind}
                     {resource.capacity ? ` · up to ${resource.capacity}` : ""}
                   </p>
                 </div>
                 <form action={deactivateResourceAction}>
                   <input type="hidden" name="resourceId" value={resource.id} />
-                  <button className="text-[11px] font-medium text-rose-600">Disable</button>
+                  <button className="text-[11px] font-medium text-danger-600">Disable</button>
                 </form>
               </li>
             ))}
@@ -155,12 +155,12 @@ export default async function SettingsPage({
         </Section>
 
         <Section title={`${titleCase(settings.labels.offering)}s & pricing`}>
-          <ul className="mb-3 divide-y divide-[#f5f5f4]">
+          <ul className="mb-3 divide-y divide-line">
             {offerings.map((offering) => (
               <li key={offering.id} className="flex items-center justify-between gap-2 py-2 text-sm">
                 <div>
                   <p className="font-medium">{offering.name}</p>
-                  <p className="text-[11px] text-[#a8a29e]">
+                  <p className="text-[11px] text-ink-subtle">
                     {offering.durationMin} min · {offering.resourceKind}
                   </p>
                 </div>
@@ -198,7 +198,7 @@ export default async function SettingsPage({
         </Section>
 
         <Section title="Add-ons">
-          <ul className="mb-3 divide-y divide-[#f5f5f4]">
+          <ul className="mb-3 divide-y divide-line">
             {addons.map((addon) => (
               <li key={addon.id} className="flex items-center justify-between gap-2 py-2 text-sm">
                 <span>{addon.name}</span>
@@ -217,19 +217,19 @@ export default async function SettingsPage({
         </Section>
 
         <Section title="Team">
-          <ul className="divide-y divide-[#f5f5f4]">
+          <ul className="divide-y divide-line">
             {team.map((member) => (
               <li key={member.id} className="flex items-center justify-between gap-2 py-2 text-sm">
                 <div>
                   <p className="font-medium">{member.name}</p>
-                  <p className="text-[11px] text-[#a8a29e]">{member.email}</p>
+                  <p className="text-[11px] text-ink-subtle">{member.email}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="pill bg-slate-100 capitalize text-slate-600">{member.role}</span>
+                  <span className="pill bg-neutral-100 capitalize text-neutral-600">{member.role}</span>
                   {member.active ? (
-                    <span className="pill bg-emerald-50 text-emerald-700">active</span>
+                    <span className="pill bg-success-100 text-success-600">active</span>
                   ) : (
-                    <span className="pill bg-rose-50 text-rose-700">inactive</span>
+                    <span className="pill bg-danger-100 text-danger-600">inactive</span>
                   )}
                 </div>
               </li>
@@ -274,7 +274,7 @@ export default async function SettingsPage({
           </div>
           <div className="mt-3 flex items-center gap-2">
             <StatusPill status={settings.vertical} />
-            <span className="text-xs text-[#a8a29e]">
+            <span className="text-xs text-ink-subtle">
               Vertical preset {settings.preset.version} · {settings.labels.booking.toLowerCase()} terminology
             </span>
           </div>
@@ -287,7 +287,7 @@ export default async function SettingsPage({
 function NumberField({ label, name, value }: { label: string; name: string; value: number }) {
   return (
     <div>
-      <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#78716c]">
+      <label className="mb-1.5 block text-sm font-medium">
         {label}
       </label>
       <input className="input" type="number" name={name} defaultValue={value} />
@@ -297,12 +297,12 @@ function NumberField({ label, name, value }: { label: string; name: string; valu
 
 function Integration({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <div className="rounded-xl border border-[#f5f5f4] p-3">
+    <div className="rounded-xl border border-line p-3">
       <div className="flex items-center justify-between gap-2">
         <dt className="font-medium">{label}</dt>
-        <dd className="text-xs font-mono text-[#57534e]">{value}</dd>
+        <dd className="text-xs font-mono text-ink-muted">{value}</dd>
       </div>
-      <p className="mt-1 text-[11px] text-[#a8a29e]">{hint}</p>
+      <p className="mt-1 text-[11px] text-ink-subtle">{hint}</p>
     </div>
   );
 }

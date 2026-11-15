@@ -39,11 +39,11 @@ export default async function CustomersPage({
       />
 
       {params.error ? (
-        <p className="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{params.error}</p>
+        <p className="mb-4 rounded-xl border border-danger-600/30 bg-danger-100 px-4 py-3 text-sm text-danger-600">{params.error}</p>
       ) : null}
 
       {params.erased ? (
-        <p className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+        <p className="mb-4 rounded-xl border border-success-600/30 bg-success-100 px-4 py-3 text-sm text-success-600">
           Customer personal data erased. Booking and payment totals were kept for accounting.
         </p>
       ) : null}
@@ -56,7 +56,7 @@ export default async function CustomersPage({
 
       <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
         <section className="card overflow-hidden">
-          <form className="flex flex-wrap items-center gap-2 border-b border-[#e7e5e0] p-3" action="/customers">
+          <form className="flex flex-wrap items-center gap-2 border-b border-line p-3" action="/customers">
             <input
               className="input max-w-xs"
               name="q"
@@ -71,7 +71,7 @@ export default async function CustomersPage({
               <option value="lapsed">Lapsed (90d+)</option>
             </select>
             <button className="btn btn-secondary">Search</button>
-            <Link className="text-xs text-[#78716c] underline" href="/customers">
+            <Link className="text-xs text-ink-muted underline" href="/customers">
               Reset
             </Link>
           </form>
@@ -101,20 +101,20 @@ export default async function CustomersPage({
                     <tr key={row.customer.id}>
                       <td>
                         <Link
-                          className="font-medium hover:text-[#c2410c]"
+                          className="font-medium hover:text-brand-800"
                           href={`/customers/${row.customer.id}`}
                         >
                           {row.customer.name}
                         </Link>
                         {row.customer.email ? (
-                          <div className="text-[11px] text-[#a8a29e]">{row.customer.email}</div>
+                          <div className="text-[11px] text-ink-subtle">{row.customer.email}</div>
                         ) : null}
                       </td>
                       <td className="font-mono text-xs">{row.customer.phoneE164}</td>
                       <td className="space-x-1">
                         {row.customer.tags.length
                           ? row.customer.tags.map((tag) => (
-                              <span key={tag} className="pill bg-[#fff7ed] text-[#c2410c]">
+                              <span key={tag} className="pill bg-lime-100 text-brand-800">
                                 {tag}
                               </span>
                             ))
@@ -122,7 +122,7 @@ export default async function CustomersPage({
                       </td>
                       <td>{row.bookingCount}</td>
                       <td className="font-medium">{kes(row.lifetimeValueKes)}</td>
-                      <td className="text-xs text-[#78716c]">{shortDate(row.lastBookingAt)}</td>
+                      <td className="text-xs text-ink-muted">{shortDate(row.lastBookingAt)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -132,7 +132,7 @@ export default async function CustomersPage({
         </section>
 
         <section className="card h-fit p-5">
-          <h2 className="mb-3 text-sm font-semibold">Add a customer</h2>
+          <h2 className="mb-3 text-lg font-semibold">Add a customer</h2>
           <form action={createCustomerAction} className="space-y-2">
             <input className="input" name="name" placeholder="Full name" required />
             <input className="input" name="phone" placeholder="+254712345678" required />

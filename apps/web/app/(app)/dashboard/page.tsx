@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { CalendarCheck, CalendarX, Hourglass, ReceiptText, Wallet } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { principalOf } from "@/lib/principal";
 import { getDashboard, kes } from "@garden/services";
@@ -27,16 +28,18 @@ export default async function DashboardPage() {
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Confirmed this month" value={data.kpis.confirmedThisMonth} />
-        <StatCard label="Pending / holds" value={data.kpis.activeHolds} />
-        <StatCard label="Cancelled" value={data.kpis.cancelledThisMonth} />
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
+        <StatCard icon={CalendarCheck} label="Confirmed this month" value={data.kpis.confirmedThisMonth} />
+        <StatCard icon={Hourglass} label="Pending / holds" value={data.kpis.activeHolds} />
+        <StatCard icon={CalendarX} label="Cancelled" value={data.kpis.cancelledThisMonth} />
         <StatCard
+          icon={Wallet}
           label="Revenue this month"
           value={kes(data.kpis.revenueThisMonthKes)}
           accent
         />
         <StatCard
+          icon={ReceiptText}
           label="Outstanding"
           value={kes(data.kpis.outstandingKes)}
           hint={`${data.kpis.needsHuman} item(s) need a human`}
@@ -46,31 +49,31 @@ export default async function DashboardPage() {
       <div className="mt-5 grid gap-5 xl:grid-cols-[1.3fr_1fr]">
         <section className="card p-5">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Next 7 days</h2>
-            <Link className="text-xs font-medium text-[#c2410c]" href="/calendar">
+            <h2 className="text-lg font-semibold">Next 7 days</h2>
+            <Link className="text-sm font-medium text-brand-700 hover:underline" href="/calendar">
               Open calendar →
             </Link>
           </div>
           {data.next7Days.length === 0 ? (
-            <p className="py-8 text-center text-sm text-[#78716c]">
+            <p className="py-8 text-center text-sm text-ink-muted">
               Nothing booked in the next week. A quiet garden.
             </p>
           ) : (
-            <div className="divide-y divide-[#f5f5f4]">
+            <div className="divide-y divide-line">
               {data.next7Days.map((row) => (
                 <Link
                   key={row.booking.id}
                   href={`/bookings/${row.booking.id}`}
                   className="flex items-center gap-3 py-3"
                 >
-                  <div className="w-20 shrink-0 text-xs text-[#78716c]">
+                  <div className="w-20 shrink-0 text-xs text-ink-muted">
                     {shortDate(row.booking.startsAt)}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">
                       {row.offering.name} · {row.customer.name}
                     </p>
-                    <p className="text-xs text-[#78716c]">
+                    <p className="text-xs text-ink-muted">
                       {dateTime(row.booking.startsAt)} · {row.booking.partySize} guests
                       {row.resources.length ? ` · ${row.resources.join(", ")}` : ""}
                     </p>
@@ -84,33 +87,33 @@ export default async function DashboardPage() {
 
         <div className="space-y-5">
           <section className="card p-5">
-            <h2 className="mb-3 text-sm font-semibold">Revenue · last 6 months</h2>
+            <h2 className="mb-3 text-lg font-semibold">Revenue · last 6 months</h2>
             <div className="flex h-40 items-end gap-2">
               {data.revenueSeries.map((point) => (
                 <div key={point.month} className="flex flex-1 flex-col items-center gap-2">
                   <div
-                    className="w-full rounded-t-lg bg-[#c2410c]/80"
+                    className="w-full rounded-t-lg bg-brand-800"
                     style={{ height: `${Math.max(4, (point.collectedKes / maxRevenue) * 120)}px` }}
                     title={kes(point.collectedKes)}
                   />
-                  <span className="text-[10px] text-[#a8a29e]">{point.label}</span>
+                  <span className="text-[10px] text-ink-subtle">{point.label}</span>
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-right text-xs text-[#78716c]">
+            <p className="mt-3 text-right text-xs text-ink-muted">
               Collected this month:{" "}
-              <span className="font-semibold text-[#1c1917]">{kes(data.kpis.revenueThisMonthKes)}</span>
+              <span className="font-semibold text-ink">{kes(data.kpis.revenueThisMonthKes)}</span>
             </p>
           </section>
 
           <section className="card p-5">
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Needs a human</h2>
-              <Link className="text-xs font-medium text-[#c2410c]" href="/approvals">
+              <h2 className="text-lg font-semibold">Needs a human</h2>
+              <Link className="text-sm font-medium text-brand-700 hover:underline" href="/approvals">
                 Approvals →
               </Link>
             </div>
-            <p className="text-sm text-[#57534e]">
+            <p className="text-sm text-ink-muted">
               {data.kpis.needsHuman === 0
                 ? "All clear. Wambo is handling everything within policy."
                 : `${data.kpis.needsHuman} handoff(s) or approval(s) waiting for you.`}

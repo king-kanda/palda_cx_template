@@ -65,7 +65,7 @@ Phase 3 coverage was added on 2026-11-11 against the same embedded PostgreSQL 16
 
 - `tests/integration/agent-internal.test.ts` (5) — `/internal/*` rejects a missing or wrong shared secret, a staff chat turn persists an `agent_runs` row under the staff principal, a user from another tenant is rejected, the digest endpoint writes a staff alert, and `/internal/ops` runs the ops watch under the system principal.
 
-Last full run: 2026-11-12 (**40/40 integration**, embedded PostgreSQL 16). Docker stack last verified 2026-11-09; the image predates Tuma, intake, the ops agent and the Phase 3 fixes.
+Last full run: 2026-11-12 (**40/40 integration**, embedded PostgreSQL 16). Docker stack rebuilt 2026-11-15 from the current working tree (all containers healthy, `/login` 200); the integration suite was not re-run inside that image.
 
 ## Never verified
 
@@ -81,7 +81,7 @@ Last full run: 2026-11-12 (**40/40 integration**, embedded PostgreSQL 16). Docke
 - **Meetings mode (2026-11-12):** `MEETINGS_MODE` is `mock` only (a working Jitsi link). The unimplemented `google` value is rejected at startup instead of failing later.
 - **Fail-fast configuration (2026-11-11):** `loadEnv()` now validates the selected modes and refuses to start when `MPESA_MODE=tuma|daraja`, `WHATSAPP_MODE=cloud` or a real `WAMBO_MODEL` is missing its keys (or, for M-Pesa, a public HTTPS callback). `pnpm env:check` prints the same diagnosis without secret values. Mock mode always starts, so a fresh checkout still builds.
 - **Empty Tuma callback (2026-11-11):** an empty `TUMA_CALLBACK_URL=` now falls back to `MPESA_CALLBACK_URL` instead of sending Tuma a blank `callback_url`.
-- **Docker stack committed (2026-11-11):** root `Dockerfile`, `.dockerignore` and `docker-compose.yml` are now versioned with the runbook; the image itself still needs rebuilding for Tuma and the Phase 3 fixes.
+- **Docker stack committed (2026-11-11):** root `Dockerfile`, `.dockerignore` and `docker-compose.yml` are now versioned with the runbook; the image was rebuilt on 2026-11-15 and now includes Tuma, the Phase 3 fixes and the UI refresh.
 - **Webhook commit ordering (2026-11-11):** the WhatsApp webhook now stores the inbound message, customer and conversation in a committed transaction before running the agent turn. Previously the turn ran inside that transaction, so `agent_runs` and conversation-linked tools hit FK failures on the shared pool for first-contact messages.
 - **Digest query fix (2026-11-11):** `buildDailyDigest` used a raw `sql` fragment with a `Date`, which postgres.js cannot bind; it now uses `lt()`. The 07:00 digest query executes.
 - **Template amount/time fix (2026-11-11):** `{{amount}}` is now the bare integer because every preset template already writes `KES`; this removes `KES KES 9,000`. Payment confirmations render the event date in `Africa/Nairobi` instead of UTC.

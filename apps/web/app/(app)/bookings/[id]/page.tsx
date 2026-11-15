@@ -87,7 +87,7 @@ export default async function BookingDetailPage({
       />
 
       {query.error ? (
-        <p className="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{query.error}</p>
+        <p className="mb-4 rounded-xl border border-danger-600/30 bg-danger-100 px-4 py-3 text-sm text-danger-600">{query.error}</p>
       ) : null}
 
       <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
@@ -96,7 +96,7 @@ export default async function BookingDetailPage({
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <StatusPill status={detail.booking.status} />
               <StatusPill status={detail.booking.source} />
-              <span className="text-xs text-[#78716c]">
+              <span className="text-xs text-ink-muted">
                 Created {dateTime(detail.booking.createdAt)}
               </span>
             </div>
@@ -116,7 +116,7 @@ export default async function BookingDetailPage({
           </section>
 
           <section className="card p-5">
-            <h2 className="mb-3 text-sm font-semibold">Money</h2>
+            <h2 className="mb-3 text-lg font-semibold">Money</h2>
             <div className="grid gap-3 sm:grid-cols-4">
               <Money label="Subtotal" value={detail.booking.subtotalKes} />
               <Money label="Discount" value={detail.booking.discountKes} />
@@ -173,9 +173,9 @@ export default async function BookingDetailPage({
           </section>
 
           <section className="card p-5">
-            <h2 className="mb-3 text-sm font-semibold">Invoices</h2>
+            <h2 className="mb-3 text-lg font-semibold">Invoices</h2>
             {detail.invoices.length === 0 ? (
-              <p className="text-sm text-[#78716c]">No invoices yet.</p>
+              <p className="text-sm text-ink-muted">No invoices yet.</p>
             ) : (
               <table className="table">
                 <thead>
@@ -199,7 +199,7 @@ export default async function BookingDetailPage({
                         <StatusPill status={invoice.status} />
                       </td>
                       <td>
-                        <Link className="text-xs font-medium text-[#c2410c]" href={`/invoices/${invoice.id}`}>
+                        <Link className="text-sm font-medium text-brand-700 hover:underline" href={`/invoices/${invoice.id}`}>
                           Open
                         </Link>
                       </td>
@@ -211,9 +211,9 @@ export default async function BookingDetailPage({
           </section>
 
           <section className="card p-5">
-            <h2 className="mb-3 text-sm font-semibold">Payments</h2>
+            <h2 className="mb-3 text-lg font-semibold">Payments</h2>
             {detail.payments.length === 0 ? (
-              <p className="text-sm text-[#78716c]">No payments recorded.</p>
+              <p className="text-sm text-ink-muted">No payments recorded.</p>
             ) : (
               <table className="table">
                 <thead>
@@ -246,15 +246,15 @@ export default async function BookingDetailPage({
         <div className="space-y-5">
           {isConsultancy ? (
             <section className="card p-5">
-              <h2 className="mb-3 text-sm font-semibold">Online session</h2>
+              <h2 className="mb-3 text-lg font-semibold">Online session</h2>
               <div className="space-y-4 text-sm">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-[#a8a29e]">
+                  <p className="text-xs font-medium text-ink-muted">
                     Meeting link
                   </p>
                   {meetingUrl ? (
                     <a
-                      className="mt-0.5 block break-all text-xs font-medium text-[#c2410c]"
+                      className="mt-0.5 block break-all text-sm font-medium text-brand-700 hover:underline"
                       href={meetingUrl}
                       target="_blank"
                       rel="noreferrer"
@@ -263,7 +263,7 @@ export default async function BookingDetailPage({
                     </a>
                   ) : (
                     <>
-                      <p className="mt-0.5 text-[#78716c]">No link yet.</p>
+                      <p className="mt-0.5 text-ink-muted">No link yet.</p>
                       <form action={createMeetingLinkAction} className="mt-2">
                         <input type="hidden" name="bookingId" value={detail.booking.id} />
                         <button className="btn btn-secondary w-full text-xs">
@@ -274,12 +274,12 @@ export default async function BookingDetailPage({
                   )}
                 </div>
 
-                <div className="border-t border-[#f5f5f4] pt-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-[#a8a29e]">
+                <div className="border-t border-line pt-4">
+                  <p className="text-xs font-medium text-ink-muted">
                     Intake form
                   </p>
                   <Link
-                    className="mt-0.5 block break-all text-xs font-medium text-[#c2410c]"
+                    className="mt-0.5 block break-all text-sm font-medium text-brand-700 hover:underline"
                     href={intakeUrl || `/intake/${tenantSlug}/${detail.booking.id}`}
                     target="_blank"
                   >
@@ -291,7 +291,7 @@ export default async function BookingDetailPage({
                       {intakeUrl ? "Resend intake form" : "Send intake form"}
                     </button>
                   </form>
-                  <p className="mt-2 text-xs text-[#a8a29e]">
+                  <p className="mt-2 text-xs text-ink-subtle">
                     Answers are stored encrypted and are never shared with the booking assistant.
                   </p>
                 </div>
@@ -300,10 +300,10 @@ export default async function BookingDetailPage({
           ) : null}
 
           <section className="card p-5">
-            <h2 className="mb-3 text-sm font-semibold">Actions</h2>
+            <h2 className="mb-3 text-lg font-semibold">Actions</h2>
             <form action={rescheduleBookingAction} className="space-y-2">
               <input type="hidden" name="bookingId" value={detail.booking.id} />
-              <p className="text-xs font-medium text-[#78716c]">Reschedule</p>
+              <p className="text-xs font-medium text-ink-muted">Reschedule</p>
               <div className="flex gap-2">
                 <input className="input" type="date" name="date" required />
                 <input className="input" type="time" name="time" required defaultValue="09:00" />
@@ -311,30 +311,30 @@ export default async function BookingDetailPage({
               <button className="btn btn-secondary w-full text-xs">Move booking</button>
             </form>
 
-            <form action={cancelBookingAction} className="mt-4 space-y-2 border-t border-[#f5f5f4] pt-4">
+            <form action={cancelBookingAction} className="mt-4 space-y-2 border-t border-line pt-4">
               <input type="hidden" name="bookingId" value={detail.booking.id} />
-              <p className="text-xs font-medium text-[#78716c]">Cancel</p>
+              <p className="text-xs font-medium text-ink-muted">Cancel</p>
               <input className="input" name="reason" placeholder="Reason" defaultValue="Staff cancellation" />
               <button className="btn btn-danger w-full text-xs">Cancel booking</button>
             </form>
 
-            <form action={requestReviewAction} className="mt-4 border-t border-[#f5f5f4] pt-4">
+            <form action={requestReviewAction} className="mt-4 border-t border-line pt-4">
               <input type="hidden" name="bookingId" value={detail.booking.id} />
               <button className="btn btn-secondary w-full text-xs">Request a review</button>
             </form>
           </section>
 
           <section className="card p-5">
-            <h2 className="mb-3 text-sm font-semibold">Reminders</h2>
+            <h2 className="mb-3 text-lg font-semibold">Reminders</h2>
             {detail.reminders.length === 0 ? (
-              <p className="text-sm text-[#78716c]">No reminders scheduled.</p>
+              <p className="text-sm text-ink-muted">No reminders scheduled.</p>
             ) : (
               <ul className="space-y-2">
                 {detail.reminders.map((reminder) => (
                   <li key={reminder.id} className="flex items-center justify-between gap-2 text-sm">
                     <div>
                       <p className="capitalize">{reminder.kind.replace(/_/g, " ")}</p>
-                      <p className="text-xs text-[#a8a29e]">{dateTime(reminder.sendAt)}</p>
+                      <p className="text-xs text-ink-subtle">{dateTime(reminder.sendAt)}</p>
                     </div>
                     <StatusPill status={reminder.status} />
                   </li>
@@ -344,14 +344,14 @@ export default async function BookingDetailPage({
           </section>
 
           <section className="card p-5">
-            <h2 className="mb-3 text-sm font-semibold">Review</h2>
+            <h2 className="mb-3 text-lg font-semibold">Review</h2>
             {detail.review ? (
               <div className="text-sm">
                 <p className="text-lg">{detail.review.rating ? `${"★".repeat(detail.review.rating)}${"☆".repeat(5 - detail.review.rating)}` : "Requested"}</p>
-                <p className="mt-1 text-[#57534e]">{detail.review.comment ?? "No comment yet."}</p>
+                <p className="mt-1 text-ink-muted">{detail.review.comment ?? "No comment yet."}</p>
               </div>
             ) : (
-              <p className="text-sm text-[#78716c]">No review requested yet.</p>
+              <p className="text-sm text-ink-muted">No review requested yet.</p>
             )}
           </section>
         </div>
@@ -363,7 +363,7 @@ export default async function BookingDetailPage({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <dt className="text-[11px] font-semibold uppercase tracking-wider text-[#a8a29e]">{label}</dt>
+      <dt className="text-xs font-medium text-ink-muted">{label}</dt>
       <dd className="mt-0.5 text-sm">{children}</dd>
     </div>
   );
@@ -371,9 +371,9 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function Money({ label, value, strong }: { label: string; value: number; strong?: boolean }) {
   return (
-    <div className={`rounded-xl border border-[#f5f5f4] p-3 ${strong ? "bg-[#fff7ed]" : ""}`}>
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-[#a8a29e]">{label}</p>
-      <p className={`mt-0.5 ${strong ? "text-lg font-semibold text-[#c2410c]" : "text-sm font-medium"}`}>
+    <div className={`rounded-xl border border-line p-3 ${strong ? "bg-lime-100" : ""}`}>
+      <p className="text-xs font-medium text-ink-muted">{label}</p>
+      <p className={`mt-0.5 ${strong ? "text-lg font-semibold text-brand-800" : "text-sm font-medium"}`}>
         {kes(value)}
       </p>
     </div>

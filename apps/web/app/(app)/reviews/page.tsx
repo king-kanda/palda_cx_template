@@ -39,7 +39,7 @@ export default async function ReviewsPage({
       />
 
       {params.error ? (
-        <p className="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{params.error}</p>
+        <p className="mb-4 rounded-xl border border-danger-600/30 bg-danger-100 px-4 py-3 text-sm text-danger-600">{params.error}</p>
       ) : null}
 
       <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -51,38 +51,38 @@ export default async function ReviewsPage({
 
       <div className="grid gap-5 xl:grid-cols-[1.5fr_1fr]">
         <section className="card overflow-hidden">
-          <h2 className="border-b border-[#e7e5e0] px-4 py-3 text-sm font-semibold">Feedback</h2>
+          <h2 className="border-b border-line px-4 py-3 text-lg font-semibold">Feedback</h2>
           {reviews.length === 0 ? (
             <div className="p-6">
               <EmptyState title="No reviews yet" body="Request a review from a completed booking." />
             </div>
           ) : (
-            <div className="divide-y divide-[#f5f5f4]">
+            <div className="divide-y divide-line">
               {reviews.map((row) => (
                 <div key={row.review.id} className="flex items-start gap-3 p-4">
-                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#fff7ed] text-sm font-semibold text-[#c2410c]">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-lime-100 text-sm font-semibold text-brand-800">
                     {row.review.rating ? `${row.review.rating}★` : "…"}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <Link
-                        className="text-sm font-medium hover:text-[#c2410c]"
+                        className="text-sm font-medium hover:text-brand-800"
                         href={`/customers/${row.customer.id}`}
                       >
                         {row.customer.name}
                       </Link>
-                      <span className="text-[11px] text-[#a8a29e]">
+                      <span className="text-[11px] text-ink-subtle">
                         {shortDate(row.review.receivedAt ?? row.review.requestedAt)}
                       </span>
                       {row.review.rating != null && row.review.rating <= 3 ? (
-                        <span className="pill bg-rose-50 text-rose-700">needs recovery</span>
+                        <span className="pill bg-danger-100 text-danger-600">needs recovery</span>
                       ) : null}
                     </div>
-                    <p className="mt-1 text-sm text-[#57534e]">
+                    <p className="mt-1 text-sm text-ink-muted">
                       {row.review.comment || "No comment yet."}
                     </p>
                     <Link
-                      className="mt-1 inline-block text-[11px] text-[#a8a29e] hover:text-[#c2410c]"
+                      className="mt-1 inline-block text-[11px] text-ink-subtle hover:text-brand-800"
                       href={`/bookings/${row.booking.id}`}
                     >
                       {row.booking.startsAt.toISOString().slice(0, 10)} · open booking
@@ -96,9 +96,9 @@ export default async function ReviewsPage({
 
         <div className="space-y-5">
           <section className="card p-5">
-            <h2 className="mb-3 text-sm font-semibold">Request a review</h2>
+            <h2 className="mb-3 text-lg font-semibold">Request a review</h2>
             {completed.length === 0 ? (
-              <p className="text-sm text-[#78716c]">No completed bookings to follow up.</p>
+              <p className="text-sm text-ink-muted">No completed bookings to follow up.</p>
             ) : (
               <form action={requestReviewAction} className="space-y-2">
                 <select className="input" name="bookingId" required>
@@ -114,9 +114,9 @@ export default async function ReviewsPage({
           </section>
 
           <section className="card p-5">
-            <h2 className="mb-3 text-sm font-semibold">Record a review</h2>
+            <h2 className="mb-3 text-lg font-semibold">Record a review</h2>
             {completed.length === 0 ? (
-              <p className="text-sm text-[#78716c]">Nothing to record yet.</p>
+              <p className="text-sm text-ink-muted">Nothing to record yet.</p>
             ) : (
               <form action={recordReviewAction} className="space-y-2">
                 <select className="input" name="bookingId" required>
