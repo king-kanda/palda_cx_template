@@ -9,6 +9,8 @@ export type Session = {
   role: "owner" | "staff";
   email: string;
   name: string;
+  /** Set when a Palda admin opened this account from the Engine to set it up; shown as a banner. */
+  impersonator?: { adminId: string; name: string };
 };
 
 const COOKIE = "garden_session";
@@ -54,7 +56,12 @@ export async function getSession(): Promise<Session | null> {
     ) {
       return null;
     }
+    const imp = payload.impersonator as { adminId?: unknown; name?: unknown } | undefined;
     return {
+      impersonator:
+        imp && typeof imp.adminId === "string" && typeof imp.name === "string"
+          ? { adminId: imp.adminId, name: imp.name }
+          : undefined,
       userId: payload.userId,
       tenantId: payload.tenantId,
       tenantSlug: String(payload.tenantSlug ?? ""),

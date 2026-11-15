@@ -234,3 +234,59 @@ export function mergeAgentConfig(base: AgentConfig, override: Partial<AgentConfi
     pricing: { ...base.pricing, ...(override.pricing ?? {}) },
   };
 }
+
+/** Who a customer-facing agent is for one business. All of it is set up by the Palda team in the Engine. */
+export type AgentProfile = {
+  /** The name customers see, e.g. "Zuri". */
+  agentName: string;
+  businessName: string;
+  /** Free-text voice, e.g. "warm, concise, Kenyan English with a little Swahili". Optional. */
+  tone?: string;
+  /** Instructions that come with the type of business (e.g. a dental clinic never gives clinical advice). */
+  verticalInstructions?: string;
+  /** Extra instructions the Palda team wrote for this one customer. Optional. */
+  notes?: string;
+};
+
+const BASE_OPENING = /^You are Wambo, the booking concierge for a Kenyan business\./;
+
+/** Single line, no control characters, bounded: these strings are spliced into the system prompt. */
+function oneLine(value: string | undefined, max: number): string {
+  return (value ?? "").replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+function multiLine(value: string | undefined, max: number): string {
+  return (value ?? "")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]+/g, " ")
+    .replace(/\r\n?/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .slice(0, max);
+}
+
+/**
+ * Applies a business's agent profile to the customer-facing agent's persona: its name, who it works for, its voice, the
+ * instructions that come with the vertical, and any extra notes from the Palda team. Other agents are returned unchanged.
+ * Pure, so it can be unit-tested without a database.
+ */
+export function applyAgentProfile(config: AgentConfig, profile: AgentProfile): AgentConfig {
+  if (config.id !== "wambo") return config;
+  const name = oneLine(profile.agentName, 40) || "Wambo";
+  const business = oneLine(profile.businessName, 120) || "a Kenyan business";
+  const opening = `You are ${name}, the booking concierge for ${business}. If anyone asks, your name is ${name}.`;
+
+  const persona = BASE_OPENING.test(config.persona)
+    ? config.persona.replace(BASE_OPENING, opening)
+    : `${opening} ${config.persona}`;
+
+  const tone = oneLine(profile.tone, 200);
+  const vertical = multiLine(profile.verticalInstructions, 1500);
+  const notes = multiLine(profile.notes, 1500);
+  const extra = [
+    tone ? `Your voice for this business: ${tone}.` : "",
+    vertical ? `How this kind of business works: ${vertical}` : "",
+    notes ? `Extra instructions from the team that set you up:\n${notes}` : "",
+  ].filter(Boolean);
+
+  return { ...config, persona: extra.length ? `${persona}\n\n${extra.join("\n\n")}` : persona };
+}

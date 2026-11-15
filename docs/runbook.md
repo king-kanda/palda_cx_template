@@ -146,6 +146,25 @@ MCP auth then run inside `withTenant`. The **worker and agent service** still
 need a privileged role for the owner: they enumerate tenants and route inbound
 WhatsApp webhooks by `phone_number_id` before a tenant context exists.
 
+## 4a. The Engine and customer logins
+
+Customers are set up by the Palda team in the Engine (`/engine`); there is no public sign-up.
+
+| Task | Command |
+|------|---------|
+| Create or reset a team login | `pnpm engine:admin --email you@palda.co.ke --name "Your Name" --password "…"` |
+| Rebuild the email → business lookup | `pnpm engine:reindex` |
+
+- Customers sign in with **email + password only**. `login_index` (migration 0002/0003) maps each email to its business and is kept
+  in sync by a trigger on `users`. The migration backfills it with plain SQL; if your migration role is subject to row-level
+  security it sees no users, so run `pnpm engine:reindex` once after migrating. If sign-in ever says "wrong email" for an account
+  that exists, run it again.
+- **Restricted app role:** migrations 0002/0003 add two tables (`platform_admins`, `login_index`) that are not tenant-scoped and have
+  no RLS. Re-run the `GRANT ... ON ALL TABLES` statement in section 4 after migrating so `garden_web` can read and write them.
+- A new customer starts **In setup** and cannot sign in. **Roll out** (in the Engine) makes it live and issues the owner's password.
+  The password is shown once and is never stored readable; use **Reset owner password** to issue another.
+- WhatsApp is routed to a customer by a `tenant_integrations` row (`kind = whatsapp`, `meta.phoneNumberId`). The Engine does not create it yet.
+
 ## 5. MCP and the agent engine
 
 The engine imports nothing from `@garden/services`; it talks to the app only via

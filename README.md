@@ -57,6 +57,24 @@ Sign in at http://localhost:3000/login with `owner@palda.co.ke` / `owner1234` (e
 No credentials needed to explore: WhatsApp and M-Pesa default to mock mode and
 the agent falls back to a deterministic model when `OPENROUTER_API_KEY` is unset.
 
+## The Engine (how customers are set up)
+
+Palda CX is sold as a **managed service**. Customers don't sign themselves up: the team sets each one up in the Engine, then
+rolls them out.
+
+```bash
+pnpm engine:admin --email you@palda.co.ke --name "Your Name" --password "a long passphrase"   # your team login
+# then open http://localhost:3000/engine/login
+```
+
+In the Engine: **New customer** (type of business, agent name and picture, services, hours, owner) → check the rollout list →
+**Roll out**, which makes the account live and gives you a one-time password to send the owner. **Open customer app** lets you
+finish setup using their own Settings screens. Customers sign in at `/login` with just their email and password.
+Demo Engine login: `engine@palda.co.ke` / `engine1234` (change it).
+
+The Engine Overview and each customer's workspace show how their agents are doing (runs, what needs attention, cost, response time) from the agent run log.
+To see charts on a fresh database: `pnpm engine:demo-runs --slug <customer> --days 14` (adds clearly-marked demo runs; `--clear` removes them).
+
 ## Screens
 
 Dashboard · Calendar · Bookings (list, new, detail with money actions, CSV export) ·

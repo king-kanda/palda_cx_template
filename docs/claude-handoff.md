@@ -26,10 +26,10 @@ Last verification run in this environment (2026-11-15):
 | Check | Result |
 |---|---|
 | `pnpm typecheck` | **9/9 packages/apps pass** |
-| `pnpm test` | **74/74 unit tests pass** (9 files) |
+| `pnpm test` | **99/99 unit tests pass** (11 files) |
 | `pnpm eval:mock` | **40/40 agent scenarios pass** |
 | `pnpm build` | **production build succeeds**, 24 routes |
-| `pnpm test:integration` | **49/49 passed on 2026-11-15** (8 files) on a throwaway `garden_test` database inside the Docker Postgres, after the onboarding, cleaning and UI changes |
+| `pnpm test:integration` | **72/72 passed on 2026-11-15** (10 files) on a throw-away `garden_test` database in the Docker Postgres, plus a 60-step script and a 20-step browser click-through against the running stack |
 
 Docker: the stack was rebuilt on **2026-11-15** from the current working tree (see §7a) and all four app
 containers plus Postgres came up healthy. Docker 29.9.2 is installed on this machine.
@@ -216,60 +216,116 @@ Approximate order of the work; dates are the recorded gate/verification dates.
 - Not verified in the container: the integration suite (`docker compose run --rm migrate pnpm test:integration`)
   was not re-run against the new image, and the pages were not checked in a browser after the rebuild.
 
-### 7b. Onboarding, cleaning vertical and UI fixes (2026-11-15)
+### 7b. The Engine, managed rollout, cleaning vertical and fixes (2026-11-15)
 
-**Self-serve onboarding** (`/onboarding`, linked from the login page): a 5-step wizard (business type → business details →
-team & services → hours & policies → owner account) backed by `createBusiness()` in `packages/services/src/onboarding.ts`.
+**Business model: Palda CX sells a service, not self-serve software.** Customers do **not** register or sign themselves
+up. The Palda team sets each customer up in the **Engine** (`/engine`), checks it, then **rolls it out**. The earlier public
+`/onboarding` wizard was removed on purpose; its logic (`createBusiness()`) is kept, so self sign-up can be switched back on
+later without a rewrite. Google sign-in is also planned for later (see "Not built yet").
 
-- Creates tenant, vertical, config (policies/business/brand), owner, resources, offerings and the preset add-ons in one
-  transaction, with **no demo customers or bookings**. It then signs the owner in and opens the dashboard with a
-  Getting-started card. The tenant id is generated first and the RLS tenant context set before the tenant insert, so it
-  also works under the restricted application role (the integration tests run as superuser and cannot prove this part).
-- FAQ is generated per business: preset entries flagged `needsReview` (e.g. "We are in Karen", "parking for 80 cars")
-  are skipped, and the location and cancellation answers are built from what the owner typed.
-- **Access control:** `ONBOARDING_CODE` set → enabled and the wizard asks for the code; `ONBOARDING_ENABLED=true` →
-  open; otherwise open outside production and closed in production. `docker-compose.yml` defaults it to open for demos.
-  There is **no rate limiting, email verification or CAPTCHA**, so do not leave it open on the public internet.
-- **Sign-in is email + password only; nobody types a workspace name.** `findAccountsByEmail()` (`accounts.ts`) looks the
-  email up inside each business’s own tenant context (users are RLS-protected, so a cross-tenant query would see nothing
-  under the restricted role). That is one small query per business, run in batches of 8, which is fine for hundreds of
-  businesses; beyond that add an email → tenant index table kept by a trigger. Onboarding **refuses an email that is already
-  registered**, so one email maps to one business; if the same email *and* password ever exist in two businesses (e.g. via
-  the seed CLI), login refuses with a contact-support message instead of guessing. Suspended tenants (`status != active`) can
-  no longer sign in.
-- The tenant `slug` still exists internally (public intake links `/intake/<slug>/<id>`, callback URLs, `DEFAULT_TENANT_SLUG`
-  for the agent service) but is generated from the business name, made unique, and never shown or typed.
-- Verified against the running Docker stack by posting the real form requests (not by clicking): the onboarding action creates
-  a business, returns a redirect to `/dashboard?welcome=1` with a session, the new dashboard/new-booking/settings pages render
-  with the vertical’s wording, a second signup with the same email is refused, and the new owner can sign in with email
-  only. **Not verified:** the wizard’s step-by-step client UI in a real browser (button states, validation hints).
-  Working hours can only be set in the wizard today; Settings has no hours editor.
+**The Engine** (`apps/web/app/engine/`, services in `packages/services/src/engine.ts`):
 
-**Cleaning preset** (`packages/verticals/src/cleaning.ts`, id `cleaning`): see §4. Demo: business "Sparkle Cleaners",
-`owner@sparkle.co.ke` / `owner1234`, `staff@sparkle.co.ke` / `staff1234`, 3 crews, 10 addressed jobs, 3 paid invoices.
+- **Separate sign-in** at `/engine/login` for Palda staff (`platform_admins` table, own `palda_engine` cookie, 12 h, admin
+  re-checked on every request so deactivating one ends access at once). A customer session can never open the Engine and an
+  Engine session is not a customer session. Create team logins with `pnpm engine:admin --email … --name … --password …`.
+- **Customers list** with status (In setup / Live / Suspended), agent, owner and setup counts.
+- **New customer wizard** (6 steps): type of business → business → **agent** (name, picture, voice, extra instructions) →
+  team & services → hours & policies → owner's name and email. It creates the customer **In setup**: no demo data, and the
+  owner has no usable password, so they cannot sign in yet.
+- **Customer page**: a rollout checklist (required: owner, team, services, opening hours, agent name; optional: picture,
+  review link, WhatsApp number), agent and business forms (incl. an opening-hours editor), status controls, and **Open customer
+  app**, which signs the admin into that customer's own app as their owner (banner shown, audited) so setup can use the
+  normal Settings screens for team, services and add-ons.
+- **Roll out** re-checks the required items on the server, switches the account to **Live** and issues the owner's first
+  password (`Kx7m-Rt9q-2Wpa` style, shown **once**, with copy buttons and a ready WhatsApp message). **Reset owner password**,
+  **Suspend**, **Reactivate** and **Move back to setup** are there too. Everything is audited as `engine:<adminId>`; the
+  audit trail records that a password was issued, never the password.
+- **The agent's profile now really reaches the agent.** Before today the prompt hard-coded "You are Wambo" and **ignored**
+  the stored agent name, tone and each preset's `agent.personaExtras` (so the dental "never give clinical advice" and the
+  cleaning "collect the address first" instructions were never sent). `applyAgentProfile()` (`agent-engine`) now applies the
+  agent's name, who it works for, voice, the vertical's own instructions and the team's notes to the customer-facing agent,
+  via `loadAgentConfig()` in the agent service. Names/voice are flattened to one line and length-capped before entering the
+  prompt. Only the customer-facing agent is changed; staff, digest and ops agents are not.
+- The agent's name and picture also show in the customer's sidebar and the inbox thread header.
 
-**Presets now describe their own booking form** (`bookingFields`, `starterResources`, `addons`, `tagline`):
-the new-booking form, booking list/detail, dashboard, customer page, Settings and the nav use the vertical’s own words
-("Jobs", "Clients", "Rooms"). A unit test asserts every field is accepted by the preset’s strict booking schema.
+**Sign-in is email + password only.** `login_index` (email → business, kept in sync by a database trigger on `users`,
+migration `0003`) tells the app which business to look inside; the user row is then read in that business's own tenant
+context, so row-level security is unchanged. The migration backfills the index; if the migration role cannot see every
+business (a restricted role), run `pnpm engine:reindex` once. The Engine refuses an owner email that is already registered, so
+one email = one business; if the same email *and* password exist in two businesses login refuses rather than guessing.
+Suspended or in-setup businesses cannot sign in. The tenant `slug` still exists internally (intake links, callbacks,
+`DEFAULT_TENANT_SLUG`) but is generated from the business name and never shown or typed.
+
+**Engine v2 (workspace sidebar, charts and telemetry, 2026-11-15).** The Engine's **layout** follows the reference console screenshots, in the **same green palda-homes palette as the rest of
+the app** (no colour overrides; only monospace numerals are Engine-specific). It is built with **shadcn/ui + Radix**: a per-customer **workspace sidebar** (shadcn Sidebar: Overview, Agent, Business,
+Access, Operations, with dropdown groups, a collapse-to-icons rail on Ctrl/⌘ + B, and a sheet on phones), a shadcn DropdownMenu for the account menu, three bar charts, and a telemetry layer that boils every
+customer's agent activity down to what needs a decision. The full spec (layout, chart inventory and palette, shadcn token mapping, rules) is in `DESIGN-SYSTEM.md` sections 5, 11 and 12.
+Routes: `/engine` (fleet overview), `/engine/customers`, `/engine/sources`, `/engine/new`, and `/engine/<id>` with `/agent`, `/runs`, `/business`, `/team`, `/access`, `/connections`, `/rollout`.
+
+- **UI stack for the Engine:** shadcn/ui components live in `apps/web/components/shadcn/` (config: `apps/web/components.json`; helper `lib/utils.ts`; packages `radix-ui`, `class-variance-authority`).
+  Add more with `cd apps/web && npx shadcn@latest add <name>` and review the diff afterwards: the CLI once wired `cn` to an unrelated npm package named `cn` (fixed, package removed). shadcn's base and sidebar
+  tokens are mapped onto palda tokens in `globals.css`. The global anchor reset moved into `@layer base`, because the un-layered rule had been silently overriding every Tailwind `text-*` colour on links
+  (this also affects the customer app: link colours that were being ignored now apply). The customer app's own shell is **not** shadcn yet.
+- **Charts:** server-rendered bars, palette `brand-800` (runs), `danger-600` (needs attention), `#4A7F6E` (cost), `#A6CF8B` (response time); constants in `CHART` (`app/engine/components/ui.tsx`). Inventory and spec: `DESIGN-SYSTEM.md` section 11.
+- **Source of truth is our own run log** (`agent_runs`: outcome, tokens, estimated cost in KES, latency, tool calls, flagged flag, Langfuse trace id), not Langfuse's API.
+  It exists for every run whether or not Langfuse is configured. Langfuse is the drill-down: when `LANGFUSE_HOST` is set each run links to its trace. The Engine does **not** read
+  Langfuse itself yet (needs real keys to build and test against). The Data sources page says exactly what feeds the numbers and what is **not** collected
+  (cached-token share, real provider spend, WhatsApp delivery receipts, customer satisfaction).
+- `packages/services/src/telemetry.ts`: `customerTelemetry()` (buckets for Today / Week / Month, totals, per-agent typical / p95 / prompt size / tools, recent runs, open handoffs,
+  pending approvals), `tenantPulse()`, `fleetTelemetry()`, `dataSourcesStatus()` and the pure `attentionItems()` that ranks what needs a decision: not connected to WhatsApp (high),
+  replies flagged / blocked / looping (medium, high at 3+), step limits, a customer waiting 24 h+ for a person, stale approvals, a spend spike (over 2x the prior daily average and at least KES 500),
+  ready to roll out, stalled setup (7+ days), and a connected customer with no activity for 7 days. Reads go through each customer's own tenant context (`agent_runs` is row-level-secured).
+- Demo data: `pnpm engine:demo-runs --slug sparkle --days 14` adds clearly-marked runs (`model = 'demo'`) so the charts have something to show; `--clear` removes exactly those. **The live demo database currently has demo runs for `sparkle` and `palda`.**
+- Tests: 12 unit + 9 integration for telemetry (which caught a raw-SQL `Date` parameter crash and a "replys" pluralisation bug), a 60-step live script of real form posts against the running stack, and a
+  **37-step real-browser click-through** (Chrome via puppeteer-core): sign-in, links, the dropdown groups by mouse and keyboard, Ctrl+B collapse and expand, the active-state and canvas **colours as rendered**
+  (palda green and lime), range tabs, 30-bar month charts, breadcrumb, the Radix account menu (opaque, Escape closes), sign-out, and the phone layout (no sideways overflow, sidebar as a sheet).
+- Known: the Engine list pages read each customer separately (batches of 6), fine for hundreds of customers.
+
+**Cleaning preset** (`packages/verticals/src/cleaning.ts`): see §4. Demo: "Sparkle Cleaners", `owner@sparkle.co.ke` /
+`owner1234`, `staff@sparkle.co.ke` / `staff1234`, 3 crews, 10 addressed jobs, 3 paid invoices.
+
+**Presets now describe their own booking form** (`bookingFields`, `starterResources`, `addons`, `tagline`): the new-booking
+form, booking list/detail, dashboard, customer page, Settings and the nav use the vertical's own words ("Jobs", "Clients",
+"Rooms"). A unit test asserts every field is accepted by the preset's strict booking schema.
 
 **Bugs found and fixed while doing this** (all pre-existing):
 
 1. The staff **new-booking form always sent a venue-only `eventType`**, which salon, dental and consultancy reject
    (strict schemas), so staff could not create bookings in the UI for those verticals. Now data-driven per preset.
-2. A business with **no review link inherited the demo garden’s Google link** (`g.page/r/palda-gardens/review`). The fallback is
-   now empty; messages drop the link cleanly (`stripReviewLink`), and Settings has a Review link field.
-3. Settings’ add-resource/add-service forms **defaulted to kind "space"** (not valid for cleaning); they now offer the
-   preset’s kinds. The location field no longer pre-fills "Karen, Nairobi".
-4. Seeding a zero-deposit vertical silently **skipped its paid demo bookings** ("Nothing left to invoice"); the seed now
-   bills the full amount and prints skip reasons. Demo conversations/complaints/reviews are per vertical instead of
-   gazebo copy everywhere.
+2. A business with **no review link inherited the demo garden's Google link**. The fallback is now empty; messages drop the
+   link cleanly (`stripReviewLink`), and Settings has a Review link field.
+3. Settings' add-resource/add-service forms **defaulted to kind "space"**; they now offer the preset's kinds. The location
+   field no longer pre-fills "Karen, Nairobi".
+4. Seeding a zero-deposit vertical silently **skipped its paid demo bookings**; the seed now bills the full amount and prints
+   skip reasons. Demo conversations/complaints/reviews are per vertical.
+5. **Agent name/tone and vertical persona never reached the prompt** (above).
+6. The email lookup compared case-sensitively against the stored address; it is now case-insensitive.
 
-**Still open (not changed):** `requestReview` sends the `thank_you_review` template, which **salon, dental and
-consultancy presets do not define**, and those presets have **no review reminder rule**, so review collection only
-runs end to end for venue and cleaning. **WhatsApp is not wired to onboarded tenants.** The agent service maps an inbound message to a tenant through a
-`tenant_integrations` row (`kind = whatsapp`, `meta.phoneNumberId`) and otherwise falls back to `DEFAULT_TENANT_SLUG`.
-Onboarding does not create that row, so a new tenant’s WhatsApp number will not reach it until one exists (whether the
-Settings integrations panel creates it was not verified). Fix this before onboarding a real business.
+**Verified (2026-11-15):** typecheck (9 packages), 87 unit tests, 40/40 mock evals, 63 integration tests (on a throw-away
+`garden_test` database in the Docker Postgres), and a 33-step script (posting the same form requests a browser makes)
+against the running Docker stack: Engine sign-in and isolation from customer sessions, create customer, duplicate owner email
+refused, agent save with picture (bad pictures refused), rollout, one-time password, customer sign-in with email only, reset,
+suspend, and open-as-owner with the banner and return. **Not verified:** the wizard's step-by-step client UI in a real browser
+(button states, validation hints, the picture crop), and the Engine on a phone.
+
+**Not built yet / open:**
+
+- **Google sign-in and self sign-up** (planned, later). Google needs an OAuth client ID/secret from Google Cloud; when you
+  have them it can be added as an extra way for an already-created user to sign in (matched by verified email).
+- **Customers cannot change their own password** (no screen); the Engine can reset it. Nothing is emailed: the one-time
+  password is copied from the Engine and sent by the team (e.g. WhatsApp).
+- **Engine team management** is CLI-only (`engine:admin`); no roles, no per-admin permissions, no login rate limiting or MFA.
+- **WhatsApp is not wired to new customers.** The agent service maps an inbound message to a business through a
+  `tenant_integrations` row (`kind = whatsapp`, `meta.phoneNumberId`) and otherwise falls back to `DEFAULT_TENANT_SLUG`.
+  Neither the wizard nor the Engine creates that row. Do this before going live with a real customer.
+- The agent's picture is stored as a small data URL (~20-40 KB) inside the business's config. It is shown in the app only; it is
+  **not** sent to WhatsApp (a WhatsApp business profile picture is set in Meta Business Manager).
+- Customer owners can still edit the agent's name and voice on their Wambo settings page; decide whether that should be
+  Engine-only for a managed service. Opening hours can only be edited in the Engine.
+- `requestReview` sends the `thank_you_review` template, which **salon, dental and consultancy presets do not define**, and
+  those presets have no review reminder rule, so review collection only runs end to end for venue and cleaning.
+- The Engine customer list reads each business in its own context (batches of 6): fine for hundreds of customers, to be
+  replaced by a summary table beyond that.
 
 ### 7c. Known UI gaps
 

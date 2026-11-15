@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { LogoMark } from "@/components/ui";
@@ -71,10 +70,7 @@ export default function LoginPage() {
               {pending ? "Signing in…" : "Sign in"}
             </button>
             <p className="text-center text-sm text-ink-muted">
-              New business?{" "}
-              <Link href="/onboarding" className="font-semibold text-brand-700 hover:underline">
-                Set up your business
-              </Link>
+              Accounts are set up for you by the Palda CX team. Need access? Contact your account manager.
             </p>
             <p className="text-center text-sm text-ink-muted">
               Demo owner: <span className="font-mono">owner@palda.co.ke</span> /{" "}

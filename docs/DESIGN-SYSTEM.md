@@ -150,12 +150,32 @@ Client component `AppShell`, rendered by `app/(app)/layout.tsx`. It replaced the
 - **Nav list** (edit `NAV` in `shell.tsx`): Dashboard, Bookings, Calendar, Customers, Invoices & Payments, Expenses,
   Reviews, Wambo, Settings. `/approvals` is reachable from the bell and has its own title.
 
-### Onboarding (`app/onboarding/`)
+### Engine (`app/engine/`): the Palda team's console
 
-Public 5-step wizard on the `canvas` background: logo header, numbered progress dots (done = `brand-800` with a check, current = `lime-400`),
-then a single `.card`. Step 1 is a grid of selectable type cards (selected = `brand-800` border + `lime-100` fill + `brand-800` icon tile).
-Steps 2–5 use the standard `.input` fields and `.btn` buttons; the footer has Back (secondary) and Continue/Create (primary,
-disabled until the step is valid, with the reason shown beside it).
+**Same green palda-homes palette as the rest of the app** (section 2.1: brand green, lime accent, `#F4F6F4` canvas). There are no colour overrides for the
+Engine. Its **layout** comes from the reference console screenshots: a top bar, a per-customer workspace sidebar with dropdown groups, stat cards, charts, an
+activity table and a recent-runs list. The only Engine-specific styling is **monospace numerals and small labels** (JetBrains Mono, via `.engine-theme` in `globals.css`).
+It is built with **shadcn/ui and Radix** (section 12).
+
+- **Shell** (palda-homes proportions): fleet pages (`app/engine/(console)/(fleet)/`) have a full-width 72 px top bar; a workspace has a **full-height sidebar with the brand at its top** and a 72 px header over the content column only. Content is `max-w-[1440px]` with `p-4 md:p-6`, sections 20 px apart. Type: page title `text-2xl font-bold`, panel title `text-lg font-semibold`, KPI value 28 px bold tabular, with a 40 px `surface-muted` icon tile.
+- **Top bar** (sticky): logo mark, "palda cx" with an `ENGINE` tag (lime), three tabs (Overview, Customers, Data sources; the active tab is `lime-400` with `brand-900` text)
+  and the admin avatar, which opens a shadcn `DropdownMenu`.
+- **Overview** (`/engine`): four metric cards, then **Needs a decision** (ranked list, one dot per priority: red high, amber medium, grey low), Busiest customers and In setup.
+- **Customers** (`/engine/customers`): title, "N total", a primary **New customer** button, search, filter pills with counts (All, Live, Needs attention, In setup,
+  Suspended) and a grid of customer cards: avatar, name, internal address in mono, status pill, TYPE / AGENT, RUNS 24H / COST 24H / ATTENTION, and the last-run time.
+- **Workspace** (`/engine/<id>/…`): the **shadcn Sidebar**, full height (256 px; 72 px icon rail). Its top row is the brand (logo, `ENGINE` tag); below it the agent's picture, "WORKSPACE", the customer name with a status pill and a one-line summary.
+  Items: Overview, Agent, Business, Access, Operations. **Agent, Business and Operations are dropdown groups** (shadcn `Collapsible`): they open inline with a rotating chevron, a
+  hairline guide on the left and indented sub-pages (Agent: Profile & voice, Runs. Business: Details & hours, Team & services. Operations: Rollout, Connections). A group starts open
+  when one of its pages is current. The active item is `lime-400` with `brand-900` text; the active sub-page is `lime-100`. Footer: **Open their app**.
+  The sidebar **collapses to an icon rail** (grip rail on its edge, or **Ctrl/⌘ + B**) with tooltips, and on phones becomes a **sheet** opened by a menu button.
+- **Workspace Overview**: ranked "Needs a decision", four metric cards (Agent, Runs, Run attention, Hit a limit), a Today / Week / Month switch, **three bar charts** (section 11),
+  an Agent activity table and Recent runs with outcome pills and Langfuse trace links.
+- **Top-right call to action** on workspace pages: "Roll out →" when everything required is done, "Resume setup →" with a count when not, nothing once live.
+- **Run outcome pills**: succeeded (success), handed over (info), flagged / looping (danger), blocked / hit a limit (warning).
+- **New customer**: a 6-step wizard on a single card, numbered progress dots (done = brand-800 with a check, current = lime-400) and a Back / Continue footer that explains why Continue is disabled.
+- **Credentials panel** after rollout or a password reset: a `lime-100` panel with a `lime-400` border, the one-time password in large mono text and copy buttons.
+- **Agent avatar** (`AgentAvatar`): the picture as a circle, or initials on `lime-400`. Cropped to a square and shrunk to 256 px in the browser before upload.
+- **"Acting as owner" banner**: when staff open a customer's app from the Engine, an amber bar at the top of the app offers **Back to Engine**.
 
 ### Auth pages
 
@@ -246,14 +266,111 @@ When touching an older page, replace legacy values with tokens:
 |---|---|---|
 | ⌘K command search | Not built | Needs search data/`cmdk`; avoided a dead control |
 | Org + property switchers | Not built | Booking app has one tenant per login |
-| Radix `DropdownMenu`/`Popover`, `cva` Button | Plain React state + CSS button classes | The web app has no Radix menu/cva dependency; same visuals |
+| Radix `DropdownMenu`/`Popover`, `cva` Button | Customer app: plain React state + CSS button classes. **Engine: shadcn/ui + Radix** (section 12) | The customer shell predates shadcn; the Engine uses it for its sidebar and menus |
+| Custom sidebar (palda-homes `sidebar.tsx`) | Customer app keeps a custom sidebar; Engine uses the **shadcn Sidebar** | shadcn gives dropdown groups, an icon rail and a mobile sheet for free |
 | Count badges, Setup card | Wambo promo card; no count badges | No per-nav counts wired yet (e.g. pending approvals) |
 | Footer links (Privacy/Terms/Support) | "© 2026 {business}" | No such pages |
-| Recharts charts | Hand-built CSS bars | Only one simple chart so far |
+| Recharts charts | Hand-built, server-rendered bars (section 11) | Three simple bar charts; no chart library needed yet |
+| Plus Jakarta Sans for all numerals | Engine numerals and small labels in JetBrains Mono | Matches the reference console screenshots |
 
 ---
 
-## 11. Files
+## 11. Charts
+
+Every chart in the Engine is a **server-rendered, dependency-free bar chart** (`BarChart` in `apps/web/app/engine/components/ui.tsx`). There is no chart library and no client JavaScript
+for charts. Colours come from the palda-homes chart palette (UI-SPEC section 2.1) and live in one constant, `CHART`; never hard-code another hex.
+
+### 11.1 Chart palette
+
+| Series | Token / hex | Used for |
+|---|---|---|
+| Runs | `brand-800` `#1E4D3F` | Runs per period (palda-homes "collected / income" colour) |
+| Needs attention | `danger-600` `#D64545` | The share of each run bar that needs a person (drawn inside the bar) |
+| Cost | `#4A7F6E` | Estimated agent spend per period |
+| Response time | `#A6CF8B` | Typical (median) response time per period |
+| Reserved (palda-homes) | `lime-400` `#B6EB8F`, `#7FB8A4`, `#D9DED9` | Second series, donut segments, neutral fill |
+
+Order for any new multi-series chart: `brand-800`, `lime-400`, `#7FB8A4`, `#D9DED9`, `#4A7F6E`, `#A6CF8B`.
+
+### 11.2 Bar chart spec
+
+- **Card:** a `Panel`: title left, a muted qualifier right (for example "estimated · last 7 days"). The headline number sits above the chart in 30 px mono.
+- **Plot:** 130 px tall, 3 px gap between bars, bars `rounded-t-md`, a hairline baseline (`border-line`), bars scale to the largest value in the series.
+- **Empty periods stay visible:** a 3 px stub at 35 % opacity, so a quiet hour or day reads as quiet, not missing. Non-zero values are at least 5 px tall.
+- **Overlay:** an optional second value drawn inside the bar from the bottom in the attention colour, proportional to its share.
+- **Axis:** only the first and last label, in 12 px mono `ink-muted`. Hover (`title`) gives the exact label, value and attention count.
+- **Legend:** 10 px rounded squares + 12 px muted text, under the chart, only when there is more than one series.
+- **Accessibility:** `role="img"` with a label; the number above the chart and the tooltip carry the data; attention is not colour-only (it is in the legend, the tooltip and the "N to review" qualifier).
+- **Empty state:** a dashed-border note under the charts ("No runs recorded last 7 days…"); charts still render their empty stubs.
+
+### 11.3 Chart inventory
+
+| Chart | Where | Data (per bucket) | Headline | Colour |
+|---|---|---|---|---|
+| **Runs** | Workspace Overview | Agent runs, with the number that need attention overlaid | Total runs; "N to review" | brand-800 + danger-600 |
+| **Cost** | Workspace Overview | Estimated agent cost in KES | Total KES for the period | `#4A7F6E` |
+| **Response time** | Workspace Overview | Median latency in ms | Typical time and the slowest 5 % (p95) | `#A6CF8B` |
+
+- **Range switch:** pill tabs Today / Week / Month (links, `?range=day|week|month`; default Week). Buckets are in **Africa/Nairobi** time: Today = 24 hourly buckets, Week = 7 daily, Month = 30 daily.
+- **Source:** the agent run log (see `claude-handoff.md`). Cached-prompt share is **not** charted because it is not recorded.
+- **Other data visuals** that are not bar charts: the four metric cards, the Agent activity table (mono columns: runs, review, cost, typical, P95, prompt, tools), the Recent runs list with outcome pills,
+  and the ranked Needs-a-decision list with priority dots.
+- **Reference charts from palda-homes** (not built here yet, same palette if added): rent-collection grouped bars (brand-800 vs lime-400, 6 px rounded tops), the complaints donut
+  (inner radius 70 %, centre total, legend with percentage chips) and collection-progress bars (8 px, track `brand-100`, fill `brand-800`).
+
+---
+
+## 12. shadcn/ui and Radix
+
+The Engine is built with **shadcn/ui on Radix** (the unified `radix-ui` package). The components are copied into the repo (shadcn's model) and re-skinned onto the palda green tokens, so they look like the
+rest of the app.
+
+- **Config:** `apps/web/components.json` (style new-york, Tailwind v4, lucide icons). Components live in `apps/web/components/shadcn/` (not `components/ui`, which is our own `ui.tsx`).
+- **Installed:** `sidebar`, `collapsible`, `dropdown-menu`, `tooltip`, `sheet`, `button`, `input`, `separator`, `skeleton`, plus `hooks/use-mobile.ts` and `lib/utils.ts` (`cn`).
+  Packages: `radix-ui`, `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`.
+- **Adding more:** `cd apps/web && npx shadcn@latest add <component>`. Then review the `globals.css` diff and the new imports. (The CLI once pointed `cn` at an unrelated npm package named `cn` because `lib/utils.ts`
+  was missing. That is fixed: imports are `@/lib/utils`. Do not re-add that package.)
+
+### 12.1 Token mapping (shadcn → palda-homes)
+
+Defined once in `globals.css` (`@theme inline` and `:root`). Always point at palda tokens, never hex.
+
+| shadcn token | palda token | Notes |
+|---|---|---|
+| `background` / `foreground` | `canvas` / `ink` | |
+| `card`, `popover` (+ `-foreground`) | `surface` / `ink` | Menus and sheets are opaque white |
+| `primary` / `primary-foreground` | `brand-800` / white | |
+| `secondary`, `muted` | `surface-muted` | |
+| `muted-foreground` | `ink-muted` | |
+| `accent` / `accent-foreground` | `lime-100` / `brand-900` | Menu item hover / focus |
+| `destructive` | `danger-600` | Sign out, delete |
+| `border`, `input` | `line` | |
+| `ring` | `brand-700` | Focus ring |
+| `sidebar` | `surface` | White, with a `line` right border |
+| `sidebar-foreground` | `ink` | |
+| `sidebar-accent` (+ foreground) | `surface-muted` / `ink` | Hover |
+| `sidebar-border` | `line` | |
+| `sidebar-ring` | `brand-700` | |
+
+The **active** sidebar item is not `sidebar-accent`: it is set on the menu buttons as `data-[active=true]:bg-lime-400 data-[active=true]:text-brand-900` (palda-homes UI-SPEC 3.1); the active sub-item is `lime-100`.
+
+### 12.2 The workspace sidebar pattern
+
+`apps/web/app/engine/(console)/[id]/layout.tsx` renders `SidebarProvider` + `SidebarInset`; `workspace-nav.tsx` renders `Sidebar collapsible="icon"`.
+It runs full height (no offset); the header lives inside `SidebarInset` (`EngineTopbar variant="workspace"` with the `SidebarTrigger`). A base-layer rule gives every border the palette hairline colour (shadcn expects this; without it borders fall back to currentColor and show as dark lines). A dropdown group is `Collapsible` → `SidebarMenuItem` → `CollapsibleTrigger asChild` →
+`SidebarMenuButton` (chevron rotates with `group-data-[state=open]/collapsible:rotate-90`) → `CollapsibleContent` → `SidebarMenuSub`. Items are 44 px tall with 12 px radius; sub-items 36 px.
+From the icon rail, opening a group first expands the sidebar. On phones, `SidebarTrigger` opens the sidebar as a `Sheet`.
+
+### 12.3 Rules
+
+1. Use shadcn / Radix primitives for menus, dropdowns, tooltips, sheets and sidebars. Do not hand-roll popovers.
+2. Style them with palda tokens and the global classes; no hex values (the only literals are the `CHART` constants).
+3. Tailwind colour utilities must win on links, so the global anchor reset lives in `@layer base` (an un-layered `a { color: inherit }` silently beat every `text-*` class on a link).
+4. Scope: the **Engine** uses the shadcn Sidebar and DropdownMenu. The **customer app** shell is still the custom palda-homes sidebar (section 5); it can be migrated to the shadcn Sidebar later.
+
+---
+
+## 13. Files
 
 | Concern | File |
 |---|---|
@@ -263,4 +380,6 @@ When touching an older page, replace legacy values with tokens:
 | Shell (sidebar, top bar, user menu) | `apps/web/components/shell.tsx`, `apps/web/app/(app)/layout.tsx` |
 | Login | `apps/web/app/login/page.tsx` |
 | Inbox | `apps/web/app/(app)/wambo/{page.tsx,[id]/page.tsx,chat-list.tsx,thread-client.tsx}` |
+| Engine pages, workspace sidebar, charts | `apps/web/app/engine/**` (`components/ui.tsx` has `BarChart`, `CHART`, `MetricCard`, `Panel`, `PillTabs`, `OutcomePill`, `AttentionList`) |
+| shadcn components, config, helpers | `apps/web/components/shadcn/*`, `apps/web/components.json`, `apps/web/lib/utils.ts`, `apps/web/hooks/use-mobile.ts` |
 | Reference implementation | palda-homes: `docs/UI-SPEC.md`, `apps/web/src/app/globals.css`, `src/components/{ui,shell,dashboard}/**` |

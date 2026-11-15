@@ -4,6 +4,7 @@ import { principalOf } from "@/lib/principal";
 import { getSettings, withPrincipal } from "@garden/services";
 import { AppShell } from "@/components/shell";
 import { logoutAction } from "@/app/login/actions";
+import { exitImpersonationAction } from "./impersonation";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -23,6 +24,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         "/bookings": settings.labels.bookings,
         "/customers": settings.labels.customers,
       }}
+      agent={{ name: settings.agentName, avatar: settings.agentAvatar }}
+      impersonation={
+        session.impersonator
+          ? { adminName: session.impersonator.name, exit: exitImpersonationAction }
+          : undefined
+      }
       userName={session.name}
       role={session.role}
       signOut={logoutAction}

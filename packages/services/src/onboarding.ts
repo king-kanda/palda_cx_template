@@ -3,7 +3,7 @@ import { getDb, schema, withTenant } from "@garden/db";
 import { passwordHash } from "@garden/integrations";
 import { getPreset, VERTICAL_IDS, type WorkingHours } from "@garden/verticals";
 import { z } from "zod";
-import { findAccountsByEmail } from "./accounts";
+import { findAccountsByEmail, generateTempPassword } from "./accounts";
 import { ValidationError } from "./types";
 
 /** Addresses that would collide with app routes or look official. */
@@ -28,7 +28,26 @@ const day = z
   .refine((d) => d.close > d.open, { message: "Closing time must be after opening time" })
   .nullable();
 
+/** A small image embedded in the agent profile. Kept tiny (the browser resizes it before upload). */
+export const AVATAR_PATTERN = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
+export const AVATAR_MAX_CHARS = 280_000; // ~200 KB of image once base64-decoded
+
+export const agentProfileSchema = z.object({
+  name: z.string().trim().min(2, "Give the agent a name").max(40),
+  tone: z.string().trim().max(200).default(""),
+  notes: z.string().trim().max(1500).default(""),
+  avatar: z
+    .string()
+    .max(AVATAR_MAX_CHARS, "That picture is too large")
+    .regex(AVATAR_PATTERN, "Use a PNG, JPEG or WebP picture")
+    .nullable()
+    .optional(),
+});
+
 export const onboardingSchema = z.object({
+  /** "setup": the Palda team is still preparing it, and the owner cannot sign in. "active": live. */
+  status: z.enum(["setup", "active"]).default("active"),
+  agent: agentProfileSchema.optional(),
   vertical: z.enum(VERTICAL_IDS),
   businessName: z.string().trim().min(2, "Enter your business name").max(120),
   /**
@@ -78,7 +97,8 @@ export const onboardingSchema = z.object({
   owner: z.object({
     name: z.string().trim().min(2, "Enter your name").max(100),
     email: z.string().trim().toLowerCase().email("Enter a valid email").max(200),
-    password: z.string().min(8, "Use at least 8 characters").max(200),
+    /** Omit it when the Palda team sets the account up: a password is issued at rollout instead. */
+    password: z.string().min(8, "Use at least 8 characters").max(200).optional(),
   }),
 });
 
@@ -88,6 +108,7 @@ export type OnboardingResult = {
   tenantId: string;
   slug: string;
   vertical: string;
+  status: "setup" | "active";
   ownerId: string;
   ownerName: string;
   ownerEmail: string;
@@ -205,6 +226,7 @@ export async function createBusiness(raw: OnboardingInput): Promise<OnboardingRe
         vertical: input.vertical,
         timezone: "Africa/Nairobi",
         currency: "KES",
+        status: input.status,
       });
       await tx.insert(schema.tenantVertical).values({
         tenantId,
@@ -235,14 +257,25 @@ export async function createBusiness(raw: OnboardingInput): Promise<OnboardingRe
             ...(input.reviewLink ? { reviewLink: input.reviewLink } : {}),
           },
         },
-        { tenantId, key: "brand", value: { agentName: preset.agent.name, accent: "#1E4D3F" } },
+        {
+          tenantId,
+          key: "brand",
+          value: {
+            agentName: input.agent?.name ?? preset.agent.name,
+            accent: "#1E4D3F",
+            ...(input.agent?.tone ? { tone: input.agent.tone } : {}),
+            ...(input.agent?.notes ? { agentNotes: input.agent.notes } : {}),
+            ...(input.agent?.avatar ? { agentAvatar: input.agent.avatar } : {}),
+          },
+        },
       ]);
       await tx.insert(schema.users).values({
         id: ownerId,
         tenantId,
         email: input.owner.email,
         name: input.owner.name,
-        passwordHash: passwordHash(input.owner.password),
+        // Without a password the account gets an unguessable one nobody knows; rollout issues the real one.
+        passwordHash: passwordHash(input.owner.password ?? generateTempPassword() + generateTempPassword()),
         role: "owner",
       });
       await tx.insert(schema.resources).values(
@@ -296,6 +329,7 @@ export async function createBusiness(raw: OnboardingInput): Promise<OnboardingRe
     tenantId,
     slug,
     vertical: input.vertical,
+    status: input.status,
     ownerId,
     ownerName: input.owner.name,
     ownerEmail: input.owner.email,

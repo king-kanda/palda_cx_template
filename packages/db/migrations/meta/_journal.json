@@ -15,6 +15,20 @@
       "when": 1794055000000,
       "tag": "0001_tenancy_and_overlap",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794733720257,
+      "tag": "0002_platform_admins_login_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794733729550,
+      "tag": "0003_login_index_sync",
+      "breakpoints": true
     }
   ]
 }

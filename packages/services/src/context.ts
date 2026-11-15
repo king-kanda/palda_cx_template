@@ -53,6 +53,12 @@ export type TenantSettings = {
   faq: { q: string; a: string }[];
   labels: Preset["labels"];
   agentName: string;
+  /** Free-text voice, e.g. "warm, concise, Kenyan English with a little Swahili". */
+  agentTone: string;
+  /** Extra instructions the Palda team wrote for this customer’s agent. */
+  agentNotes: string;
+  /** Small data: URL (png/jpeg/webp) shown wherever the agent appears, or null. */
+  agentAvatar: string | null;
   /** Phase 6 pilot: Wambo drafts replies for staff approval instead of sending. */
   shadowMode: boolean;
 };
@@ -110,6 +116,9 @@ export async function getSettings(ctx: ServiceContext): Promise<TenantSettings> 
     faq,
     labels: preset.labels,
     agentName: asString(brand.agentName, preset.agent.name),
+    agentTone: asString(brand.tone, ""),
+    agentNotes: asString(brand.agentNotes, ""),
+    agentAvatar: typeof brand.agentAvatar === "string" && brand.agentAvatar.startsWith("data:image/") ? brand.agentAvatar : null,
     shadowMode: business.shadowMode === true,
   };
 }

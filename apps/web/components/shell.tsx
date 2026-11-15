@@ -84,6 +84,7 @@ const collapsedStore = {
 function SidebarContent({
   businessName,
   navLabels,
+  agent,
   collapsed,
   onNavigate,
   onToggle,
@@ -91,6 +92,7 @@ function SidebarContent({
 }: {
   businessName: string;
   navLabels: Record<string, string>;
+  agent: { name: string; avatar: string | null };
   collapsed: boolean;
   onNavigate: () => void;
   onToggle: () => void;
@@ -145,9 +147,19 @@ function SidebarContent({
         {!collapsed && (
           <div className="relative overflow-hidden rounded-2xl bg-brand-800 p-4 text-white">
             <LogoMark className="pointer-events-none absolute -right-4 -top-4 size-24 text-white/10" />
-            <p className="text-sm font-semibold">Wambo</p>
-            <p className="mt-1 text-xs text-white/70">
-              Your AI concierge handles WhatsApp inquiries, holds and payments. Sensitive actions wait
+            <div className="flex items-center gap-2">
+              {agent.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={agent.avatar} alt="" className="size-8 shrink-0 rounded-full object-cover" />
+              ) : (
+                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-lime-400 text-xs font-bold text-brand-900">
+                  {initials(agent.name)}
+                </span>
+              )}
+              <p className="text-sm font-semibold">{agent.name}</p>
+            </div>
+            <p className="mt-2 text-xs text-white/70">
+              Your AI concierge handles WhatsApp enquiries, holds and payments. Sensitive actions wait
               for your approval.
             </p>
             <Link
@@ -155,7 +167,7 @@ function SidebarContent({
               onClick={onNavigate}
               className="mt-4 inline-flex h-9 items-center rounded-xl bg-lime-400 px-4 text-sm font-semibold text-brand-900 hover:bg-lime-300"
             >
-              Open inbox
+              Open {agent.name}’s inbox
             </Link>
           </div>
         )}
@@ -251,6 +263,8 @@ function UserMenu({
 export function AppShell({
   businessName,
   navLabels = {},
+  agent = { name: "Wambo", avatar: null },
+  impersonation,
   userName,
   role,
   signOut,
@@ -259,6 +273,10 @@ export function AppShell({
   businessName: string;
   /** Vertical-specific names for nav entries, keyed by href (e.g. "/bookings": "Jobs"). */
   navLabels?: Record<string, string>;
+  /** The business’s agent, as named and pictured by the Palda team. */
+  agent?: { name: string; avatar: string | null };
+  /** Set when a Palda admin opened this account from the Engine. */
+  impersonation?: { adminName: string; exit: () => void | Promise<void> };
   userName: string;
   role: string;
   signOut: () => void | Promise<void>;
@@ -287,6 +305,7 @@ export function AppShell({
         <SidebarContent
           businessName={businessName}
           navLabels={navLabels}
+          agent={agent}
           collapsed={collapsed}
           onNavigate={() => setMobileOpen(false)}
           onToggle={collapsedStore.toggle}
@@ -302,6 +321,7 @@ export function AppShell({
             <SidebarContent
               businessName={businessName}
               navLabels={navLabels}
+              agent={agent}
               collapsed={false}
               onNavigate={() => setMobileOpen(false)}
               onToggle={collapsedStore.toggle}
@@ -312,6 +332,17 @@ export function AppShell({
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
+        {impersonation ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-warning-600/30 bg-warning-100 px-4 py-2 text-sm text-warning-600 md:px-6">
+            <span>
+              You’re in <strong>{businessName}</strong> as {impersonation.adminName} from the Palda CX team (acting as the
+              owner).
+            </span>
+            <form action={impersonation.exit}>
+              <button className="font-semibold underline">Back to Engine</button>
+            </form>
+          </div>
+        ) : null}
         <header className="sticky top-0 z-30 flex h-18 items-center gap-3 border-b border-line bg-canvas/90 px-4 backdrop-blur md:px-6">
           <button
             type="button"

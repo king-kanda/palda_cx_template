@@ -643,3 +643,35 @@ export type Handoff = typeof handoffs.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
 export type Approval = typeof approvals.$inferSelect;
 export type AgentRun = typeof agentRuns.$inferSelect;
+
+/* ───────────────────── Platform (Palda staff, not a tenant) ───────────────────── */
+
+/**
+ * People who run the Engine: set up customers, name their agents and roll them out.
+ * Deliberately not tenant-scoped (no tenant_id, no RLS): these accounts sit above tenants.
+ */
+export const platformAdmins = pgTable("platform_admins", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull().unique(),
+  name: text("name").notNull(),
+  passwordHash: text("password_hash").notNull(),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * email -> tenant lookup so people can sign in with just an email and password.
+ * Kept in sync with `users` by a trigger (migration 0003). Not row-level-secured on purpose:
+ * `users` is, so a cross-tenant lookup is otherwise impossible under the restricted app role.
+ * It holds no secrets, only which businesses an email belongs to.
+ */
+export const loginIndex = pgTable(
+  "login_index",
+  {
+    email: text("email").notNull(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.email, t.tenantId] })],
+);

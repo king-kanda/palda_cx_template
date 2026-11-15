@@ -24,10 +24,9 @@ x-app: &app
     WHATSAPP_MODE: ${WHATSAPP_MODE:-mock}
     MPESA_MODE: ${MPESA_MODE:-mock}
     MEETINGS_MODE: ${MEETINGS_MODE:-mock}
-    # Self-serve business setup at /onboarding. Set ONBOARDING_CODE to require an invite code;
-    # set ONBOARDING_ENABLED=false (and no code) to close it. Open by default for demos.
-    ONBOARDING_ENABLED: ${ONBOARDING_ENABLED:-true}
-    ONBOARDING_CODE: ${ONBOARDING_CODE:-}
+    QDRANT_URL: http://qdrant:6333
+    QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+    VECTOR_MODE: ${VECTOR_MODE:-qdrant}
   restart: unless-stopped
 
 services:
@@ -46,6 +45,24 @@ services:
       - garden_pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d garden_bookings"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Vector database for agent knowledge and memory. Postgres stays the source of truth (it holds the text, under RLS);
+  # Qdrant holds only vectors plus a tenant_id filter. See packages/integrations/src/vector.ts for the isolation rules.
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    container_name: garden_qdrant
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:-}
+    ports:
+      - "127.0.0.1:6333:6333"
+    volumes:
+      - garden_qdrant:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -106,3 +123,4 @@ services:
 
 volumes:
   garden_pgdata:
+  garden_qdrant:

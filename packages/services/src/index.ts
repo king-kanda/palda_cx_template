@@ -23,3 +23,5 @@ export * from "./expenses";
 export { seedDemoTenant, type SeedOptions } from "./seed";
 export * from "./onboarding";
 export * from "./accounts";
+export * from "./engine";
+export * from "./telemetry";

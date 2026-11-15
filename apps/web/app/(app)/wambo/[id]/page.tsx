@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Bot, CheckCheck, UserRound } from "lucide-react";
 import {
   getConversationThread,
+  getSettings,
   listConversations,
   listHandoffs,
   withPrincipal,
@@ -49,9 +50,10 @@ export default async function WamboThreadPage({
     notFound();
   }
 
-  const [conversations, handoffs] = await Promise.all([
+  const [conversations, handoffs, settings] = await Promise.all([
     withPrincipal(principal, (ctx) => listConversations(ctx)),
     withPrincipal(principal, (ctx) => listHandoffs(ctx, { status: "open" })),
+    withPrincipal(principal, (ctx) => getSettings(ctx)),
   ]);
   const openHandoff = handoffs.find((row) => row.conversation.id === id)?.handoff ?? null;
 
@@ -84,14 +86,14 @@ export default async function WamboThreadPage({
               <p className="truncate text-base font-medium text-[#111b21]">{name}</p>
               <p className="flex items-center gap-1 truncate text-xs text-[#667781]">
                 {human ? <UserRound className="size-3.5" /> : <Bot className="size-3.5" />}
-                {human ? "Handled by a human" : "Handled by Wambo"}
+                {human ? "Handled by a human" : `Handled by ${settings.agentName}`}
                 {thread.customer?.phoneE164 ? ` · ${thread.customer.phoneE164}` : ""}
               </p>
             </div>
             <form action={human ? handBackAction : takeOverAction}>
               <input type="hidden" name="conversationId" value={id} />
               <button className="rounded-full bg-[#00a884] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#008069]">
-                {human ? "Hand back to Wambo" : "Take over"}
+                {human ? `Hand back to ${settings.agentName}` : "Take over"}
               </button>
             </form>
           </div>

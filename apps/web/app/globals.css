@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
 /* Design tokens — copied 1:1 from palda-homes (docs/UI-SPEC.md §2) */
 @theme {
   --color-brand-900: #163a30;
@@ -51,9 +53,19 @@ body {
   box-sizing: border-box;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+@layer base {
+  /* shadcn/ui expects every border to default to the palette hairline, not currentColor (that was the dark line on the sidebar). */
+  *,
+  ::after,
+  ::before,
+  ::backdrop {
+    border-color: var(--color-border);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 button,
@@ -282,4 +294,66 @@ select.input {
   right: -8px;
   border-top: 8px solid #d9fdd3;
   border-right: 8px solid transparent;
+}
+
+/*
+ * Engine console. Same green palda-homes palette as the rest of the app (no colour overrides); its layout comes from the
+ * reference console screenshots. The only Engine-specific styling is monospace numerals and small labels (JetBrains Mono).
+ */
+.engine-theme {
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  min-height: 100vh;
+}
+
+/*
+ * shadcn Sidebar variables, mapped onto the palda-homes palette: white surface, hairline border, muted hover.
+ * The ACTIVE item is lime-400 with brand-900 text (set on the menu buttons, as in palda-homes).
+ */
+:root {
+  --sidebar: var(--color-surface);
+  --sidebar-foreground: var(--color-ink);
+  --sidebar-primary: var(--color-brand-800);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--color-surface-muted);
+  --sidebar-accent-foreground: var(--color-ink);
+  --sidebar-border: var(--color-line);
+  --sidebar-ring: var(--color-brand-700);
+}
+
+/*
+ * shadcn/ui base tokens, mapped onto the palda-homes palette so every shadcn + Radix component (menus, sheets, tooltips)
+ * uses the same green design system. Never put hex values here: point at the palda tokens.
+ */
+@theme inline {
+  --color-background: var(--color-canvas);
+  --color-foreground: var(--color-ink);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-ink);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-ink);
+  --color-primary: var(--color-brand-800);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--color-surface-muted);
+  --color-secondary-foreground: var(--color-ink);
+  --color-muted: var(--color-surface-muted);
+  --color-muted-foreground: var(--color-ink-muted);
+  --color-accent: var(--color-lime-100);
+  --color-accent-foreground: var(--color-brand-900);
+  --color-destructive: var(--color-danger-600);
+  --color-border: var(--color-line);
+  --color-input: var(--color-line);
+  --color-ring: var(--color-brand-700);
+}
+
+@theme inline {
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 }
