@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { schema } from "@garden/db";
 import type { Booking, Customer, Invoice, Offering, Payment } from "@garden/db";
+import { mix, type Brand } from "./brand";
 import { audit, getSettings, type ServiceContext } from "./context";
 import { cancelReminders } from "./reminders";
 import { renderTemplate, sendProactive } from "./notify";
@@ -264,6 +265,9 @@ export async function getInvoiceDetail(ctx: ServiceContext, invoiceId: string) {
 
 export function invoicePdfData(input: {
   businessName: string;
+  /** The business's address and branding (colours, logo, contact). Optional so older callers keep working. */
+  businessAddress?: string;
+  brand?: Brand;
   invoice: Invoice;
   booking: Booking;
   customer: Customer;
@@ -271,7 +275,7 @@ export function invoicePdfData(input: {
   addons: { description: string; qty: number; unitPriceKes: number }[];
   paidKes: number;
 }) {
-  const { invoice, booking, customer, offering, addons, paidKes, businessName } = input;
+  const { invoice, booking, customer, offering, addons, paidKes, businessName, businessAddress, brand } = input;
   const eventDate = formatNairobi(booking.startsAt);
   const eventTime = formatNairobiTime(booking.startsAt);
   const items =
@@ -296,6 +300,19 @@ export function invoicePdfData(input: {
         ];
   return {
     businessName,
+    businessAddress: businessAddress || undefined,
+    businessPhone: brand?.phone || undefined,
+    brand: brand
+      ? {
+          primary: brand.primary,
+          primaryLight: mix(brand.primary, "#ffffff", 0.88),
+          logo: brand.logo,
+          website: brand.website || undefined,
+          email: brand.email || undefined,
+          phone: brand.phone || undefined,
+          tagline: brand.tagline || undefined,
+        }
+      : undefined,
     invoiceNumber: invoice.number,
     kind: invoice.kind,
     status: invoice.status,

@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { schema, withTenant, type DbOrTx } from "@garden/db";
 import { getPreset, type Preset, type WorkingHours } from "@garden/verticals";
 import { actorOf, NotFoundError, type Principal } from "./types";
+import { parseBrand, type Brand } from "./brand";
 
 export type ServiceContext = {
   db: DbOrTx;
@@ -59,6 +60,10 @@ export type TenantSettings = {
   agentNotes: string;
   /** Whether the agent may greet with its first name on the first message of a chat. */
   agentIntro: "name" | "none";
+  /** The business address (from its details), for invoices and public pages. May be empty. */
+  location: string;
+  /** The business's branding: colours, logo, website, socials and contact details. Always complete. */
+  brand: Brand;
   /** Small data: URL (png/jpeg/webp) shown wherever the agent appears, or null. */
   agentAvatar: string | null;
   /** Phase 6 pilot: Wambo drafts replies for staff approval instead of sending. */
@@ -121,6 +126,8 @@ export async function getSettings(ctx: ServiceContext): Promise<TenantSettings> 
     agentTone: asString(brand.tone, ""),
     agentNotes: asString(brand.agentNotes, ""),
     agentIntro: brand.agentIntro === "none" ? "none" : "name",
+    location: asString(business.location, ""),
+    brand: parseBrand(brand),
     agentAvatar: typeof brand.agentAvatar === "string" && brand.agentAvatar.startsWith("data:image/") ? brand.agentAvatar : null,
     shadowMode: business.shadowMode === true,
   };

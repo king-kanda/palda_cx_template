@@ -7,11 +7,13 @@ import {
   resetOwnerPassword,
   rolloutCustomer,
   activateAgentVersion,
-  addExternalServer,
+  addBusinessDocument,
   addKnowledgeDocument,
+  deleteBusinessDocument,
   deleteExternalServer,
   setExternalServerStatus,
   setExternalToolsEnabled,
+  updateBrand,
   syncExternalServer,
   deleteKnowledgeDocument,
   deleteMemoryAsAdmin,
@@ -207,23 +209,6 @@ export async function reindexKnowledgeAction(formData: FormData): Promise<void> 
   revalidatePath(`/engine/${tenantId}/agent/knowledge`);
 }
 
-/** Connect an external MCP server for this customer. Connects once to prove it works; every tool starts switched off. */
-export async function addExternalServerAction(_prev: EngineFormState, formData: FormData): Promise<EngineFormState> {
-  const admin = await requireEngineAdmin();
-  const tenantId = idOf(formData);
-  try {
-    const res = await addExternalServer(admin.id, tenantId, {
-      name: String(formData.get("name") ?? ""),
-      url: String(formData.get("url") ?? ""),
-      token: String(formData.get("token") ?? ""),
-    });
-    revalidatePath(`/engine/${tenantId}/agent/integrations`);
-    return { ok: true, message: `Connected. Found ${res.toolCount} tool${res.toolCount === 1 ? "" : "s"}. Review them below and switch on the ones this agent should use.` };
-  } catch (error) {
-    return { error: messageOf(error) };
-  }
-}
-
 export async function syncExternalServerAction(_prev: EngineFormState, formData: FormData): Promise<EngineFormState> {
   const admin = await requireEngineAdmin();
   const tenantId = idOf(formData);
@@ -272,6 +257,59 @@ export async function deleteExternalServerAction(formData: FormData): Promise<vo
   const tenantId = idOf(formData);
   await deleteExternalServer(admin.id, tenantId, String(formData.get("serverId") ?? ""));
   revalidatePath(`/engine/${tenantId}/agent/integrations`);
+}
+
+/** Save a customer's branding. The logo is only touched when it was changed (empty means removed). */
+export async function saveBrandAction(_prev: EngineFormState, formData: FormData): Promise<EngineFormState> {
+  const admin = await requireEngineAdmin();
+  const tenantId = idOf(formData);
+  try {
+    await updateBrand(admin.id, tenantId, {
+      primary: String(formData.get("primary") ?? ""),
+      accent: String(formData.get("accent") ?? ""),
+      website: String(formData.get("website") ?? ""),
+      tagline: String(formData.get("tagline") ?? ""),
+      instagram: String(formData.get("instagram") ?? ""),
+      facebook: String(formData.get("facebook") ?? ""),
+      tiktok: String(formData.get("tiktok") ?? ""),
+      linkedin: String(formData.get("linkedin") ?? ""),
+      email: String(formData.get("email") ?? ""),
+      phone: String(formData.get("phone") ?? ""),
+      logo: formData.get("logoChanged") === "1" ? String(formData.get("logo") ?? "") || null : undefined,
+    });
+  } catch (error) {
+    return { error: messageOf(error) };
+  }
+  revalidatePath(`/engine/${tenantId}`);
+  return { ok: true, message: "Branding saved. It shows in their app straight away." };
+}
+
+/** Upload a business document for this customer. */
+export async function addDocumentAction(_prev: EngineFormState, formData: FormData): Promise<EngineFormState> {
+  const admin = await requireEngineAdmin();
+  const tenantId = idOf(formData);
+  try {
+    const file = formData.get("file");
+    if (!(file instanceof File) || file.size === 0) return { error: "Choose a file to upload." };
+    if (file.size > 5 * 1024 * 1024) return { error: "That file is too large. The limit is 5 MB." };
+    await addBusinessDocument(admin.id, tenantId, {
+      title: String(formData.get("title") ?? ""),
+      kind: String(formData.get("kind") ?? "other"),
+      filename: file.name,
+      bytes: new Uint8Array(await file.arrayBuffer()),
+    });
+    revalidatePath(`/engine/${tenantId}/business/documents`);
+    return { ok: true, message: "Uploaded. It now shows in their app under Documents." };
+  } catch (error) {
+    return { error: messageOf(error) };
+  }
+}
+
+export async function deleteDocumentAction(formData: FormData): Promise<void> {
+  const admin = await requireEngineAdmin();
+  const tenantId = idOf(formData);
+  await deleteBusinessDocument(admin.id, tenantId, String(formData.get("documentId") ?? ""));
+  revalidatePath(`/engine/${tenantId}/business/documents`);
 }
 
 export async function deleteMemoryAction(formData: FormData): Promise<void> {

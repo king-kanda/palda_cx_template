@@ -7,10 +7,10 @@ How each customer's agent is configured from the Engine, what it knows, and what
 | Screen | Path | What it controls |
 | --- | --- | --- |
 | Profile & voice | `/engine/<id>/agent` | Name, picture, tone, notes (built into the persona by `applyAgentProfile`) |
-| Tools | `/engine/<id>/agent/tools` | Which tools the customer-facing agent may use, and the max tool calls per message |
+| Tools | `/engine/<id>/agent/tools` | Everything the agent may do: the built-in tools, then the tools from integrations the customer connected, each switched on or off here. Also max tool calls per message |
 | Knowledge | `/engine/<id>/agent/knowledge` | Documents the agent can search (policies, FAQs). Has a "Try a question" box showing what it would find |
 | Memory | `/engine/<id>/agent/memory` | Facts the agent has saved about this customer's end-customers, with delete |
-| Integrations | `/engine/<id>/agent/integrations` | External MCP servers (calendar, CRM): connect, review tools, switch on, sync, disable (section 4b) |
+| Integrations | `/engine/<id>/agent/integrations` | A list of the outside tools this customer has connected themselves (section 4b). Read-mostly: pause or remove for support |
 | Runs | `/engine/<id>/runs` | Every agent run, with trace links |
 
 ### Tools: versions, not edits
@@ -64,14 +64,25 @@ Ownership is enforced in the services, not just the tool: a customer principal c
 
 The agent can list the invoices of the customer it is talking to, not other customers. A customer-facing agent never sees the customer list: that would expose one customer's details to another. Staff-side agents (admin, ops) can list customers as before.
 
-## 4b. External MCP servers (Engine, Agent > Integrations)
+## 4b. External MCP servers (customer connects, Palda team decides)
 
-Lets the Palda team connect an outside MCP server (a calendar, a CRM) to one customer's agent. The customer never sees or edits it.
+A customer connects an outside tool (a calendar, a CRM) to their own agent from **Integrations in their app**. The Palda team then decides, on the Engine's **Tools** screen, which of its tools the agent may use. The Engine's **Integrations** screen is a list of what each customer has connected, so the team knows what is in play.
+
+Who can do what:
+
+| | Customer owner | Customer staff | Palda team (Engine) |
+| --- | --- | --- | --- |
+| Connect a server (address, optional token) | yes | no | no (the customer does this) |
+| Re-check, pause, resume, remove | yes | no | pause or remove, for support |
+| See the tools and their status | yes | yes | yes |
+| **Switch a tool on or off** | **no** | no | **yes, on the Tools screen** |
+
+The tenant always comes from the signed-in session, never the form, and the service refuses an owner switching a tool on (`ForbiddenError`).
 
 How it works:
 
-1. Staff add a server: a short name, an https address, and an optional bearer token. The Engine connects once to prove it works and reads its tools. **Every tool starts off.**
-2. Staff read each tool's name, description and inputs and switch on only what that agent needs. Tools appear to the agent as `ext_<server>_<tool>` and never replace a built-in tool.
+1. The owner adds a server: a short name, an https address, and an optional bearer token. The app connects once to prove it works and reads its tools. **Every tool starts off.** The customer sees each tool as "waiting for review".
+2. The Palda team reads each tool's name, description and inputs on the Tools screen and switches on only what that agent needs. Tools appear to the agent as `ext_<server>_<tool>` and never replace a built-in tool.
 3. Each approved tool is bound to a **fingerprint** of exactly what staff reviewed. If the server later changes a tool (name, description or inputs), **Sync tools** switches it off and flags it "changed" until staff review it again. This defends against a server rewriting a description to steer the agent.
 4. A server can be assigned to specific agents (default: the customer-facing one), disabled with one click, or removed. Every change is in `audit_log` (`engine.mcp_*`).
 

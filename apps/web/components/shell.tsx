@@ -14,6 +14,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ReceiptText,
+  FileText,
+  Plug,
   Settings,
   Star,
   Users,
@@ -34,6 +36,8 @@ const NAV: NavItem[] = [
   { href: "/expenses", label: "Expenses", icon: Wallet },
   { href: "/reviews", label: "Reviews", icon: Star },
   { href: "/wambo", label: "Wambo", icon: MessageCircle },
+  { href: "/documents", label: "Documents", icon: FileText },
+  { href: "/integrations", label: "Integrations", icon: Plug },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -83,6 +87,7 @@ const collapsedStore = {
 
 function SidebarContent({
   businessName,
+  logo,
   navLabels,
   agent,
   collapsed,
@@ -91,6 +96,8 @@ function SidebarContent({
   onClose,
 }: {
   businessName: string;
+  /** The business's logo (a small data URL), or null to show the default mark. */
+  logo?: string | null;
   navLabels: Record<string, string>;
   agent: { name: string; avatar: string | null };
   collapsed: boolean;
@@ -102,7 +109,12 @@ function SidebarContent({
   return (
     <div className="flex h-full flex-col">
       <div className={`flex h-18 items-center gap-2 px-5 ${collapsed ? "justify-center px-0" : ""}`}>
-        <LogoMark />
+        {logo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logo} alt="" className="size-8 shrink-0 rounded-lg object-contain" />
+        ) : (
+          <LogoMark />
+        )}
         {!collapsed && (
           <span className="truncate text-lg font-bold tracking-tight text-ink">
             {businessName.toUpperCase()}
@@ -262,6 +274,7 @@ function UserMenu({
 
 export function AppShell({
   businessName,
+  logo = null,
   navLabels = {},
   agent = { name: "Wambo", avatar: null },
   impersonation,
@@ -271,6 +284,8 @@ export function AppShell({
   children,
 }: {
   businessName: string;
+  /** The business's logo, set in the Engine. */
+  logo?: string | null;
   /** Vertical-specific names for nav entries, keyed by href (e.g. "/bookings": "Jobs"). */
   navLabels?: Record<string, string>;
   /** The business’s agent, as named and pictured by the Palda team. */
@@ -304,6 +319,7 @@ export function AppShell({
       >
         <SidebarContent
           businessName={businessName}
+          logo={logo}
           navLabels={navLabels}
           agent={agent}
           collapsed={collapsed}
@@ -320,6 +336,7 @@ export function AppShell({
           <aside className="absolute inset-y-0 left-0 w-72 bg-surface shadow-lg">
             <SidebarContent
               businessName={businessName}
+              logo={logo}
               navLabels={navLabels}
               agent={agent}
               collapsed={false}

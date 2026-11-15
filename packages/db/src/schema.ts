@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  customType,
   index,
   integer,
   jsonb,
@@ -773,4 +774,33 @@ export const tenantMcpServers = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("tenant_mcp_servers_name_uq").on(t.tenantId, t.name)],
+);
+
+/* ───────────────────── Business documents ─────────────────────
+ * Files the Palda team keeps for a customer: brochures, price lists, terms, contract and quote templates. Stored in Postgres
+ * (small, backed up with everything else, and under the same row-level security). Never served inline: downloads only.
+ */
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
+
+export const businessDocuments = pgTable(
+  "business_documents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    kind: text("kind").notNull().default("other"), // brochure | price_list | terms | contract | template | other
+    filename: text("filename").notNull(),
+    mime: text("mime").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    data: bytea("data").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("business_documents_tenant_idx").on(t.tenantId, t.createdAt)],
 );

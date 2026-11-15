@@ -8,7 +8,7 @@ import {
   listExternalTools,
   toolFingerprint,
 } from "@garden/integrations";
-import { NotFoundError, ValidationError } from "./types";
+import { ForbiddenError, NotFoundError, ValidationError } from "./types";
 
 /**
  * External MCP servers for ONE customer's agent, set up by the Palda team in the Engine.
@@ -19,17 +19,23 @@ import { NotFoundError, ValidationError } from "./types";
  * steer the agent. The token is encrypted at rest and never leaves this module.
  */
 
-const actor = (adminId: string) => `engine:${adminId}`;
+/**
+ * Who is acting. A plain string is a Palda admin id (the Engine). `{ kind: "owner" }` is a customer's owner connecting or
+ * removing THEIR OWN integrations from their app. An owner can add, re-check, disable and remove; only the Palda team can switch
+ * a tool on, because that decides what the agent is allowed to do.
+ */
+export type McpActor = string | { kind: "engine" | "owner"; id: string };
+const actorLabel = (by: McpActor) => (typeof by === "string" ? `engine:${by}` : `${by.kind}:${by.id}`);
 
 async function audit(
   tx: Parameters<Parameters<typeof withTenant>[1]>[0],
-  adminId: string,
+  by: McpActor,
   tenantId: string,
   action: string,
   entityId: string,
   diff?: Record<string, unknown>,
 ) {
-  await tx.insert(schema.auditLog).values({ tenantId, actor: actor(adminId), action, entity: "mcp_server", entityId, diff: diff ?? null });
+  await tx.insert(schema.auditLog).values({ tenantId, actor: actorLabel(by), action, entity: "mcp_server", entityId, diff: diff ?? null });
 }
 
 async function requireTenant(tenantId: string) {
@@ -46,6 +52,8 @@ export type ExternalServerInfo = {
   hasToken: boolean;
   agents: string[];
   status: string;
+  /** Who connected it: the customer from their own app, or the Palda team. */
+  addedBy: "customer" | "palda";
   tools: ExternalToolRow[];
   enabledCount: number;
   lastSyncedAt: Date | null;
@@ -69,6 +77,7 @@ function present(row: typeof schema.tenantMcpServers.$inferSelect): ExternalServ
     hasToken: Boolean(row.secretEnc),
     agents: row.agents,
     status: row.status,
+    addedBy: row.createdBy.startsWith("owner:") ? "customer" : "palda",
     tools: row.tools,
     enabledCount: row.tools.filter((t) => t.enabled).length,
     lastSyncedAt: row.lastSyncedAt,
@@ -119,7 +128,7 @@ export function mergeTools(existing: ExternalToolRow[], fresh: { name: string; d
 
 /** Adds a server, then connects once to prove it works and to read its tools. Every tool starts switched off. */
 export async function addExternalServer(
-  adminId: string,
+  by: McpActor,
   tenantId: string,
   input: { name: string; url: string; token?: string },
 ): Promise<{ id: string; toolCount: number }> {
@@ -158,16 +167,16 @@ export async function addExternalServer(
         secretEnc: token ? encryptJson({ token }) : null,
         tools: mergeTools([], specs),
         lastSyncedAt: new Date(),
-        createdBy: actor(adminId),
+        createdBy: actorLabel(by),
       })
       .returning();
-    await audit(tx, adminId, tenantId, "engine.mcp_added", row!.id, { name, host: new URL(url).host, tools: specs.length });
+    await audit(tx, by, tenantId, "engine.mcp_added", row!.id, { name, host: new URL(url).host, tools: specs.length });
     return { id: row!.id, toolCount: specs.length };
   });
 }
 
 /** Re-reads the server's tools. Approved tools that changed are switched off and flagged; the rest keep their state. */
-export async function syncExternalServer(adminId: string, tenantId: string, serverId: string) {
+export async function syncExternalServer(by: McpActor, tenantId: string, serverId: string) {
   const row = await getRow(tenantId, serverId);
   try {
     const specs = await listExternalTools({ url: row.url, token: tokenOf(row) });
@@ -178,7 +187,7 @@ export async function syncExternalServer(adminId: string, tenantId: string, serv
         .update(schema.tenantMcpServers)
         .set({ tools, lastSyncedAt: new Date(), lastError: null })
         .where(eq(schema.tenantMcpServers.id, serverId));
-      await audit(tx, adminId, tenantId, "engine.mcp_synced", serverId, { tools: tools.length, switchedOff: changed });
+      await audit(tx, by, tenantId, "engine.mcp_synced", serverId, { tools: tools.length, switchedOff: changed });
     });
     return { toolCount: tools.length, changed };
   } catch (error) {
@@ -191,30 +200,31 @@ export async function syncExternalServer(adminId: string, tenantId: string, serv
 }
 
 /** Switches exactly these tools on (everything else off). Binds each to the fingerprint staff just reviewed. */
-export async function setExternalToolsEnabled(adminId: string, tenantId: string, serverId: string, enabled: string[]) {
+export async function setExternalToolsEnabled(by: McpActor, tenantId: string, serverId: string, enabled: string[]) {
+  if (typeof by !== "string" && by.kind === "owner") throw new ForbiddenError("Only the Palda team can switch a tool on.");
   const row = await getRow(tenantId, serverId);
   const want = new Set(enabled);
   const tools = row.tools.map((t) => ({ ...t, enabled: want.has(t.name), changed: want.has(t.name) ? undefined : t.changed }));
   await withTenant(tenantId, async (tx) => {
     await tx.update(schema.tenantMcpServers).set({ tools }).where(eq(schema.tenantMcpServers.id, serverId));
-    await audit(tx, adminId, tenantId, "engine.mcp_tools_set", serverId, { enabled: tools.filter((t) => t.enabled).map((t) => t.name) });
+    await audit(tx, by, tenantId, "engine.mcp_tools_set", serverId, { enabled: tools.filter((t) => t.enabled).map((t) => t.name) });
   });
   return { enabled: tools.filter((t) => t.enabled).length };
 }
 
-export async function setExternalServerStatus(adminId: string, tenantId: string, serverId: string, status: "active" | "disabled") {
+export async function setExternalServerStatus(by: McpActor, tenantId: string, serverId: string, status: "active" | "disabled") {
   await getRow(tenantId, serverId);
   await withTenant(tenantId, async (tx) => {
     await tx.update(schema.tenantMcpServers).set({ status }).where(eq(schema.tenantMcpServers.id, serverId));
-    await audit(tx, adminId, tenantId, "engine.mcp_status", serverId, { status });
+    await audit(tx, by, tenantId, "engine.mcp_status", serverId, { status });
   });
 }
 
-export async function deleteExternalServer(adminId: string, tenantId: string, serverId: string) {
+export async function deleteExternalServer(by: McpActor, tenantId: string, serverId: string) {
   const row = await getRow(tenantId, serverId);
   await withTenant(tenantId, async (tx) => {
     await tx.delete(schema.tenantMcpServers).where(and(eq(schema.tenantMcpServers.tenantId, tenantId), eq(schema.tenantMcpServers.id, serverId)));
-    await audit(tx, adminId, tenantId, "engine.mcp_removed", serverId, { name: row.name });
+    await audit(tx, by, tenantId, "engine.mcp_removed", serverId, { name: row.name });
   });
 }
 

@@ -1,9 +1,8 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useState } from "react";
 import { RefreshCw, TriangleAlert } from "lucide-react";
 import {
-  addExternalServerAction,
   saveExternalToolsAction,
   syncExternalServerAction,
   type EngineFormState,
@@ -19,47 +18,6 @@ function Notice({ state }: { state: EngineFormState }) {
   }
   if (state.ok) return <p className="rounded-xl bg-lime-100 px-3 py-2 text-sm text-brand-900">{state.message}</p>;
   return null;
-}
-
-export function AddServerForm({ tenantId }: { tenantId: string }) {
-  const formRef = useRef<HTMLFormElement>(null);
-  const [state, action, pending] = useActionState<EngineFormState, FormData>(async (prev, formData) => {
-    const result = await addExternalServerAction(prev, formData);
-    if (result.ok) formRef.current?.reset();
-    return result;
-  }, {});
-
-  return (
-    <form ref={formRef} action={action} className="space-y-4">
-      <input type="hidden" name="tenantId" value={tenantId} />
-      <div className="grid gap-4 sm:grid-cols-[1fr_2fr]">
-        <div>
-          <label htmlFor="mcp-name" className="mb-1.5 block text-sm font-medium">
-            Name
-          </label>
-          <input id="mcp-name" name="name" className="input" placeholder="calendar" maxLength={16} required autoComplete="off" />
-          <p className="mt-1 text-xs text-ink-muted">Lowercase, used to label its tools.</p>
-        </div>
-        <div>
-          <label htmlFor="mcp-url" className="mb-1.5 block text-sm font-medium">
-            Server address
-          </label>
-          <input id="mcp-url" name="url" type="url" className="input" placeholder="https://mcp.example.com/mcp" required autoComplete="off" />
-          <p className="mt-1 text-xs text-ink-muted">Must be https. Addresses inside private networks are refused.</p>
-        </div>
-      </div>
-      <div>
-        <label htmlFor="mcp-token" className="mb-1.5 block text-sm font-medium">
-          Access token <span className="font-normal text-ink-muted">(if the server needs one)</span>
-        </label>
-        <input id="mcp-token" name="token" type="password" className="input" autoComplete="new-password" placeholder="Sent as a Bearer token. Stored encrypted, never shown again." />
-      </div>
-      <Notice state={state} />
-      <button className="btn btn-primary h-11 px-5" disabled={pending}>
-        {pending ? "Connecting…" : "Connect and read tools"}
-      </button>
-    </form>
-  );
 }
 
 export function SyncButton({ tenantId, serverId }: { tenantId: string; serverId: string }) {

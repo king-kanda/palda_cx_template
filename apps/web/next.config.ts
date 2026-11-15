@@ -16,7 +16,7 @@ const nextConfig: NextConfig = {
   ],
   serverExternalPackages: ["postgres", "pg-boss", "@react-pdf/renderer"],
   experimental: {
-    serverActions: { bodySizeLimit: "2mb" },
+    serverActions: { bodySizeLimit: "6mb" },
   },
 };
 

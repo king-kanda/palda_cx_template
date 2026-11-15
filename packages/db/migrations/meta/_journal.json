@@ -43,6 +43,13 @@
       "when": 1794747960738,
       "tag": "0005_external_mcp",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794750498500,
+      "tag": "0006_business_documents",
+      "breakpoints": true
     }
   ]
 }

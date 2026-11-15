@@ -1,10 +1,21 @@
 import React from "react";
-import { Document, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
 
 export type InvoicePdfData = {
   businessName: string;
   businessAddress?: string;
   businessPhone?: string;
+  /** The business's branding. The logo is only drawn when it is a PNG or JPEG (the PDF renderer supports nothing else). */
+  brand?: {
+    primary: string;
+    /** A very light tint of the main colour, for the status badge. */
+    primaryLight: string;
+    logo?: string | null;
+    website?: string;
+    email?: string;
+    phone?: string;
+    tagline?: string;
+  };
   invoiceNumber: string;
   kind: string;
   status: string;
@@ -73,20 +84,27 @@ function fmt(n: number): string {
   return `KES ${Math.round(n).toLocaleString("en-KE")}`;
 }
 
+const drawableLogo = (logo?: string | null) => (logo && /^data:image\/(png|jpeg);base64,/.test(logo) ? logo : null);
+
 function InvoiceDoc({ data }: { data: InvoicePdfData }) {
+  const primary = data.brand?.primary ?? "#c2410c";
+  const logo = drawableLogo(data.brand?.logo);
+  const contact = [data.brand?.website, data.brand?.email, data.brand?.phone ?? data.businessPhone].filter(Boolean).join("  ·  ");
   return (
     <Document title={`Invoice ${data.invoiceNumber}`} author={data.businessName}>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.brand}>{data.businessName}</Text>
-            <Text style={styles.muted}>{data.businessAddress ?? "Karen, Nairobi, Kenya"}</Text>
-            <Text style={styles.muted}>{data.businessPhone ?? ""}</Text>
+            {logo ? <Image src={logo} style={{ height: 38, maxWidth: 150, objectFit: "contain", marginBottom: 6 }} /> : null}
+            <Text style={[styles.brand, { color: primary }]}>{data.businessName}</Text>
+            {data.brand?.tagline ? <Text style={styles.muted}>{data.brand.tagline}</Text> : null}
+            {data.businessAddress ? <Text style={styles.muted}>{data.businessAddress}</Text> : null}
+            {data.businessPhone && !data.brand?.phone ? <Text style={styles.muted}>{data.businessPhone}</Text> : null}
           </View>
           <View>
             <Text style={styles.invoiceTitle}>INVOICE</Text>
             <Text style={styles.muted}>{data.invoiceNumber}</Text>
-            <Text style={[styles.badge, { marginTop: 6, alignSelf: "flex-end" }]}>{data.status}</Text>
+            <Text style={[styles.badge, { marginTop: 6, alignSelf: "flex-end", color: primary, backgroundColor: data.brand?.primaryLight ?? "#fff7ed" }]}>{data.status}</Text>
           </View>
         </View>
 
@@ -154,10 +172,13 @@ function InvoiceDoc({ data }: { data: InvoicePdfData }) {
           </View>
         </View>
 
-        <Text style={styles.footer}>
-          {data.businessName} · Thank you for booking with us. Payment via M-Pesa Till or bank transfer.
-          {data.notes ? ` · ${data.notes}` : ""}
-        </Text>
+        <View style={styles.footer}>
+          {contact ? <Text style={{ color: primary, marginBottom: 3 }}>{contact}</Text> : null}
+          <Text>
+            {data.businessName} · Thank you for booking with us. Payment via M-Pesa Till or bank transfer.
+            {data.notes ? ` · ${data.notes}` : ""}
+          </Text>
+        </View>
       </Page>
     </Document>
   );

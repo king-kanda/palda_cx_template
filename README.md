@@ -105,6 +105,8 @@ meeting link, tenant isolation, Swahili and capacity rejection.
   invariants, review checklist.
 - [`docs/claude-handoff.md`](docs/claude-handoff.md) — current build position, phase
   and vertical readiness, the last batch built, and what is pending.
+- [`docs/BRANDING.md`](docs/BRANDING.md) — per-business branding (logo, colours, website,
+  contact) and the documents library, and where they show.
 - [`docs/AGENT-CONTROLS.md`](docs/AGENT-CONTROLS.md) — per-customer tool controls, Qdrant
   knowledge and memory, evals.
 - [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md) — UI style guide: colour tokens,

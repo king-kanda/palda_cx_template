@@ -1,14 +1,14 @@
 import { notFound } from "next/navigation";
-import { getIntakeForm, getTenantBySlug, systemPrincipal, withPrincipal } from "@garden/services";
+import { getIntakeForm, getSettings, getTenantBySlug, systemPrincipal, withPrincipal } from "@garden/services";
 import { dateTime } from "@/lib/format";
-import { LogoMark } from "@/components/ui";
+import { BrandMark, BrandStyle } from "@/components/brand";
 import { submitIntakeAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export const metadata = { title: "Session intake · Palda CX" };
+export const metadata = { title: "Session intake" };
 
 export default async function IntakePage({
   params,
@@ -24,6 +24,9 @@ export default async function IntakePage({
   const tenant = await getTenantBySlug(tenantSlug);
   if (!tenant) notFound();
 
+  // The business's own look: its colours and logo, set in the Engine.
+  const { brand } = await withPrincipal(systemPrincipal(tenant.id, "intake-brand"), (ctx) => getSettings(ctx));
+
   let form: Awaited<ReturnType<typeof getIntakeForm>>;
   try {
     form = await withPrincipal(systemPrincipal(tenant.id, "intake-form"), (ctx) =>
@@ -36,8 +39,9 @@ export default async function IntakePage({
   if (form.cancelled) {
     return (
       <main className="min-h-screen grid place-items-center px-4 py-12">
+        <BrandStyle brand={brand} />
         <div className="w-full max-w-xl card p-8 text-center">
-          <LogoMark className="mx-auto mb-3 size-12 text-brand-800" />
+          <BrandMark brand={brand} className="mx-auto mb-3 size-12" />
           <h1 className="text-xl font-semibold">This booking was cancelled</h1>
           <p className="mt-2 text-sm text-ink-muted">
             The form is closed. Contact {form.businessName} if you need a new session.
@@ -49,9 +53,10 @@ export default async function IntakePage({
 
   return (
     <main className="min-h-screen grid place-items-center px-4 py-12">
+      <BrandStyle brand={brand} />
       <div className="w-full max-w-xl">
         <div className="mb-6 text-center">
-          <LogoMark className="mx-auto mb-3 size-12 text-brand-800" />
+          <BrandMark brand={brand} className="mx-auto mb-3 size-12" />
           <h1 className="text-2xl font-semibold tracking-tight">Session intake</h1>
           <p className="mt-1 text-sm text-ink-muted">
             {form.businessName} · {form.offeringName} · {dateTime(form.startsAt)}

@@ -1,10 +1,11 @@
 import { WAMBO } from "@garden/engine";
 import { TOOLS } from "@garden/mcp-server";
-import { CUSTOMER_SCOPES, getAgentControl, getEngineCustomer } from "@garden/services";
+import { CUSTOMER_SCOPES, getAgentControl, getEngineCustomer, listExternalServers } from "@garden/services";
 import { requireEngineAdmin } from "@/lib/engine-auth";
 import { Panel } from "../../../../components/ui";
 import { activateVersionAction } from "../../actions";
 import { WorkspaceHeader } from "../../header";
+import { SyncButton, ToolReview, type ReviewTool } from "../integrations/integrations-forms";
 import { ToolsForm, type ToolRow } from "./tools-form";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +24,7 @@ function catalogue(): ToolRow[] {
 export default async function AgentToolsPage({ params }: { params: Promise<{ id: string }> }) {
   await requireEngineAdmin();
   const { id } = await params;
-  const [customer, control] = await Promise.all([getEngineCustomer(id), getAgentControl(id, "wambo")]);
+  const [customer, control, servers] = await Promise.all([getEngineCustomer(id), getAgentControl(id, "wambo"), listExternalServers(id)]);
   const tools = catalogue();
   const known = new Set(tools.map((t) => t.name));
   const blocked = (control.live?.override?.toolPolicy.blockedTools ?? []).filter((n) => known.has(n));
@@ -34,7 +35,7 @@ export default async function AgentToolsPage({ params }: { params: Promise<{ id:
       <WorkspaceHeader
         customer={customer}
         title="Tools"
-        subtitle={`What ${customer.agent.name} is allowed to do for ${customer.name}. Changes are saved as a new version you can roll back.`}
+        subtitle={`Everything ${customer.agent.name} is allowed to do for ${customer.name}: the built-in actions, then the tools from integrations the customer connected. Built-in changes are saved as a new version you can roll back.`}
       />
       <div className="grid items-start gap-5 xl:grid-cols-[1.6fr_1fr]">
         <Panel
@@ -86,6 +87,52 @@ export default async function AgentToolsPage({ params }: { params: Promise<{ id:
           </ul>
         </Panel>
       </div>
+
+      <Panel
+        title="Tools from the customer's integrations"
+        aside={servers.length ? `${servers.reduce((n, x) => n + x.enabledCount, 0)} of ${servers.reduce((n, x) => n + x.tools.length, 0)} on` : "none connected"}
+      >
+        {servers.length === 0 ? (
+          <p className="text-sm text-ink-muted">
+            When {customer.name} connects a tool from their own app, its tools appear here, switched off, for you to review. See the list on Integrations.
+          </p>
+        ) : (
+          <div className="space-y-6">
+            <p className="text-xs text-ink-muted">
+              Every tool starts off. Read what it does, then switch on only what {customer.agent.name} needs. If a server changes a tool you approved, it switches off and is flagged until you review it again.
+            </p>
+            {servers.map((srv) => {
+              const tools: ReviewTool[] = srv.tools.map((t) => ({
+                name: t.name,
+                description: t.description,
+                enabled: t.enabled,
+                changed: Boolean(t.changed),
+                params: Object.keys(((t.inputSchema as { properties?: Record<string, unknown> }).properties ?? {})).slice(0, 12),
+              }));
+              return (
+                <section key={srv.id}>
+                  <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                        <span className="font-mono">{srv.name}</span>
+                        <span className={`pill ${srv.status === "active" ? "bg-lime-100 text-brand-800" : "bg-surface-muted text-ink-muted"}`}>
+                          {srv.status === "active" ? "connected" : "paused"}
+                        </span>
+                      </h3>
+                      <p className="font-mono text-xs text-ink-muted">
+                        {srv.host} · added by {srv.addedBy === "customer" ? "the customer" : "the Palda team"}
+                      </p>
+                      {srv.lastError ? <p className="text-xs text-danger-600">Last problem: {srv.lastError}</p> : null}
+                    </div>
+                    <SyncButton tenantId={id} serverId={srv.id} />
+                  </div>
+                  <ToolReview tenantId={id} serverId={srv.id} serverName={srv.name} tools={tools} />
+                </section>
+              );
+            })}
+          </div>
+        )}
+      </Panel>
     </div>
   );
 }

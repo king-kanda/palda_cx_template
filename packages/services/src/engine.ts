@@ -4,6 +4,7 @@ import { passwordHash } from "@garden/integrations";
 import { getPreset, type WorkingHours } from "@garden/verticals";
 import { z } from "zod";
 import { generateTempPassword } from "./accounts";
+import { brandSchema, checkBrandColors, type BrandInput } from "./brand";
 import { agentProfileSchema, createBusiness, type OnboardingInput, type OnboardingResult } from "./onboarding";
 import { NotFoundError, ValidationError } from "./types";
 
@@ -573,6 +574,41 @@ export async function activateAgentVersion(adminId: string, tenantId: string, ag
     await audit(tx, adminId, tenantId, "engine.agent_version_activated", {
       agentId,
       version: target?.version ?? "defaults",
+    });
+  });
+}
+
+/* ───────────────────────────── Business branding ───────────────────────────── */
+
+/**
+ * Saves a customer's branding: colours, logo, website, socials and contact details. Colours are checked for readable contrast
+ * before anything is saved. The logo is only touched when one is supplied (null removes it).
+ */
+export async function updateBrand(adminId: string, tenantId: string, raw: BrandInput) {
+  const parsed = brandSchema.safeParse(raw);
+  if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "Invalid branding");
+  const b = parsed.data;
+  const problems = checkBrandColors(b.primary, b.accent);
+  if (problems.length) throw new ValidationError(problems[0]!);
+  await requireTenant(tenantId);
+  await withTenant(tenantId, async (tx) => {
+    await mergeConfig(tx, tenantId, "brand", {
+      colors: { primary: b.primary.toUpperCase(), accent: b.accent.toUpperCase() },
+      website: b.website,
+      tagline: b.tagline,
+      instagram: b.instagram,
+      facebook: b.facebook,
+      tiktok: b.tiktok,
+      linkedin: b.linkedin,
+      email: b.email,
+      phone: b.phone,
+      ...(b.logo === undefined ? {} : { logo: b.logo ?? undefined }),
+    });
+    await audit(tx, adminId, tenantId, "engine.brand_updated", {
+      primary: b.primary,
+      accent: b.accent,
+      logo: b.logo === undefined ? "unchanged" : b.logo ? "set" : "removed",
+      website: Boolean(b.website),
     });
   });
 }

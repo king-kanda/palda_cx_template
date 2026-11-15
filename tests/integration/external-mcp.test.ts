@@ -298,6 +298,38 @@ describe.skipIf(!enabled)("external MCP servers (needs Postgres)", () => {
     expect(await listExternalServers(a)).toEqual([]);
   });
 
+  it("a customer's owner can connect and manage their own integration, but cannot switch a tool on", async () => {
+    const owner = { kind: "owner" as const, id: "owner-user-1" };
+    const res = await addExternalServer(owner, b, { name: "crm", url, token: "secret-token-123" });
+    const [s] = await listExternalServers(b);
+    expect(s!.addedBy).toBe("customer");
+    expect(s!.tools.every((t) => !t.enabled)).toBe(true);
+
+    // Only the Palda team decides what the agent may do
+    await expect(setExternalToolsEnabled(owner, b, res.id, ["create_event"])).rejects.toThrow(/Palda team/);
+    expect(await loadEnabledExternalTools(b, "wambo")).toEqual([]);
+
+    // Another customer's owner cannot reach this server by id
+    await expect(syncExternalServer({ kind: "owner", id: "someone-else" }, a, res.id)).rejects.toThrow();
+    await expect(deleteExternalServer({ kind: "owner", id: "someone-else" }, a, res.id)).rejects.toThrow();
+
+    await syncExternalServer(owner, b, res.id);
+    await setExternalServerStatus(owner, b, res.id, "disabled");
+    await setExternalServerStatus(owner, b, res.id, "active");
+
+    // The Palda team reviews and switches one tool on; it reaches only this customer's agent
+    await setExternalToolsEnabled(adminId, b, res.id, ["list_events"]);
+    expect((await loadEnabledExternalTools(b, "wambo")).map((x) => x.tool.name)).toEqual(["list_events"]);
+    expect(await loadEnabledExternalTools(a, "wambo")).toEqual([]);
+
+    await deleteExternalServer(owner, b, res.id);
+    expect(await listExternalServers(b)).toEqual([]);
+
+    const rows = await getDb().query.auditLog.findMany({ where: eq(schema.auditLog.tenantId, b) });
+    expect(rows.some((r) => r.action === "engine.mcp_added" && r.actor === "owner:owner-user-1")).toBe(true);
+    expect(JSON.stringify(rows)).not.toContain("secret-token-123");
+  });
+
   it("every change is audited", async () => {
     const rows = await getDb().query.auditLog.findMany({ where: eq(schema.auditLog.tenantId, a) });
     const actions = new Set(rows.map((r) => r.action));

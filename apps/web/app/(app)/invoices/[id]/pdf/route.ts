@@ -22,6 +22,8 @@ export async function GET(
 
     const data = invoicePdfData({
       businessName: settings.tenant.name,
+      businessAddress: settings.location,
+      brand: settings.brand,
       invoice: detail.invoice,
       booking: detail.booking,
       customer: detail.customer,

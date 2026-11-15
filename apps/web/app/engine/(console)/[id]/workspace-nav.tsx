@@ -50,6 +50,8 @@ const NAV: Item[] = [
     icon: Store,
     items: [
       { label: "Details & hours", path: "/business" },
+      { label: "Branding", path: "/business/branding" },
+      { label: "Documents", path: "/business/documents" },
       { label: "Team & services", path: "/team" },
     ],
   },

@@ -28,3 +28,5 @@ export * from "./telemetry";
 export * from "./knowledge";
 export * from "./external-mcp";
 export * from "./natural";
+export * from "./brand";
+export * from "./documents";

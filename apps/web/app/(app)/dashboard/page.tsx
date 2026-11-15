@@ -86,7 +86,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="mt-5 grid gap-5 xl:grid-cols-[1.3fr_1fr]">
-        <section className="card p-5">
+        <section className="card min-w-0 p-5">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold">Next 7 days</h2>
             <Link className="text-sm font-medium text-brand-700 hover:underline" href="/calendar">
@@ -124,7 +124,7 @@ export default async function DashboardPage() {
           )}
         </section>
 
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <section className="card p-5">
             <h2 className="mb-3 text-lg font-semibold">Revenue · last 6 months</h2>
             <div className="flex h-40 items-end gap-2">

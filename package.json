@@ -24,7 +24,8 @@
     "eval:mock": "pnpm --filter @garden/engine eval:mock",
     "engine:admin": "pnpm --filter @garden/web engine:admin",
     "engine:reindex": "pnpm --filter @garden/web engine:reindex",
-    "engine:demo-runs": "pnpm --filter @garden/web engine:demo-runs"
+    "engine:demo-runs": "pnpm --filter @garden/web engine:demo-runs",
+    "engine:demo-brands": "pnpm --filter @garden/web engine:demo-brands"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
