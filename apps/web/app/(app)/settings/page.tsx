@@ -103,8 +103,22 @@ export default async function SettingsPage({
               <input
                 className="input"
                 name="location"
-                defaultValue={String(business.location ?? "Karen, Nairobi")}
+                defaultValue={String(business.location ?? "")}
+                placeholder="e.g. Kilimani, Nairobi"
               />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1.5 block text-sm font-medium">Review link</label>
+              <input
+                className="input"
+                type="url"
+                name="reviewLink"
+                defaultValue={settings.reviewLink}
+                placeholder="https://g.page/r/your-business/review"
+              />
+              <p className="mt-1 text-xs text-ink-muted">
+                Sent to happy customers when they rate you 4 or 5. Leave empty to skip the link.
+              </p>
             </div>
             <div className="sm:col-span-2 flex justify-end">
               <button className="btn btn-secondary text-xs">Save business</button>
@@ -114,7 +128,7 @@ export default async function SettingsPage({
 
         <Section title={`${titleCase(settings.labels.resource)}s`}>
           <p className="mb-3 text-xs text-ink-muted">
-            Spaces, staff, rooms or equipment. Parent spaces block their children.
+            Who or what can be booked. Parent spaces block their children.
           </p>
           <ul className="mb-3 divide-y divide-line">
             {resources.map((resource) => (
@@ -135,11 +149,12 @@ export default async function SettingsPage({
           </ul>
           <form action={createResourceAction} className="grid gap-2 sm:grid-cols-2">
             <input className="input" name="name" placeholder="Name" required />
-            <select className="input" name="kind" defaultValue="space">
-              <option value="space">Space</option>
-              <option value="staff">Staff</option>
-              <option value="room">Room</option>
-              <option value="equipment">Equipment</option>
+            <select className="input" name="kind" defaultValue={settings.preset.resourceKinds[0]}>
+              {settings.preset.resourceKinds.map((kind) => (
+                <option key={kind} value={kind}>
+                  {titleCase(kind)}
+                </option>
+              ))}
             </select>
             <input className="input" type="number" name="capacity" placeholder="Capacity" />
             <select className="input" name="parentResourceId" defaultValue="">
@@ -169,12 +184,13 @@ export default async function SettingsPage({
             ))}
           </ul>
           <form action={createOfferingAction} className="grid gap-2 sm:grid-cols-2">
-            <input className="input sm:col-span-2" name="name" placeholder="Package name" required />
-            <select className="input" name="resourceKind" defaultValue="space">
-              <option value="space">Space</option>
-              <option value="staff">Staff</option>
-              <option value="room">Room</option>
-              <option value="equipment">Equipment</option>
+            <input className="input sm:col-span-2" name="name" placeholder={`${titleCase(settings.labels.offering)} name`} required />
+            <select className="input" name="resourceKind" defaultValue={settings.preset.resourceKinds[0]}>
+              {settings.preset.resourceKinds.map((kind) => (
+                <option key={kind} value={kind}>
+                  {titleCase(kind)}
+                </option>
+              ))}
             </select>
             <input
               className="input"
@@ -193,7 +209,7 @@ export default async function SettingsPage({
             />
             <input className="input" type="number" name="bufferBeforeMin" placeholder="Buffer before" defaultValue={0} />
             <input className="input" type="number" name="bufferAfterMin" placeholder="Buffer after" defaultValue={0} />
-            <button className="btn btn-secondary text-xs sm:col-span-2">Add package</button>
+            <button className="btn btn-secondary text-xs sm:col-span-2">Add {settings.labels.offering.toLowerCase()}</button>
           </form>
         </Section>
 

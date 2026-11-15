@@ -1,4 +1,4 @@
-# Design System & Style Guide — Garden Booking OS
+# Design System & Style Guide — Palda CX
 
 > Last updated: **2026-11-15**
 > Source of truth for how the web app looks. The visual language is adopted **1:1 from the
@@ -149,6 +149,13 @@ Client component `AppShell`, rendered by `app/(app)/layout.tsx`. It replaced the
 - **Main** — `mx-auto w-full max-w-[1440px] flex-1 p-4 md:p-6`. **Footer** — `text-xs text-ink-subtle`.
 - **Nav list** (edit `NAV` in `shell.tsx`): Dashboard, Bookings, Calendar, Customers, Invoices & Payments, Expenses,
   Reviews, Wambo, Settings. `/approvals` is reachable from the bell and has its own title.
+
+### Onboarding (`app/onboarding/`)
+
+Public 5-step wizard on the `canvas` background: logo header, numbered progress dots (done = `brand-800` with a check, current = `lime-400`),
+then a single `.card`. Step 1 is a grid of selectable type cards (selected = `brand-800` border + `lime-100` fill + `brand-800` icon tile).
+Steps 2–5 use the standard `.input` fields and `.btn` buttons; the footer has Back (secondary) and Continue/Create (primary,
+disabled until the step is valid, with the reason shown beside it).
 
 ### Auth pages
 

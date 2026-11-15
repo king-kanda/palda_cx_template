@@ -11,6 +11,7 @@ import {
   withPrincipal,
   kes,
 } from "@garden/services";
+import { describeBookingAttributes } from "@garden/verticals";
 import { getSession } from "@/lib/auth";
 import { principalOf } from "@/lib/principal";
 import { dateTime, shortDate, titleCase } from "@/lib/format";
@@ -206,10 +207,10 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
               <thead>
                 <tr>
                   <th>Customer</th>
-                  <th>Event type</th>
+                  <th>Details</th>
                   <th>{settings.labels.resource}</th>
                   <th>Date</th>
-                  <th>Guests</th>
+                  <th>{settings.labels.partySize}</th>
                   <th>Total</th>
                   <th>Status</th>
                   <th>Source</th>
@@ -224,8 +225,13 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
                       </Link>
                       <div className="text-[11px] text-ink-subtle">{row.customer.phoneE164}</div>
                     </td>
-                    <td className="capitalize">
-                      {String((row.booking.attributes as Record<string, unknown>)?.eventType ?? "—")}
+                    <td className="max-w-xs truncate">
+                      {describeBookingAttributes(
+                        settings.preset.bookingFields,
+                        row.booking.attributes as Record<string, unknown>,
+                      )
+                        .map((field) => field.value)
+                        .join(" · ") || "—"}
                     </td>
                     <td>{row.resources.map((r) => r.name).join(", ") || "—"}</td>
                     <td className="whitespace-nowrap">
@@ -249,7 +255,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
       </section>
 
       <p className="mt-3 text-xs text-ink-subtle">
-        Packages: {offerings.map((o) => `${o.name} (${kes(o.basePriceKes)})`).join(" · ")} ·{" "}
+        {settings.labels.offerings}: {offerings.map((o) => `${o.name} (${kes(o.basePriceKes)})`).join(" · ")} ·{" "}
         {resources.length} {settings.labels.resource.toLowerCase()} resources ·{" "}
         {titleCase(status?.[0] ?? "all statuses")}
       </p>

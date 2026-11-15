@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { CalendarCheck, CalendarX, Hourglass, ReceiptText, Wallet } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { principalOf } from "@/lib/principal";
-import { getDashboard, kes } from "@garden/services";
+import { getDashboard, getSettings, kes, withPrincipal } from "@garden/services";
 import { dateTime, shortDate } from "@/lib/format";
 import { PageHeader, StatCard, StatusPill, EmptyState } from "@/components/ui";
 
@@ -14,7 +14,16 @@ export default async function DashboardPage() {
   if (!session) redirect("/login");
 
   const data = await withPrincipalDashboard(session);
+  const { labels } = await withPrincipal(principalOf(session), (ctx) => getSettings(ctx));
   const maxRevenue = Math.max(1, ...data.revenueSeries.map((r) => r.collectedKes));
+  // A brand-new business has nothing booked yet: show the getting-started steps instead of empty tiles alone.
+  const isNewBusiness =
+    data.next7Days.length === 0 &&
+    data.kpis.confirmedThisMonth === 0 &&
+    data.kpis.activeHolds === 0 &&
+    data.kpis.cancelledThisMonth === 0 &&
+    data.kpis.revenueThisMonthKes === 0 &&
+    data.kpis.outstandingKes === 0;
 
   return (
     <div>
@@ -23,10 +32,40 @@ export default async function DashboardPage() {
         subtitle={`${data.monthLabel} · today is ${shortDate(new Date())}`}
         action={
           <Link className="btn btn-primary" href="/bookings/new">
-            + Add booking
+            + Add {labels.booking.toLowerCase()}
           </Link>
         }
       />
+
+      {isNewBusiness ? (
+        <section className="relative mb-5 overflow-hidden rounded-2xl bg-brand-800 p-5 text-white">
+          <h2 className="text-lg font-semibold">Welcome to Palda CX — your business is set up</h2>
+          <p className="mt-1 max-w-2xl text-sm text-white/70">
+            Your {labels.offerings.toLowerCase()}, hours and reminders are set up. Four quick things to make it yours:
+          </p>
+          <ol className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              { href: "/settings", title: `Check your ${labels.offerings.toLowerCase()}`, hint: "Prices, durations, add-ons" },
+              { href: "/bookings/new", title: `Add your first ${labels.booking.toLowerCase()}`, hint: "Try the booking flow" },
+              { href: "/wambo/settings", title: "Set up Wambo", hint: "Your WhatsApp assistant" },
+              { href: "/settings", title: "Add your review link", hint: "Happy customers get sent here" },
+            ].map((step, index) => (
+              <li key={step.title}>
+                <Link
+                  href={step.href}
+                  className="block h-full rounded-xl bg-white/10 p-3 transition-colors hover:bg-white/15"
+                >
+                  <span className="grid size-6 place-items-center rounded-full bg-lime-400 text-xs font-bold text-brand-900">
+                    {index + 1}
+                  </span>
+                  <span className="mt-2 block text-sm font-semibold">{step.title}</span>
+                  <span className="block text-xs text-white/70">{step.hint}</span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
 
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard icon={CalendarCheck} label="Confirmed this month" value={data.kpis.confirmedThisMonth} />
@@ -56,7 +95,7 @@ export default async function DashboardPage() {
           </div>
           {data.next7Days.length === 0 ? (
             <p className="py-8 text-center text-sm text-ink-muted">
-              Nothing booked in the next week. A quiet garden.
+              Nothing booked in the next week. A quiet week.
             </p>
           ) : (
             <div className="divide-y divide-line">
@@ -74,7 +113,7 @@ export default async function DashboardPage() {
                       {row.offering.name} · {row.customer.name}
                     </p>
                     <p className="text-xs text-ink-muted">
-                      {dateTime(row.booking.startsAt)} · {row.booking.partySize} guests
+                      {dateTime(row.booking.startsAt)} · {row.booking.partySize} {labels.partySize.toLowerCase()}
                       {row.resources.length ? ` · ${row.resources.join(", ")}` : ""}
                     </p>
                   </div>

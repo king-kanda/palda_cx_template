@@ -9,6 +9,7 @@ import {
   createBookingFor,
   generateInvoice,
   getBookingFor,
+  getSettings,
   recordPayment,
   requestReview,
   rescheduleBookingFor,
@@ -44,14 +45,25 @@ export async function createBookingAction(formData: FormData): Promise<void> {
   const customerId = String(formData.get("customerId") ?? "").trim();
   const customerName = String(formData.get("customerName") ?? "").trim();
   const customerPhone = String(formData.get("customerPhone") ?? "").trim();
-  const eventType = String(formData.get("eventType") ?? "other");
   const notes = String(formData.get("notes") ?? "").trim();
 
   if (!offeringId || !resourceId || !date) {
-    fail("/bookings/new", new Error("Package, space and date are required."));
+    fail("/bookings/new", new Error("Choose a service, who or where it is with, and a date."));
   }
   if (!customerId && (!customerName || !customerPhone)) {
     fail("/bookings/new", new Error("Pick an existing customer or enter a name and phone."));
+  }
+
+  // Vertical-specific answers (event type, visit address, …) come from the preset's booking fields.
+  const settings = await withPrincipal(principal, (ctx) => getSettings(ctx));
+  const attributes: Record<string, unknown> = {};
+  for (const field of settings.preset.bookingFields) {
+    const raw = String(formData.get(`attr_${field.key}`) ?? "").trim();
+    if (!raw) {
+      if (field.required) fail("/bookings/new", new Error(`${field.label} is required.`));
+      continue;
+    }
+    attributes[field.key] = field.type === "number" ? Number(raw) : raw;
   }
 
   try {
@@ -67,7 +79,7 @@ export async function createBookingAction(formData: FormData): Promise<void> {
       partySize: Number.isFinite(partySize) && partySize > 0 ? partySize : 1,
       status,
       source: "staff",
-      attributes: { eventType },
+      attributes,
       notes: notes || undefined,
       idempotencyKey: `ui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     });

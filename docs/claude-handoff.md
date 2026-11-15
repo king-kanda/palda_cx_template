@@ -1,4 +1,4 @@
-# Claude Handoff — Garden Booking OS / Wambo
+# Claude Handoff — Palda CX / Wambo
 
 > Last updated: **2026-11-15**
 > Written by: Claude (build agent) for the next engineer or agent picking this up cold.
@@ -26,10 +26,10 @@ Last verification run in this environment (2026-11-15):
 | Check | Result |
 |---|---|
 | `pnpm typecheck` | **9/9 packages/apps pass** |
-| `pnpm test` | **59/59 unit tests pass** (8 files) |
+| `pnpm test` | **74/74 unit tests pass** (9 files) |
 | `pnpm eval:mock` | **40/40 agent scenarios pass** |
 | `pnpm build` | **production build succeeds**, 24 routes |
-| `pnpm test:integration` | **40/40 passed on 2026-11-12** (7 files, embedded PostgreSQL 16); not re-run after the latest UI/guard edits |
+| `pnpm test:integration` | **49/49 passed on 2026-11-15** (8 files) on a throwaway `garden_test` database inside the Docker Postgres, after the onboarding, cleaning and UI changes |
 
 Docker: the stack was rebuilt on **2026-11-15** from the current working tree (see §7a) and all four app
 containers plus Postgres came up healthy. Docker 29.9.2 is installed on this machine.
@@ -107,6 +107,7 @@ passes against a stub MCP server for a different vertical).
 | **Salon** | Yes | Stylists/stations, duration slots, buffers, walk-ins, salon templates | Real-model run, pilot salon's services/hours/policies |
 | **Dental** | Yes | Dentists + chairs/rooms, treatment offerings, 1-day reminders, 6-month recalls, encrypted `customer_sensitive` data, clinical-advice handoff, privacy eval | Real-model run, DPA adviser sign-off, pilot clinic data |
 | **Consultancy** | Yes | Consultants, session types, online meeting links, public `/intake/<tenant>/<bookingId>` form, packages/retainers | Real confirm/meeting-link test, real-model run, pilot data |
+| **Cleaning & home services** (new 2026-11-15) | Yes | Crews, 5 services (standard/deep/move-in-out/office/sofa-carpet), 6 add-ons, per-job visit address + property type + frequency + access notes, 30-min travel buffer before each job, Mon–Sat hours, day-before reminder, post-job review request, 2-week rebook nudge, demo tenant `sparkle` | No routing, zone pricing or dispatch; address is optional at schema level (the staff form requires it); real-model run; real crew/service data |
 
 ### Dental specifics
 
@@ -132,9 +133,9 @@ The phrase is ambiguous, so here is the state by interpretation:
   invoices/payments, approvals, reviews and the Wambo inbox. Owner-only enforcement exists in the service layer
   for settings changes; the UI does **not** currently hide owner-only screens, so staff can open Settings but the
   save fails.
-- **Field/home-service businesses (plumbers, cleaners, electricians):** **no.** The four verticals are venue,
-  salon, dental and consultancy. There is no field-service preset, job address, travel time, routing or dispatch.
-  That would be a new vertical, not a configuration switch.
+- **Field/home-service businesses:** **partly.** `cleaning` covers jobs at a customer address with crews, a travel
+  buffer and addressed reminders. Plumbers/electricians/etc. would reuse the same pattern but still need routing,
+  zone pricing, dispatch and parts, which do not exist.
 - **Background worker service:** yes. `apps/worker` runs pg-boss queues for reminders, hold expiry, approval
   expiry, the 07:00 Nairobi digest, event forwarding and the two-hourly ops scan.
 - **PWA service worker / offline mode:** no.
@@ -215,7 +216,62 @@ Approximate order of the work; dates are the recorded gate/verification dates.
 - Not verified in the container: the integration suite (`docker compose run --rm migrate pnpm test:integration`)
   was not re-run against the new image, and the pages were not checked in a browser after the rebuild.
 
-### 7b. Known UI gaps
+### 7b. Onboarding, cleaning vertical and UI fixes (2026-11-15)
+
+**Self-serve onboarding** (`/onboarding`, linked from the login page): a 5-step wizard (business type → business details →
+team & services → hours & policies → owner account) backed by `createBusiness()` in `packages/services/src/onboarding.ts`.
+
+- Creates tenant, vertical, config (policies/business/brand), owner, resources, offerings and the preset add-ons in one
+  transaction, with **no demo customers or bookings**. It then signs the owner in and opens the dashboard with a
+  Getting-started card. The tenant id is generated first and the RLS tenant context set before the tenant insert, so it
+  also works under the restricted application role (the integration tests run as superuser and cannot prove this part).
+- FAQ is generated per business: preset entries flagged `needsReview` (e.g. "We are in Karen", "parking for 80 cars")
+  are skipped, and the location and cancellation answers are built from what the owner typed.
+- **Access control:** `ONBOARDING_CODE` set → enabled and the wizard asks for the code; `ONBOARDING_ENABLED=true` →
+  open; otherwise open outside production and closed in production. `docker-compose.yml` defaults it to open for demos.
+  There is **no rate limiting, email verification or CAPTCHA**, so do not leave it open on the public internet.
+- **Sign-in is email + password only; nobody types a workspace name.** `findAccountsByEmail()` (`accounts.ts`) looks the
+  email up inside each business’s own tenant context (users are RLS-protected, so a cross-tenant query would see nothing
+  under the restricted role). That is one small query per business, run in batches of 8, which is fine for hundreds of
+  businesses; beyond that add an email → tenant index table kept by a trigger. Onboarding **refuses an email that is already
+  registered**, so one email maps to one business; if the same email *and* password ever exist in two businesses (e.g. via
+  the seed CLI), login refuses with a contact-support message instead of guessing. Suspended tenants (`status != active`) can
+  no longer sign in.
+- The tenant `slug` still exists internally (public intake links `/intake/<slug>/<id>`, callback URLs, `DEFAULT_TENANT_SLUG`
+  for the agent service) but is generated from the business name, made unique, and never shown or typed.
+- Verified against the running Docker stack by posting the real form requests (not by clicking): the onboarding action creates
+  a business, returns a redirect to `/dashboard?welcome=1` with a session, the new dashboard/new-booking/settings pages render
+  with the vertical’s wording, a second signup with the same email is refused, and the new owner can sign in with email
+  only. **Not verified:** the wizard’s step-by-step client UI in a real browser (button states, validation hints).
+  Working hours can only be set in the wizard today; Settings has no hours editor.
+
+**Cleaning preset** (`packages/verticals/src/cleaning.ts`, id `cleaning`): see §4. Demo: business "Sparkle Cleaners",
+`owner@sparkle.co.ke` / `owner1234`, `staff@sparkle.co.ke` / `staff1234`, 3 crews, 10 addressed jobs, 3 paid invoices.
+
+**Presets now describe their own booking form** (`bookingFields`, `starterResources`, `addons`, `tagline`):
+the new-booking form, booking list/detail, dashboard, customer page, Settings and the nav use the vertical’s own words
+("Jobs", "Clients", "Rooms"). A unit test asserts every field is accepted by the preset’s strict booking schema.
+
+**Bugs found and fixed while doing this** (all pre-existing):
+
+1. The staff **new-booking form always sent a venue-only `eventType`**, which salon, dental and consultancy reject
+   (strict schemas), so staff could not create bookings in the UI for those verticals. Now data-driven per preset.
+2. A business with **no review link inherited the demo garden’s Google link** (`g.page/r/palda-gardens/review`). The fallback is
+   now empty; messages drop the link cleanly (`stripReviewLink`), and Settings has a Review link field.
+3. Settings’ add-resource/add-service forms **defaulted to kind "space"** (not valid for cleaning); they now offer the
+   preset’s kinds. The location field no longer pre-fills "Karen, Nairobi".
+4. Seeding a zero-deposit vertical silently **skipped its paid demo bookings** ("Nothing left to invoice"); the seed now
+   bills the full amount and prints skip reasons. Demo conversations/complaints/reviews are per vertical instead of
+   gazebo copy everywhere.
+
+**Still open (not changed):** `requestReview` sends the `thank_you_review` template, which **salon, dental and
+consultancy presets do not define**, and those presets have **no review reminder rule**, so review collection only
+runs end to end for venue and cleaning. **WhatsApp is not wired to onboarded tenants.** The agent service maps an inbound message to a tenant through a
+`tenant_integrations` row (`kind = whatsapp`, `meta.phoneNumberId`) and otherwise falls back to `DEFAULT_TENANT_SLUG`.
+Onboarding does not create that row, so a new tenant’s WhatsApp number will not reach it until one exists (whether the
+Settings integrations panel creates it was not verified). Fix this before onboarding a real business.
+
+### 7c. Known UI gaps
 
 - **Delivery ticks are cosmetic.** Outbound inbox messages always show blue double ticks; `messages` has no
   delivery/read status. Real sent/delivered/read needs a status field populated from WhatsApp status webhooks.

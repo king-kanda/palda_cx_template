@@ -83,12 +83,14 @@ const collapsedStore = {
 
 function SidebarContent({
   businessName,
+  navLabels,
   collapsed,
   onNavigate,
   onToggle,
   onClose,
 }: {
   businessName: string;
+  navLabels: Record<string, string>;
   collapsed: boolean;
   onNavigate: () => void;
   onToggle: () => void;
@@ -118,12 +120,13 @@ function SidebarContent({
         {NAV.map((item) => {
           const active = matches(pathname, item.href);
           const Icon = item.icon;
+          const label = navLabels[item.href] ?? item.label;
           return (
             <Link
               key={item.href}
               href={item.href}
               onClick={onNavigate}
-              title={collapsed ? item.label : undefined}
+              title={collapsed ? label : undefined}
               aria-current={active ? "page" : undefined}
               className={`group flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors ${
                 active
@@ -132,7 +135,7 @@ function SidebarContent({
               } ${collapsed ? "justify-center px-0" : ""}`}
             >
               <Icon className="size-5 shrink-0" strokeWidth={1.75} />
-              {!collapsed && <span className="truncate">{item.label}</span>}
+              {!collapsed && <span className="truncate">{label}</span>}
             </Link>
           );
         })}
@@ -247,12 +250,15 @@ function UserMenu({
 
 export function AppShell({
   businessName,
+  navLabels = {},
   userName,
   role,
   signOut,
   children,
 }: {
   businessName: string;
+  /** Vertical-specific names for nav entries, keyed by href (e.g. "/bookings": "Jobs"). */
+  navLabels?: Record<string, string>;
   userName: string;
   role: string;
   signOut: () => void | Promise<void>;
@@ -262,10 +268,11 @@ export function AppShell({
   const collapsed = useSyncExternalStore(collapsedStore.subscribe, collapsedStore.get, collapsedStore.server);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const current = [...NAV]
+    .sort((a, b) => b.href.length - a.href.length)
+    .find((r) => matches(pathname, r.href));
   const title =
-    [...NAV]
-      .sort((a, b) => b.href.length - a.href.length)
-      .find((r) => matches(pathname, r.href))?.label ??
+    (current ? (navLabels[current.href] ?? current.label) : undefined) ??
     Object.entries(EXTRA_TITLES).find(([href]) => matches(pathname, href))?.[1] ??
     "Dashboard";
 
@@ -279,6 +286,7 @@ export function AppShell({
       >
         <SidebarContent
           businessName={businessName}
+          navLabels={navLabels}
           collapsed={collapsed}
           onNavigate={() => setMobileOpen(false)}
           onToggle={collapsedStore.toggle}
@@ -293,6 +301,7 @@ export function AppShell({
           <aside className="absolute inset-y-0 left-0 w-72 bg-surface shadow-lg">
             <SidebarContent
               businessName={businessName}
+              navLabels={navLabels}
               collapsed={false}
               onNavigate={() => setMobileOpen(false)}
               onToggle={collapsedStore.toggle}

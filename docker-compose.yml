@@ -24,6 +24,10 @@ x-app: &app
     WHATSAPP_MODE: ${WHATSAPP_MODE:-mock}
     MPESA_MODE: ${MPESA_MODE:-mock}
     MEETINGS_MODE: ${MEETINGS_MODE:-mock}
+    # Self-serve business setup at /onboarding. Set ONBOARDING_CODE to require an invite code;
+    # set ONBOARDING_ENABLED=false (and no code) to close it. Open by default for demos.
+    ONBOARDING_ENABLED: ${ONBOARDING_ENABLED:-true}
+    ONBOARDING_CODE: ${ONBOARDING_CODE:-}
   restart: unless-stopped
 
 services:

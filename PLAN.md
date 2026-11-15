@@ -1,4 +1,4 @@
-# Garden Booking OS + "Wambo" (AI Agent) — Build Plan
+# Palda CX + "Wambo" (AI Agent) — Build Plan
 
 > Audience: an AI coding agent. Build in the phase order below. Each phase has acceptance criteria; do not start a phase until the previous one passes.
 > Product: minimalist booking/ops app for a Kenyan event garden (weddings, picnics, corporate, birthdays, photoshoots) + a WhatsApp AI agent, **Wambo**, that runs all customer-facing work.

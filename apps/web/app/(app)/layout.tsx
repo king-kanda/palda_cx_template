@@ -19,6 +19,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <AppShell
       businessName={settings.tenant.name}
+      navLabels={{
+        "/bookings": settings.labels.bookings,
+        "/customers": settings.labels.customers,
+      }}
       userName={session.name}
       role={session.role}
       signOut={logoutAction}

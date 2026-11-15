@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@garden/db";
 import { getBookingFor, kes, type EnrichedBooking } from "@garden/services";
+import { describeBookingAttributes, getPreset } from "@garden/verticals";
 import { getSession } from "@/lib/auth";
 import { principalOf } from "@/lib/principal";
 import { dateTime, shortDate, titleCase } from "@/lib/format";
@@ -51,7 +52,9 @@ export default async function BookingDetailPage({
       columns: { slug: true },
     }),
   ]);
-  const isConsultancy = (verticalRow?.vertical ?? "venue") === "consultancy";
+  const verticalId = verticalRow?.vertical ?? "venue";
+  const preset = getPreset(verticalId);
+  const isConsultancy = verticalId === "consultancy";
   const tenantSlug = tenantRow?.slug ?? "";
 
   let detail: Detail;
@@ -62,7 +65,7 @@ export default async function BookingDetailPage({
   }
 
   const attributes = detail.booking.attributes as Record<string, unknown>;
-  const eventType = String(attributes?.eventType ?? "—");
+  const detailFields = describeBookingAttributes(preset.bookingFields, attributes);
   const meetingUrl = typeof attributes?.meetingUrl === "string" ? attributes.meetingUrl : "";
   const intakeUrl = typeof attributes?.intakeUrl === "string" ? attributes.intakeUrl : "";
 
@@ -103,11 +106,15 @@ export default async function BookingDetailPage({
             <dl className="grid gap-4 sm:grid-cols-2">
               <Field label="Customer">{detail.customer.name}</Field>
               <Field label="Phone">{detail.customer.phoneE164}</Field>
-              <Field label="Event type">{titleCase(eventType)}</Field>
-              <Field label="Guests">{detail.booking.partySize}</Field>
+              {detailFields.map((field) => (
+                <Field key={field.key} label={field.label}>
+                  {field.value}
+                </Field>
+              ))}
+              <Field label={preset.labels.partySize}>{detail.booking.partySize}</Field>
               <Field label="Start">{dateTime(detail.booking.startsAt)}</Field>
               <Field label="End">{dateTime(detail.booking.endsAt)}</Field>
-              <Field label="Space">{detail.resources.map((r) => r.name).join(", ")}</Field>
+              <Field label={preset.labels.resource}>{detail.resources.map((r) => r.name).join(", ")}</Field>
               <Field label="Hold expires">
                 {detail.booking.holdExpiresAt ? dateTime(detail.booking.holdExpiresAt) : "—"}
               </Field>

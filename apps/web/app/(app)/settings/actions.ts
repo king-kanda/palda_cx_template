@@ -48,12 +48,17 @@ export async function saveBusinessAction(formData: FormData): Promise<void> {
   const slotIntervalMin = Number(formData.get("slotIntervalMin") ?? 30);
   const arrivalTime = String(formData.get("arrivalTime") ?? "10:00");
   const location = String(formData.get("location") ?? "").trim();
+  const reviewLink = String(formData.get("reviewLink") ?? "").trim();
+  if (reviewLink && !/^https?:\/\/\S+$/i.test(reviewLink)) {
+    fail(new Error("Review link must be a full web address starting with https://"));
+  }
   try {
     await withPrincipal(principalOf(session), (ctx) =>
       updateConfig(ctx, "business", {
         slotIntervalMin,
         arrivalTime,
         location,
+        reviewLink,
       }),
     );
     revalidatePath("/settings");

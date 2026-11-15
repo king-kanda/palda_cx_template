@@ -8,8 +8,8 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Garden Booking OS",
-  description: "Bookings, money and Wambo — the AI concierge for Kenyan service businesses.",
+  title: "Palda CX",
+  description: "Bookings, customer conversations, reviews and reminders for Kenyan service businesses.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

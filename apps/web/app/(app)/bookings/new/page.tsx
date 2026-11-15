@@ -114,11 +114,9 @@ export default async function NewBookingPage({
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-3">
           <div>
-            <label className="mb-1.5 block text-sm font-medium">
-              Date
-            </label>
+            <label className="mb-1.5 block text-sm font-medium">Date</label>
             <input
               className="input"
               type="date"
@@ -128,31 +126,61 @@ export default async function NewBookingPage({
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium">
-              Start time
-            </label>
+            <label className="mb-1.5 block text-sm font-medium">Start time</label>
             <input className="input" type="time" name="time" required defaultValue="09:00" />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium">
-              {settings.labels.partySize}
-            </label>
+            <label className="mb-1.5 block text-sm font-medium">{settings.labels.partySize}</label>
             <input className="input" type="number" min={1} name="partySize" defaultValue={1} />
           </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium">
-              Event type
-            </label>
-            <select className="input" name="eventType" defaultValue="wedding">
-              <option value="wedding">Wedding</option>
-              <option value="corporate">Corporate</option>
-              <option value="birthday">Birthday</option>
-              <option value="picnic">Picnic</option>
-              <option value="photoshoot">Photoshoot</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
         </div>
+
+        {settings.preset.bookingFields.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {settings.preset.bookingFields.map((field) => (
+              <div key={field.key} className={field.type === "textarea" ? "sm:col-span-2" : undefined}>
+                <label className="mb-1.5 block text-sm font-medium" htmlFor={`attr_${field.key}`}>
+                  {field.label}
+                  {field.required ? <span className="text-danger-600"> *</span> : null}
+                </label>
+                {field.type === "select" ? (
+                  <select
+                    id={`attr_${field.key}`}
+                    className="input"
+                    name={`attr_${field.key}`}
+                    required={field.required}
+                    defaultValue={field.defaultValue ?? ""}
+                  >
+                    {!field.required ? <option value="">—</option> : null}
+                    {field.options?.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : field.type === "textarea" ? (
+                  <textarea
+                    id={`attr_${field.key}`}
+                    className="input min-h-20"
+                    name={`attr_${field.key}`}
+                    required={field.required}
+                    placeholder={field.placeholder}
+                  />
+                ) : (
+                  <input
+                    id={`attr_${field.key}`}
+                    className="input"
+                    type={field.type === "number" ? "number" : "text"}
+                    name={`attr_${field.key}`}
+                    required={field.required}
+                    placeholder={field.placeholder}
+                    defaultValue={field.defaultValue}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         <div>
           <label className="mb-1.5 block text-sm font-medium">
@@ -169,14 +197,14 @@ export default async function NewBookingPage({
           <label className="mb-1.5 block text-sm font-medium">
             Notes
           </label>
-          <textarea className="input min-h-24" name="notes" placeholder="Setup, decor, access notes…" />
+          <textarea className="input min-h-24" name="notes" placeholder="Anything staff should know…" />
         </div>
 
         <div className="flex items-center justify-end gap-2">
           <Link className="btn btn-secondary" href="/bookings">
             Cancel
           </Link>
-          <button className="btn btn-primary">Create booking</button>
+          <button className="btn btn-primary">Create {settings.labels.booking.toLowerCase()}</button>
         </div>
       </form>
     </div>

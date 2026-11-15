@@ -45,7 +45,8 @@ async function main() {
       `${result.counts.invoices} invoices, ${result.counts.payments} payments`,
   );
   if (result.counts.skipped) {
-    console.log(`  Skipped:  ${result.counts.skipped} overlapping demo bookings (expected)`);
+    console.log(`  Skipped:  ${result.counts.skipped} demo bookings`);
+    for (const reason of result.counts.skipReasons) console.log(`            - ${reason}`);
   }
   console.log("\nNext: pnpm dev  ->  http://localhost:3000/login\n");
 }

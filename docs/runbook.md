@@ -1,6 +1,6 @@
 # Runbook
 
-Everything an operator needs to run, test and go live with Garden Booking OS.
+Everything an operator needs to run, test and go live with Palda CX.
 
 ## 1. What runs
 

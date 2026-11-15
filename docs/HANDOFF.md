@@ -1,4 +1,4 @@
-# Handoff — Garden Booking OS
+# Handoff — Palda CX
 
 > Written for the next engineer/agent picking this repo up cold, or for a reviewer
 > starting a code review. Pair this with [`STATUS.md`](./STATUS.md) (where the build

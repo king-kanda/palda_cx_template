@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { customerProfileFor, kes } from "@garden/services";
+import { customerProfileFor, getSettings, kes, withPrincipal } from "@garden/services";
 import { getSession } from "@/lib/auth";
 import { principalOf } from "@/lib/principal";
 import { dateTime, shortDate, timeAgo, titleCase } from "@/lib/format";
@@ -20,6 +20,8 @@ export default async function CustomerProfilePage({
   if (!session) redirect("/login");
   const { id } = await params;
   const query = await searchParams;
+
+  const { labels } = await withPrincipal(principalOf(session), (ctx) => getSettings(ctx));
 
   let profile: Awaited<ReturnType<typeof customerProfileFor>>;
   try {
@@ -81,8 +83,8 @@ export default async function CustomerProfilePage({
                 <thead>
                   <tr>
                     <th>Date</th>
-                    <th>Package</th>
-                    <th>Guests</th>
+                    <th>{labels.offering}</th>
+                    <th>{labels.partySize}</th>
                     <th>Total</th>
                     <th>Status</th>
                   </tr>

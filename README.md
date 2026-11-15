@@ -1,4 +1,4 @@
-# Garden Booking OS
+# Palda CX
 
 A multi-tenant booking operating system for Kenyan service businesses — venues,
 salons, dental practices and consultancies — with an AI concierge (Wambo),
@@ -51,7 +51,7 @@ pnpm dev:engine               # agent      → http://localhost:3100
 pnpm dev:worker               # jobs
 ```
 
-Sign in at http://localhost:3000/login with `owner@palda.co.ke` / `owner1234`
+Sign in at http://localhost:3000/login with `owner@palda.co.ke` / `owner1234` (email and password only)
 (staff: `staff@palda.co.ke` / `staff1234`, tenant slug `palda`).
 
 No credentials needed to explore: WhatsApp and M-Pesa default to mock mode and

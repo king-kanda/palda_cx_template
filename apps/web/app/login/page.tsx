@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { LogoMark } from "@/components/ui";
@@ -21,26 +22,14 @@ export default function LoginPage() {
       <div className="flex flex-col bg-surface px-6 py-8 sm:px-12">
         <div className="flex items-center gap-2">
           <LogoMark />
-          <span className="text-lg font-bold tracking-tight">GARDEN BOOKING OS</span>
+          <span className="text-lg font-bold tracking-tight">PALDA CX</span>
         </div>
 
         <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-10">
           <h1 className="text-2xl font-bold">Sign in</h1>
-          <p className="mb-6 mt-1 text-sm text-ink-muted">Sign in to your workspace. Wambo is waiting.</p>
+          <p className="mb-6 mt-1 text-sm text-ink-muted">Welcome back. Wambo is waiting.</p>
 
           <form action={action} className="space-y-4">
-            <div>
-              <label htmlFor="slug" className="mb-1.5 block text-sm font-medium">
-                Workspace slug <span className="font-normal text-ink-muted">(optional)</span>
-              </label>
-              <input
-                id="slug"
-                className="input"
-                name="slug"
-                placeholder="palda"
-                autoComplete="organization"
-              />
-            </div>
             <div>
               <label htmlFor="email" className="mb-1.5 block text-sm font-medium">
                 Email
@@ -51,7 +40,7 @@ export default function LoginPage() {
                 name="email"
                 type="email"
                 required
-                placeholder="owner@palda.co.ke"
+                placeholder="you@yourbusiness.co.ke"
                 autoComplete="email"
               />
             </div>
@@ -81,6 +70,12 @@ export default function LoginPage() {
             <button className="btn btn-primary h-11 w-full" disabled={pending}>
               {pending ? "Signing in…" : "Sign in"}
             </button>
+            <p className="text-center text-sm text-ink-muted">
+              New business?{" "}
+              <Link href="/onboarding" className="font-semibold text-brand-700 hover:underline">
+                Set up your business
+              </Link>
+            </p>
             <p className="text-center text-sm text-ink-muted">
               Demo owner: <span className="font-mono">owner@palda.co.ke</span> /{" "}
               <span className="font-mono">owner1234</span>
