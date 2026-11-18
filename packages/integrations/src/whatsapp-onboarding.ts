@@ -1,4 +1,5 @@
 import { graphVersion, whatsappMode, WhatsAppError } from "./whatsapp";
+import { platformSetting } from "./platform-settings";
 
 /**
  * Meta's Embedded Signup, server side. A customer connects their own WhatsApp number through a Meta popup; Meta hands our page a
@@ -17,9 +18,9 @@ export type MetaAppConfig = { appId: string | null; appSecret: string | null; co
 
 export function metaConfig(): MetaAppConfig {
   return {
-    appId: process.env.META_APP_ID?.trim() || null,
-    appSecret: (process.env.META_APP_SECRET ?? process.env.WHATSAPP_APP_SECRET)?.trim() || null,
-    configId: process.env.META_ES_CONFIG_ID?.trim() || null,
+    appId: platformSetting("META_APP_ID") ?? null,
+    appSecret: platformSetting("META_APP_SECRET") ?? null,
+    configId: platformSetting("META_ES_CONFIG_ID") ?? null,
   };
 }
 
@@ -76,7 +77,7 @@ export async function exchangeSignupCode(code: string): Promise<SignupToken> {
     return { accessToken: `mock_token_${rand()}`, expiresInSec: null };
   }
   const { appId, appSecret } = metaConfig();
-  if (!appId || !appSecret) throw new WhatsAppError("The Meta app isn't configured on this server (META_APP_ID and META_APP_SECRET).");
+  if (!appId || !appSecret) throw new WhatsAppError("The Meta app isn't configured. Add the app ID and secret in the Engine under Settings.");
   const url = `oauth/access_token?client_id=${encodeURIComponent(appId)}&client_secret=${encodeURIComponent(appSecret)}&code=${encodeURIComponent(code)}`;
   const json = await graph<{ access_token?: string; expires_in?: number }>("GET", url, null);
   if (!json.access_token) throw new WhatsAppError("WhatsApp didn't return an access token.");
@@ -171,3 +172,18 @@ export async function checkConnection(phoneNumberId: string, token: string): Pro
 }
 
 export { parseSignupMessage, type SignupMessage } from "./whatsapp-signup-message";
+
+/** Proves an app ID and secret belong together, using an app access token ("<id>|<secret>"). Never throws. */
+export async function checkMetaApp(appId: string, appSecret: string): Promise<{ ok: boolean; name?: string; error?: string }> {
+  if (!appId || !appSecret) return { ok: false, error: "Both the app ID and the app secret are needed." };
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/${graphVersion()}/${encodeURIComponent(appId)}?fields=id,name&access_token=${encodeURIComponent(`${appId}|${appSecret}`)}`,
+    );
+    const json = (await res.json().catch(() => ({}))) as { id?: string; name?: string; error?: { message?: string } };
+    if (!res.ok || json.id !== appId) return { ok: false, error: json.error?.message ?? "Meta didn't accept that app ID and secret." };
+    return { ok: true, name: json.name };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't reach Meta." };
+  }
+}

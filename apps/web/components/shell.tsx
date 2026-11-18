@@ -314,7 +314,7 @@ export function AppShell({
       {/* Desktop / tablet */}
       <aside
         className={`sticky top-0 hidden h-screen shrink-0 border-r border-[color:var(--sb-border)] bg-[var(--sb-bg)] transition-[width] md:block ${
-          collapsed ? "w-[72px]" : "w-64"
+          collapsed ? "w-[4.5rem]" : "w-64"
         }`}
       >
         <SidebarContent
@@ -381,7 +381,7 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-[1440px] flex-1 p-4 md:p-6">{children}</main>
+        <main className="mx-auto w-full max-w-[90rem] flex-1 p-4 md:p-6">{children}</main>
 
         <footer className="flex flex-wrap gap-x-6 gap-y-1 px-6 py-4 text-xs text-ink-subtle">
           <span>© 2026 {businessName}</span>

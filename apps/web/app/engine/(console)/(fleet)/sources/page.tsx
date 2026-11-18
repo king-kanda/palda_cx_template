@@ -16,7 +16,7 @@ export default async function DataSourcesPage() {
   const { runLog, langfuse } = sources;
 
   return (
-    <main className="mx-auto w-full max-w-[1100px] p-4 md:p-6">
+    <main className="mx-auto w-full max-w-[68.75rem] p-4 md:p-6">
       <PageHeader
         title="Data sources"
         subtitle="Where the Engine's numbers come from, and what it can't see yet. Everything on the Overview is computed from these."
@@ -31,16 +31,16 @@ export default async function DataSourcesPage() {
           </p>
           <dl className="mt-4 grid gap-4 sm:grid-cols-3">
             <div>
-              <dt className="font-mono text-[11px] uppercase tracking-wider text-ink-muted">Runs recorded</dt>
-              <dd className="mt-1 font-mono text-[22px]">{runLog.runs.toLocaleString("en-KE")}</dd>
+              <dt className="font-mono text-[0.6875rem] uppercase tracking-wider text-ink-muted">Runs recorded</dt>
+              <dd className="mt-1 font-mono text-[1.375rem]">{runLog.runs.toLocaleString("en-KE")}</dd>
             </div>
             <div>
-              <dt className="font-mono text-[11px] uppercase tracking-wider text-ink-muted">Customers with runs</dt>
-              <dd className="mt-1 font-mono text-[22px]">{runLog.customersWithRuns}</dd>
+              <dt className="font-mono text-[0.6875rem] uppercase tracking-wider text-ink-muted">Customers with runs</dt>
+              <dd className="mt-1 font-mono text-[1.375rem]">{runLog.customersWithRuns}</dd>
             </div>
             <div>
-              <dt className="font-mono text-[11px] uppercase tracking-wider text-ink-muted">Latest run</dt>
-              <dd className="mt-1 text-[15px]">{ago(runLog.lastRunAt).replace("no recorded runs", "none yet")}</dd>
+              <dt className="font-mono text-[0.6875rem] uppercase tracking-wider text-ink-muted">Latest run</dt>
+              <dd className="mt-1 text-[0.9375rem]">{ago(runLog.lastRunAt).replace("no recorded runs", "none yet")}</dd>
             </div>
           </dl>
         </Panel>
@@ -53,12 +53,12 @@ export default async function DataSourcesPage() {
           </p>
           <dl className="mt-4 grid gap-4 sm:grid-cols-3">
             <div>
-              <dt className="font-mono text-[11px] uppercase tracking-wider text-ink-muted">Runs with a trace</dt>
-              <dd className="mt-1 font-mono text-[22px]">{langfuse.tracedRuns.toLocaleString("en-KE")}</dd>
+              <dt className="font-mono text-[0.6875rem] uppercase tracking-wider text-ink-muted">Runs with a trace</dt>
+              <dd className="mt-1 font-mono text-[1.375rem]">{langfuse.tracedRuns.toLocaleString("en-KE")}</dd>
             </div>
             <div className="sm:col-span-2">
-              <dt className="font-mono text-[11px] uppercase tracking-wider text-ink-muted">Host</dt>
-              <dd className="mt-1 font-mono text-[15px]">{langfuse.host ?? "not set"}</dd>
+              <dt className="font-mono text-[0.6875rem] uppercase tracking-wider text-ink-muted">Host</dt>
+              <dd className="mt-1 font-mono text-[0.9375rem]">{langfuse.host ?? "not set"}</dd>
             </div>
           </dl>
           {!langfuse.configured ? (

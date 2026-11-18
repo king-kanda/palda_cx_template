@@ -99,7 +99,7 @@ export default async function ApprovalsPage({
                   {approval.expiresAt ? ` · expires ${dateTime(approval.expiresAt)}` : ""}
                 </p>
 
-                <pre className="mt-3 max-h-40 overflow-auto rounded-lg bg-surface-muted p-3 text-[11px] leading-relaxed text-ink-muted">
+                <pre className="mt-3 max-h-40 overflow-auto rounded-lg bg-surface-muted p-3 text-[0.6875rem] leading-relaxed text-ink-muted">
                   {JSON.stringify(payload, null, 2)}
                 </pre>
 

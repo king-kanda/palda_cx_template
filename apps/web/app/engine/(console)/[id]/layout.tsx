@@ -45,7 +45,7 @@ export default async function WorkspaceLayout({
       />
       <SidebarInset className="min-w-0 bg-canvas">
         <EngineTopbar variant="workspace" adminName={admin.name} logout={engineLogoutAction} />
-        <main className="mx-auto w-full max-w-[1440px] flex-1 p-4 md:p-6">{children}</main>
+        <main className="mx-auto w-full max-w-[90rem] flex-1 p-4 md:p-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

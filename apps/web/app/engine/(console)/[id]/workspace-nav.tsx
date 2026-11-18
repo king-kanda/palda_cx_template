@@ -68,7 +68,7 @@ const NAV: Item[] = [
 ];
 
 // palda-homes active state: lime-400 with brand-900 text (UI-SPEC 3.1); hover is the muted surface.
-const ITEM = "h-11 rounded-xl px-3 text-[15px] font-medium data-[active=true]:bg-lime-400 data-[active=true]:text-brand-900 [&>svg]:size-5";
+const ITEM = "h-11 rounded-xl px-3 text-[0.9375rem] font-medium data-[active=true]:bg-lime-400 data-[active=true]:text-brand-900 [&>svg]:size-5";
 const SUB = "h-9 rounded-lg text-sm data-[active=true]:bg-lime-100 data-[active=true]:font-medium data-[active=true]:text-brand-900";
 
 export function WorkspaceSidebar({
@@ -110,14 +110,14 @@ export function WorkspaceSidebar({
         >
           <LogoMark className="size-7 shrink-0 text-brand-800" />
           <span className="text-lg font-bold tracking-tight group-data-[collapsible=icon]:hidden">palda cx</span>
-          <span className="rounded-md bg-lime-400 px-1.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wider text-brand-900 group-data-[collapsible=icon]:hidden">
+          <span className="rounded-md bg-lime-400 px-1.5 py-0.5 font-mono text-[0.6875rem] font-medium uppercase tracking-wider text-brand-900 group-data-[collapsible=icon]:hidden">
             engine
           </span>
         </Link>
         <div className="flex items-center gap-3 border-b border-sidebar-border px-5 py-4 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
           <AgentAvatar src={agentAvatar} name={agentName} className="size-10" />
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <p className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-ink-muted">Workspace</p>
+            <p className="font-mono text-[0.6562rem] uppercase tracking-[0.1em] text-ink-muted">Workspace</p>
             <div className="flex items-center gap-2">
               <p className="truncate text-base font-semibold">{name}</p>
               <CustomerStatusPill status={status} />

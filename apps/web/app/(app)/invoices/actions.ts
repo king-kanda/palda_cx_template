@@ -7,6 +7,8 @@ import {
   initiateStk,
   matchUnmatchedPayment,
   recordPayment,
+  requestPayment,
+  sendPaymentOptions,
   sendInvoice,
   simulateMpesaSuccess,
   voidInvoice,
@@ -128,4 +130,46 @@ export async function simulateMpesaAction(formData: FormData): Promise<void> {
   } catch (error) {
     fail(`/invoices/${invoiceId}`, error);
   }
+}
+
+/** Sends the customer the WhatsApp payment message (a "Pay with M-Pesa" button and a "Pay online" link, depending on the business's providers). */
+export async function sendPaymentOptionsAction(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  const invoiceId = String(formData.get("invoiceId") ?? "");
+  let notice = "";
+  try {
+    const principal = principalOf(session);
+    const detail = await withPrincipal(principal, (ctx) => getInvoiceDetail(ctx, invoiceId));
+    const result = await withPrincipal(principal, (ctx) =>
+      sendPaymentOptions(ctx, { bookingId: detail.booking.id, invoiceId: detail.invoice.id }),
+    );
+    notice = result.sent
+      ? result.kind === "stk"
+        ? "M-Pesa prompt sent to the customer."
+        : "Payment message sent on WhatsApp."
+      : `Couldn't send the WhatsApp message${result.message ? `: ${result.message}` : "."}`;
+    revalidatePath(`/invoices/${invoiceId}`);
+  } catch (error) {
+    fail(`/invoices/${invoiceId}`, error);
+  }
+  redirect(`/invoices/${invoiceId}?notice=${encodeURIComponent(notice)}`);
+}
+
+/** Makes a hosted payment link for the balance and shows it, to share by hand. */
+export async function createPaymentLinkAction(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  const invoiceId = String(formData.get("invoiceId") ?? "");
+  let url = "";
+  try {
+    const principal = principalOf(session);
+    const detail = await withPrincipal(principal, (ctx) => getInvoiceDetail(ctx, invoiceId));
+    const result = await withPrincipal(principal, (ctx) =>
+      requestPayment(ctx, { bookingId: detail.booking.id, invoiceId: detail.invoice.id, mode: "link" }),
+    );
+    url = result.url ?? "";
+    revalidatePath(`/invoices/${invoiceId}`);
+  } catch (error) {
+    fail(`/invoices/${invoiceId}`, error);
+  }
+  redirect(`/invoices/${invoiceId}?link=${encodeURIComponent(url)}`);
 }

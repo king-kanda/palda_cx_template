@@ -15,7 +15,7 @@ const AGENT_NAMES: Record<string, string> = {
 };
 
 /** Chart headline: palda-homes "kpi" style, 28 px bold tabular. */
-const HEADLINE = "text-[28px] font-bold leading-9 tabular";
+const HEADLINE = "text-[1.75rem] font-bold leading-9 tabular";
 
 export default async function WorkspaceOverviewPage({
   params,
@@ -118,7 +118,7 @@ export default async function WorkspaceOverviewPage({
             <p className="text-sm text-ink-muted">No activity in this period.</p>
           ) : (
             <div className="-mx-5 overflow-x-auto">
-              <table className="table min-w-[600px]">
+              <table className="table min-w-[37.5rem]">
                 <thead>
                   <tr>
                     <th>Agent</th>

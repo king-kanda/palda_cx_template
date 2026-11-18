@@ -108,7 +108,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
                 {grid.days.map((day) => {
                   const label = dayLabel(day);
                   return (
-                    <th key={day} className="min-w-9 text-center text-[10px] font-medium text-ink-subtle">
+                    <th key={day} className="min-w-9 text-center text-[0.625rem] font-medium text-ink-subtle">
                       <div>{label.weekday}</div>
                       <div className="text-xs font-semibold text-ink-muted">{label.day}</div>
                     </th>
@@ -122,7 +122,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
                   <td className="pr-2 text-xs font-medium">
                     {resource.name}
                     {resource.capacity ? (
-                      <span className="ml-1 text-[10px] text-ink-subtle">({resource.capacity})</span>
+                      <span className="ml-1 text-[0.625rem] text-ink-subtle">({resource.capacity})</span>
                     ) : null}
                   </td>
                   {grid.days.map((day) => {
@@ -223,7 +223,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
                       <Link className="font-medium hover:text-brand-800" href={`/bookings/${row.booking.id}`}>
                         {row.customer.name}
                       </Link>
-                      <div className="text-[11px] text-ink-subtle">{row.customer.phoneE164}</div>
+                      <div className="text-[0.6875rem] text-ink-subtle">{row.customer.phoneE164}</div>
                     </td>
                     <td className="max-w-xs truncate">
                       {describeBookingAttributes(
@@ -236,7 +236,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
                     <td>{row.resources.map((r) => r.name).join(", ") || "—"}</td>
                     <td className="whitespace-nowrap">
                       {shortDate(row.booking.startsAt)}
-                      <div className="text-[11px] text-ink-subtle">{dateTime(row.booking.startsAt).split("·")[1]}</div>
+                      <div className="text-[0.6875rem] text-ink-subtle">{dateTime(row.booking.startsAt).split("·")[1]}</div>
                     </td>
                     <td>{row.booking.partySize}</td>
                     <td className="whitespace-nowrap font-medium">{kes(row.booking.totalKes)}</td>

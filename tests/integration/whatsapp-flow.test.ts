@@ -43,6 +43,8 @@ const enabled = Boolean(process.env.DATABASE_URL);
 describe.skipIf(!enabled)("WhatsApp webhook flow (needs Postgres)", () => {
   const slug = `itest-wa-${Date.now()}`;
   const phoneNumberId = `PNID-${Date.now()}`;
+  // Its own account too: one WhatsApp Business account belongs to one business (enforced by the database).
+  const wabaId = `WABA_TEST_${Date.now()}`;
   let tenantId = "";
 
   function payload(input: {
@@ -73,7 +75,7 @@ describe.skipIf(!enabled)("WhatsApp webhook flow (needs Postgres)", () => {
       object: "whatsapp_business_account",
       entry: [
         {
-          id: "WABA_TEST",
+          id: wabaId,
           changes: [
             {
               field: "messages",
@@ -157,11 +159,26 @@ describe.skipIf(!enabled)("WhatsApp webhook flow (needs Postgres)", () => {
     tenantId = result.tenantId;
 
     // The webhook routes a phone_number_id to its tenant through the routing table (each business connects its own number).
-    await getDb().insert(schema.whatsappRoutes).values({ phoneNumberId, tenantId, wabaId: "WABA_TEST" });
+    await getDb().insert(schema.whatsappRoutes).values({ phoneNumberId, tenantId, wabaId });
   });
 
   afterAll(async () => {
     await closeDb();
+  });
+
+  it("still sends the consent line on the first real message when the chat only holds staff test messages", async () => {
+    const waId = "254711000177";
+    const phone = `+${waId}`;
+    // Staff used "Test as customer" before this person ever wrote in.
+    await withPrincipal(systemPrincipal(tenantId, "test"), async (ctx) => {
+      const [customer] = await ctx.db.insert(schema.customers).values({ tenantId, name: "Test First", phoneE164: phone }).returning();
+      const conversation = await ensureConversation(ctx, customer!.id, "whatsapp");
+      await ctx.db.insert(schema.messages).values({ tenantId, conversationId: conversation.id, direction: "inbound", type: "test", body: "staff test" });
+    });
+
+    expect((await post(payload({ waId, waMessageId: "wamid.after-test.1", text: "Hi, first real message" }))).status).toBe(200);
+    const consent = (await messagesFor(waId)).find((m) => m.direction === "outbound" && (m.body ?? "").includes("Karibu!"));
+    expect(consent).toBeTruthy();
   });
 
   it("stores an inbound message exactly once and sends the consent line", async () => {

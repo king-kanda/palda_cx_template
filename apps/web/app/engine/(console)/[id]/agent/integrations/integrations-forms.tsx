@@ -79,7 +79,7 @@ export function ToolReview({ tenantId, serverId, serverName, tools }: { tenantId
                   ) : null}
                 </span>
                 <span className="mt-0.5 block break-words text-xs text-ink-muted">{t.description}</span>
-                {t.params.length ? <span className="mt-1 block font-mono text-[11px] text-ink-subtle">inputs: {t.params.join(", ")}</span> : null}
+                {t.params.length ? <span className="mt-1 block font-mono text-[0.6875rem] text-ink-subtle">inputs: {t.params.join(", ")}</span> : null}
               </span>
             </li>
           );

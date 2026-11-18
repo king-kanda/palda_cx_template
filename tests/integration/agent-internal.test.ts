@@ -79,6 +79,33 @@ describe.skipIf(!enabled)("agent-service internal staff routes (needs Postgres)"
     await closeDb();
   });
 
+  it("“Test as customer” keeps the question in the thread, labelled, without opening the 24-hour window", async () => {
+    const db = getDb();
+    const conversation = await db.query.conversations.findFirst({ where: eq(schema.conversations.tenantId, tenantId) });
+    expect(conversation).toBeTruthy();
+    const windowBefore = conversation!.lastInboundAt?.getTime() ?? null;
+
+    const response = await post(
+      "/internal/reply",
+      { tenantSlug: slug, conversationId: conversation!.id, text: "Is the gazebo free this Saturday?" },
+      SECRET,
+    );
+    expect(response.status).toBe(200);
+
+    const rows = await db.query.messages.findMany({
+      where: eq(schema.messages.conversationId, conversation!.id),
+      orderBy: (m, { asc }) => [asc(m.createdAt)],
+    });
+    const testIndex = rows.findIndex((m) => m.type === "test");
+    expect(testIndex).toBeGreaterThanOrEqual(0);
+    expect(rows[testIndex]).toMatchObject({ direction: "inbound", body: "Is the gazebo free this Saturday?" });
+    // the answer comes after the question
+    expect(rows.slice(testIndex + 1).some((m) => m.direction === "outbound")).toBe(true);
+
+    const after = await db.query.conversations.findFirst({ where: eq(schema.conversations.id, conversation!.id) });
+    expect(after!.lastInboundAt?.getTime() ?? null).toBe(windowBefore);
+  });
+
   it("rejects an internal call without the shared secret", async () => {
     const response = await post("/internal/chat", {
       tenantSlug: slug,

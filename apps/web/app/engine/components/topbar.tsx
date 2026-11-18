@@ -24,6 +24,7 @@ const TABS = [
     match: (p: string) => p === "/engine/customers" || p === "/engine/new" || /^\/engine\/[0-9a-f-]{36}/.test(p),
   },
   { href: "/engine/sources", label: "Data sources", match: (p: string) => p.startsWith("/engine/sources") },
+  { href: "/engine/settings", label: "Settings", match: (p: string) => p.startsWith("/engine/settings") },
 ];
 
 /**
@@ -54,7 +55,7 @@ export function EngineTopbar({
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-canvas/90 backdrop-blur">
       <div
-        className={`flex h-18 items-center gap-3 px-4 md:px-6 ${variant === "full" ? "mx-auto max-w-[1440px]" : ""}`}
+        className={`flex h-18 items-center gap-3 px-4 md:px-6 ${variant === "full" ? "mx-auto max-w-[90rem]" : ""}`}
       >
         {variant === "workspace" ? (
           <>
@@ -65,7 +66,7 @@ export function EngineTopbar({
           <Link href="/engine" className="mr-3 flex items-center gap-2">
             <LogoMark className="size-7 text-brand-800" />
             <span className="text-lg font-bold tracking-tight">palda cx</span>
-            <span className="rounded-md bg-lime-400 px-1.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wider text-brand-900">
+            <span className="rounded-md bg-lime-400 px-1.5 py-0.5 font-mono text-[0.6875rem] font-medium uppercase tracking-wider text-brand-900">
               engine
             </span>
           </Link>

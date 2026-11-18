@@ -223,7 +223,7 @@ export function BrandForm({ tenantId, businessName, initial }: { tenantId: strin
 
       {/* Live preview: a small mock of the customer's app wearing the brand. */}
       <aside className="xl:sticky xl:top-24">
-        <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-muted">Preview</p>
+        <p className="mb-2 font-mono text-[0.6875rem] uppercase tracking-[0.08em] text-ink-muted">Preview</p>
         <div className="overflow-hidden rounded-2xl border border-line bg-canvas" style={previewStyle} data-testid="brand-preview">
           <div className="flex">
             <div className="w-40 shrink-0 border-r p-3" style={{ background: sb?.["--sb-bg"] ?? "#FFFFFF", borderColor: sb?.["--sb-border"] ?? "#E6EAE7" }}>

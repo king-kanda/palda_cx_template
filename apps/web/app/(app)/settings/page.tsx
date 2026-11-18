@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { schema } from "@garden/db";
+import { whatsappMode } from "@garden/integrations";
 import {
   getConfigMap,
   getSettings,
@@ -135,14 +136,14 @@ export default async function SettingsPage({
               <li key={resource.id} className="flex items-center justify-between gap-2 py-2 text-sm">
                 <div>
                   <p className="font-medium">{resource.name}</p>
-                  <p className="text-[11px] capitalize text-ink-subtle">
+                  <p className="text-[0.6875rem] capitalize text-ink-subtle">
                     {resource.kind}
                     {resource.capacity ? ` · up to ${resource.capacity}` : ""}
                   </p>
                 </div>
                 <form action={deactivateResourceAction}>
                   <input type="hidden" name="resourceId" value={resource.id} />
-                  <button className="text-[11px] font-medium text-danger-600">Disable</button>
+                  <button className="text-[0.6875rem] font-medium text-danger-600">Disable</button>
                 </form>
               </li>
             ))}
@@ -175,7 +176,7 @@ export default async function SettingsPage({
               <li key={offering.id} className="flex items-center justify-between gap-2 py-2 text-sm">
                 <div>
                   <p className="font-medium">{offering.name}</p>
-                  <p className="text-[11px] text-ink-subtle">
+                  <p className="text-[0.6875rem] text-ink-subtle">
                     {offering.durationMin} min · {offering.resourceKind}
                   </p>
                 </div>
@@ -238,7 +239,7 @@ export default async function SettingsPage({
               <li key={member.id} className="flex items-center justify-between gap-2 py-2 text-sm">
                 <div>
                   <p className="font-medium">{member.name}</p>
-                  <p className="text-[11px] text-ink-subtle">{member.email}</p>
+                  <p className="text-[0.6875rem] text-ink-subtle">{member.email}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="pill bg-neutral-100 capitalize text-neutral-600">{member.role}</span>
@@ -257,8 +258,8 @@ export default async function SettingsPage({
           <dl className="space-y-3 text-sm">
             <Integration
               label="WhatsApp"
-              value={process.env.WHATSAPP_MODE === "cloud" ? "Cloud API" : "Mock mode"}
-              hint="Set WHATSAPP_MODE=cloud and credentials in .env to go live."
+              value={whatsappMode() === "cloud" ? "Cloud API" : "Mock mode"}
+              hint="The Palda team switches this in the Engine (Settings)."
             />
             <Integration
               label="M-Pesa"
@@ -318,7 +319,7 @@ function Integration({ label, value, hint }: { label: string; value: string; hin
         <dt className="font-medium">{label}</dt>
         <dd className="text-xs font-mono text-ink-muted">{value}</dd>
       </div>
-      <p className="mt-1 text-[11px] text-ink-subtle">{hint}</p>
+      <p className="mt-1 text-[0.6875rem] text-ink-subtle">{hint}</p>
     </div>
   );
 }

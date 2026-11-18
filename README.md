@@ -19,7 +19,7 @@ table carries `tenant_id`, and the same MCP tools serve every business.
 | **Domain services** | `packages/services` | The only implementation of bookings, money, approvals, CRM, reporting. UI and MCP share it. |
 | **Database** | `packages/db` | Drizzle schema (32 tables), migrations, tenant-scoped transaction helper. |
 | **Verticals** | `packages/verticals` | Venue, salon, dental, consultancy presets: labels, hours, offerings, FAQ, reminders, agent hints. |
-| **Integrations** | `packages/integrations` | WhatsApp Cloud API, M-Pesa via Tuma (Daraja adapter), encryption, meetings, invoice PDF. |
+| **Integrations** | `packages/integrations` | WhatsApp Cloud API, payments (Tuma, Paystack, Pesapal; see `docs/PAYMENTS.md`), encryption, meetings, invoice PDF. |
 
 ## Design rules
 

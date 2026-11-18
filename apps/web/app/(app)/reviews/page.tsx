@@ -71,7 +71,7 @@ export default async function ReviewsPage({
                       >
                         {row.customer.name}
                       </Link>
-                      <span className="text-[11px] text-ink-subtle">
+                      <span className="text-[0.6875rem] text-ink-subtle">
                         {shortDate(row.review.receivedAt ?? row.review.requestedAt)}
                       </span>
                       {row.review.rating != null && row.review.rating <= 3 ? (
@@ -82,7 +82,7 @@ export default async function ReviewsPage({
                       {row.review.comment || "No comment yet."}
                     </p>
                     <Link
-                      className="mt-1 inline-block text-[11px] text-ink-subtle hover:text-brand-800"
+                      className="mt-1 inline-block text-[0.6875rem] text-ink-subtle hover:text-brand-800"
                       href={`/bookings/${row.booking.id}`}
                     >
                       {row.booking.startsAt.toISOString().slice(0, 10)} · open booking

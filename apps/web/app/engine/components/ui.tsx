@@ -32,7 +32,7 @@ export function ago(value: Date | string | null): string {
 
 /** Small uppercase mono label, as in the reference console. */
 export function Eyebrow({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <p className={`font-mono text-[11px] uppercase tracking-[0.08em] text-ink-muted ${className}`}>{children}</p>;
+  return <p className={`font-mono text-[0.6875rem] uppercase tracking-[0.08em] text-ink-muted ${className}`}>{children}</p>;
 }
 
 export function PageHeader({
@@ -98,7 +98,7 @@ export function MetricCard({
         </span>
       ) : null}
       <p className={`${Icon ? "mt-4" : ""} text-sm text-ink-muted`}>{label}</p>
-      <p className={`mt-1 text-[28px] font-bold leading-9 tabular ${valueColor}`}>{value}</p>
+      <p className={`mt-1 text-[1.75rem] font-bold leading-9 tabular ${valueColor}`}>{value}</p>
       {hint ? <p className="mt-1 text-xs text-ink-muted">{hint}</p> : null}
     </div>
   );
@@ -196,7 +196,7 @@ export function BarChart({
   const HEIGHT = 130;
   return (
     <div>
-      <div className="flex items-end gap-[3px] border-b border-line" style={{ height: HEIGHT }} role="img" aria-label="Chart">
+      <div className="flex items-end gap-[3px] border-b border-line" style={{ height: `${HEIGHT / 16}rem` }} role="img" aria-label="Chart">
         {buckets.map((b) => {
           const v = value(b);
           const h = v === 0 ? 3 : Math.max(5, Math.round((v / max) * (HEIGHT - 6)));
@@ -206,7 +206,7 @@ export function BarChart({
               key={b.key}
               title={`${b.label}: ${format(v)}${secondary && s ? ` (${s} need attention)` : ""}`}
               className="flex min-w-0 flex-1 flex-col justify-end overflow-hidden rounded-t-md"
-              style={{ height: h, background: color, opacity: v === 0 ? 0.35 : 1 }}
+              style={{ height: `${h / 16}rem`, background: color, opacity: v === 0 ? 0.35 : 1 }}
             >
               {s > 0 ? <div style={{ height: `${Math.round((s / v) * 100)}%`, background: secondaryColor }} /> : null}
             </div>
@@ -253,7 +253,7 @@ export function AttentionList({
               <span className={`size-2.5 rounded-full ${SEVERITY[item.severity].dot}`} />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-medium">
+              <span className="block text-[0.9375rem] font-medium">
                 {showCustomer ? <span className="text-ink-muted">{item.customerName} · </span> : null}
                 {item.title}
               </span>

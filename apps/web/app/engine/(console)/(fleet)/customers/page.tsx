@@ -42,7 +42,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   );
 
   return (
-    <main className="mx-auto w-full max-w-[1440px] p-4 md:p-6">
+    <main className="mx-auto w-full max-w-[90rem] p-4 md:p-6">
       <PageHeader
         title="Customers"
         subtitle="Every business you run an agent for. Open one to set it up, roll it out or see how its agent is doing."

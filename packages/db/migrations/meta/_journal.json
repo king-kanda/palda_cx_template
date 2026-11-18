@@ -64,6 +64,27 @@
       "when": 1794767190538,
       "tag": "0008_whatsapp_routes",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794946638766,
+      "tag": "0009_payment_providers",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794949801334,
+      "tag": "0010_whatsapp_one_business_per_account",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794995078276,
+      "tag": "0011_platform_settings",
+      "breakpoints": true
     }
   ]
 }

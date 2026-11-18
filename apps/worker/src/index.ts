@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { getDb, loadEnv, schema } from "@garden/db";
 import {
   dispatchDueReminders,
+  startPlatformSettingsSync,
   expireStaleApprovals,
   releaseExpiredHolds,
   sendDailyDigest,
@@ -120,6 +121,8 @@ async function main() {
     schema: process.env.PGBOSS_SCHEMA ?? "pgboss",
   });
   boss.on("error", (error) => console.error("[worker] pg-boss error", error));
+  // Reminders send WhatsApp messages, so the worker needs the Meta / WhatsApp settings saved in the Engine too.
+  await startPlatformSettingsSync();
   await boss.start();
 
   for (const name of Object.values(QUEUES)) {

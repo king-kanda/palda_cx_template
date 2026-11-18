@@ -36,7 +36,7 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
           ) : (
             <ul className="divide-y divide-line">
               {lists.team.map((r) => (
-                <li key={r.id} className="flex items-center justify-between gap-3 py-2.5 text-[15px]">
+                <li key={r.id} className="flex items-center justify-between gap-3 py-2.5 text-[0.9375rem]">
                   <span>{r.name}</span>
                   <span className="font-mono text-xs text-ink-muted">
                     {r.kind}
@@ -55,7 +55,7 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
             <ul className="divide-y divide-line">
               {lists.services.map((o) => (
                 <li key={o.id} className="py-2.5">
-                  <div className="flex items-baseline justify-between gap-3 text-[15px]">
+                  <div className="flex items-baseline justify-between gap-3 text-[0.9375rem]">
                     <span>{o.name}</span>
                     <span className="font-mono text-xs">{fmtKes(o.basePriceKes)}</span>
                   </div>
@@ -74,7 +74,7 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
           ) : (
             <ul className="divide-y divide-line">
               {lists.addons.map((a) => (
-                <li key={a.id} className="flex items-baseline justify-between gap-3 py-2.5 text-[15px]">
+                <li key={a.id} className="flex items-baseline justify-between gap-3 py-2.5 text-[0.9375rem]">
                   <span>{a.name}</span>
                   <span className="font-mono text-xs">{fmtKes(a.priceKes)}</span>
                 </li>

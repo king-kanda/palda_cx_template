@@ -35,6 +35,35 @@
 
   --font-sans: var(--font-jakarta), Inter, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /*
+   * Tighter corners (Tailwind's defaults are md .375, lg .5, xl .75, 2xl 1, 3xl 1.5 rem). shadcn components use these too.
+   */
+  --radius-md: 0.3125rem;
+  --radius-lg: 0.375rem;
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.625rem;
+  --radius-3xl: 0.875rem;
+
+  /*
+   * xl and 2xl at 80% of Tailwind's 80rem / 96rem, to match the desktop scale below: a screen behaves as if it were 25% wider,
+   * exactly like the browser at 80% zoom. sm/md/lg are unchanged so phones and tablets keep their layouts.
+   */
+  --breakpoint-xl: 64rem;
+  --breakpoint-2xl: 76.8rem;
+}
+
+/*
+ * Desktop scale: the app was designed to look right at 80% browser zoom, so on desktop 80% is the 100%. Everything is sized in
+ * rem (Tailwind spacing, text, widths, the legacy classes below), so lowering the root size scales the whole UI together, the
+ * way zoom does. Media queries still measure in the browser's 16px rem, so breakpoints are unaffected. Phones and tablets keep
+ * the full size, where smaller text would hurt.
+ * Rule for new code: size things in rem (Tailwind classes or `[N rem]`), never px, or they won't scale. Hairlines (1-3px) are fine.
+ */
+@media (min-width: 64rem) {
+  html {
+    font-size: 80%;
+  }
 }
 
 html,
@@ -78,13 +107,17 @@ body {
     color: inherit;
     text-decoration: none;
   }
-}
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
+  /*
+   * Inside the base layer on purpose: outside any layer it beat every Tailwind class, so a button with `text-sm` silently
+   * inherited its parent's size instead (the sidebar's "Collapse" was larger than the menu).
+   */
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
 }
 
 .tabular {
@@ -112,7 +145,7 @@ textarea {
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-line);
-  border-radius: 1rem;
+  border-radius: var(--radius-2xl);
 }
 
 /* Pill: inline-flex rounded-full border px-2 py-0.5 text-xs font-medium */
@@ -133,7 +166,7 @@ textarea {
   width: 100%;
   min-height: 2.75rem;
   border: 1px solid transparent;
-  border-radius: 0.75rem;
+  border-radius: var(--radius-xl);
   background: var(--color-surface-muted);
   padding: 0 0.75rem;
   font-size: 0.875rem;
@@ -167,7 +200,7 @@ select.input {
   justify-content: center;
   gap: 0.5rem;
   min-height: 2.5rem;
-  border-radius: 0.75rem;
+  border-radius: var(--radius-xl);
   padding: 0 1rem;
   font-size: 0.875rem;
   font-weight: 600;
@@ -260,52 +293,41 @@ select.input {
   background: var(--color-surface-muted);
 }
 
-/* ---- WhatsApp-style inbox (Wambo) ---- */
+/* ---- Inbox (Wambo): WhatsApp-shaped bubbles in the business's own brand colours ---- */
 .wa-wallpaper {
-  background-color: #efeae2;
-  background-image: radial-gradient(rgb(11 20 26 / 0.045) 1px, transparent 1px),
-    radial-gradient(rgb(11 20 26 / 0.03) 1px, transparent 1px);
-  background-size: 24px 24px, 24px 24px;
-  background-position: 0 0, 12px 12px;
+  background-color: var(--color-surface-muted);
+  background-image: radial-gradient(color-mix(in srgb, var(--color-brand-800) 7%, transparent) 1px, transparent 1px);
+  background-size: 1.25rem 1.25rem;
 }
 
 .wa-bubble {
+  --wa-out: color-mix(in srgb, var(--color-brand-800) 9%, var(--color-surface));
   position: relative;
-  max-width: min(75%, 34rem);
-  border-radius: 0.5rem;
-  padding: 0.375rem 0.5rem 0.25rem 0.625rem;
+  max-width: min(72%, 34rem);
+  border-radius: var(--radius-xl);
+  padding: 0.5rem 0.625rem 0.375rem 0.75rem;
   font-size: 0.875rem;
-  line-height: 1.25rem;
-  color: #111b21;
-  box-shadow: 0 1px 0.5px rgb(11 20 26 / 0.13);
+  line-height: 1.35rem;
+  color: var(--color-ink);
+  box-shadow: 0 1px 1px rgb(20 32 27 / 0.06);
 }
 
 .wa-in {
-  background: #fff;
-  border-top-left-radius: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
 }
 
-.wa-in.wa-tail::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -8px;
-  border-top: 8px solid #fff;
-  border-left: 8px solid transparent;
+.wa-in.wa-tail {
+  border-top-left-radius: 0.125rem;
 }
 
 .wa-out {
-  background: #d9fdd3;
-  border-top-right-radius: 0;
+  background: var(--wa-out);
+  border: 1px solid color-mix(in srgb, var(--color-brand-800) 12%, transparent);
 }
 
-.wa-out.wa-tail::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: -8px;
-  border-top: 8px solid #d9fdd3;
-  border-right: 8px solid transparent;
+.wa-out.wa-tail {
+  border-top-right-radius: 0.125rem;
 }
 
 /*

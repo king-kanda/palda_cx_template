@@ -103,7 +103,7 @@ export function StatCard({
       <div className="relative overflow-hidden rounded-2xl bg-brand-800 p-5 text-white">
         {Icon ? <Icon className="size-6 text-lime-400" strokeWidth={1.75} /> : null}
         <p className={`${Icon ? "mt-4" : ""} text-xs text-white/70`}>{label}</p>
-        <p className="mt-1 text-[28px] font-bold leading-9 tabular-nums">{value}</p>
+        <p className="mt-1 text-[1.75rem] font-bold leading-9 tabular-nums">{value}</p>
         {hint ? <p className="mt-1 text-xs text-white/70">{hint}</p> : null}
       </div>
     );
@@ -115,7 +115,7 @@ export function StatCard({
           <Icon className="size-5" strokeWidth={1.75} />
         </span>
       ) : null}
-      <p className={`${Icon ? "mt-4" : ""} text-[28px] font-bold leading-9 tabular-nums`}>{value}</p>
+      <p className={`${Icon ? "mt-4" : ""} text-[1.75rem] font-bold leading-9 tabular-nums`}>{value}</p>
       <p className="text-sm text-ink-muted">{label}</p>
       {hint ? <p className="mt-0.5 text-xs text-ink-subtle">{hint}</p> : null}
     </div>

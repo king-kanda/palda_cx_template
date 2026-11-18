@@ -1,15 +1,15 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { schema } from "@garden/db";
 import type { Booking, Payment } from "@garden/db";
-import { initiateStkPush, parseC2BConfirmation, parseStkCallback, type ParsedCallback } from "@garden/integrations";
+import { parseC2BConfirmation, parseStkCallback, type ParsedCallback } from "@garden/integrations";
 import { audit, getSettings, type ServiceContext } from "./context";
-import { netPaidForBooking, recalculateInvoices, generateInvoice } from "./invoices";
+import { netPaidForBooking, recalculateInvoices } from "./invoices";
 import { confirmBooking } from "./bookings";
 import { sendProactive } from "./notify";
 import { formatNairobi } from "./tz";
 import { ConflictError, ForbiddenError, NotFoundError, PolicyError, ValidationError, requireStaff } from "./types";
 
-async function scopedBooking(ctx: ServiceContext, bookingId: string): Promise<Booking> {
+export async function scopedBooking(ctx: ServiceContext, bookingId: string): Promise<Booking> {
   const booking = await ctx.db.query.bookings.findFirst({
     where: and(eq(schema.bookings.id, bookingId), eq(schema.bookings.tenantId, ctx.tenantId)),
   });
@@ -20,7 +20,7 @@ async function scopedBooking(ctx: ServiceContext, bookingId: string): Promise<Bo
   return booking;
 }
 
-async function confirmIfDepositMet(ctx: ServiceContext, booking: Booking): Promise<void> {
+export async function confirmIfDepositMet(ctx: ServiceContext, booking: Booking): Promise<void> {
   if (booking.status !== "hold" && booking.status !== "inquiry") return;
   const paid = await netPaidForBooking(ctx, booking.id);
   if (paid >= booking.depositRequiredKes && booking.depositRequiredKes > 0) {
@@ -105,87 +105,17 @@ export async function recordPayment(
   return payment!;
 }
 
-export async function initiateStk(
-  ctx: ServiceContext,
-  input: { bookingId: string; invoiceId?: string; phone?: string; amountKes?: number },
-): Promise<{ payment: Payment; customerMessage: string; mocked: boolean }> {
-  const booking = await scopedBooking(ctx, input.bookingId);
-  const customer = await ctx.db.query.customers.findFirst({
-    where: eq(schema.customers.id, booking.customerId),
-  });
-  if (!customer) throw new NotFoundError("Customer", booking.customerId);
-  const phone = input.phone ?? customer.phoneE164;
-
-  let invoiceId = input.invoiceId ?? null;
-  let amount = input.amountKes;
-  if (!amount) {
-    if (!invoiceId) {
-      const invoice = await generateInvoice(ctx, { bookingId: booking.id, kind: "deposit" }).catch(async () => {
-        return generateInvoice(ctx, { bookingId: booking.id, kind: "balance" });
-      });
-      invoiceId = invoice.id;
-      amount = invoice.balanceKes;
-    } else {
-      const invoice = await ctx.db.query.invoices.findFirst({
-        where: and(eq(schema.invoices.id, invoiceId), eq(schema.invoices.tenantId, ctx.tenantId)),
-      });
-      if (!invoice) throw new NotFoundError("Invoice", invoiceId);
-      amount = invoice.balanceKes;
-    }
-  }
-  if (!amount || amount <= 0) throw new ValidationError("Nothing to pay on this booking.");
-  if (ctx.principal.type === "customer" && phone !== ctx.principal.phoneE164) {
-    throw new ForbiddenError("Payment requests can only go to your own WhatsApp number.");
-  }
-
-  const [pending] = await ctx.db
-    .insert(schema.payments)
-    .values({
-      tenantId: ctx.tenantId,
-      bookingId: booking.id,
-      invoiceId,
-      method: "mpesa",
-      amountKes: amount,
-      phone,
-      status: "pending",
-    })
-    .returning();
-
-  try {
-    const stk = await initiateStkPush({
-      phone,
-      amountKes: amount,
-      accountRef: invoiceId ? `INV${invoiceId.slice(-6)}` : `BK${booking.id.slice(-6)}`,
-      description: "Booking payment",
-    });
-    const [updated] = await ctx.db
-      .update(schema.payments)
-      .set({
-        mpesaCheckoutRequestId: stk.checkoutRequestId,
-        rawPayload: { merchantRequestId: stk.merchantRequestId, mocked: stk.mocked },
-      })
-      .where(eq(schema.payments.id, pending!.id))
-      .returning();
-    await audit(ctx, "payment.stk_initiated", "payment", pending!.id, { amountKes: amount });
-    return { payment: updated!, customerMessage: stk.customerMessage, mocked: stk.mocked };
-  } catch (error) {
-    await ctx.db
-      .update(schema.payments)
-      .set({ status: "failed", rawPayload: { error: error instanceof Error ? error.message : String(error) } })
-      .where(eq(schema.payments.id, pending!.id));
-    throw error;
-  }
-}
-
-async function applySuccessfulCallback(
+export async function applySuccessfulCallback(
   ctx: ServiceContext,
   payment: Payment,
   parsed: ParsedCallback,
+  extra: { method?: "mpesa" | "card" } = {},
 ): Promise<Payment> {
   if (payment.status === "succeeded") return payment;
   const [updated] = await ctx.db
     .update(schema.payments)
     .set({
+      ...(extra.method ? { method: extra.method } : {}),
       status: "succeeded",
       mpesaReceipt: parsed.receipt,
       phone: parsed.phone ?? payment.phone,
@@ -203,6 +133,7 @@ async function applySuccessfulCallback(
     await confirmIfDepositMet(ctx, booking);
   }
   await audit(ctx, "payment.mpesa_callback", "payment", payment.id, {
+    provider: payment.provider ?? "tuma",
     resultCode: parsed.resultCode,
     receipt: parsed.receipt,
   });
@@ -424,7 +355,7 @@ export async function simulateMpesaSuccess(
   });
   if (!payment) throw new NotFoundError("Payment", paymentId);
   const parsed: ParsedCallback = {
-    checkoutRequestId: payment.mpesaCheckoutRequestId ?? payment.id,
+    checkoutRequestId: payment.providerRef ?? payment.mpesaCheckoutRequestId ?? payment.id,
     merchantRequestId: null,
     receipt: `MOCK${Date.now().toString().slice(-8)}`,
     amountKes: payment.amountKes,

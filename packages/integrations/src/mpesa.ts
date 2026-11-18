@@ -33,14 +33,17 @@ function normalisePhone(phone: string): string {
 
 /* ------------------------------- Tuma ---------------------------------- */
 
+/** One business's Tuma account. Omitted = the platform's own account from the environment (development / the default business). */
+export type TumaCreds = { email: string; apiKey: string; callbackUrl?: string };
+
 function tumaBaseUrl(): string {
   return (process.env.TUMA_API_BASE_URL ?? "https://api.tuma.co.ke").replace(/\/+$/, "");
 }
 
-function tumaCallbackUrl(): string {
+function tumaCallbackUrl(creds?: TumaCreds | null): string {
   // `||` rather than `??`: .env files commonly ship `TUMA_CALLBACK_URL=` empty,
   // which must fall back instead of sending Tuma a blank callback.
-  const url = process.env.TUMA_CALLBACK_URL || process.env.MPESA_CALLBACK_URL;
+  const url = creds?.callbackUrl || process.env.TUMA_CALLBACK_URL || process.env.MPESA_CALLBACK_URL;
   if (!url) {
     throw new MpesaError(
       "TUMA_CALLBACK_URL (or MPESA_CALLBACK_URL) is not configured.",
@@ -50,7 +53,8 @@ function tumaCallbackUrl(): string {
 }
 
 type TumaTokenCache = { token: string; expiresAt: number };
-let tumaTokenCache: TumaTokenCache | null = null;
+/** One cached token per Tuma account, so two businesses never share a login. */
+const tumaTokenCache = new Map<string, TumaTokenCache>();
 
 /** Reads the JWT `exp` claim so the token is reused until shortly before expiry. */
 function jwtExpiresAt(token: string): number | null {
@@ -66,15 +70,14 @@ function jwtExpiresAt(token: string): number | null {
   }
 }
 
-async function tumaToken(): Promise<string> {
-  if (tumaTokenCache && tumaTokenCache.expiresAt > Date.now() + 60_000) {
-    return tumaTokenCache.token;
-  }
-  const email = process.env.TUMA_EMAIL;
-  const apiKey = process.env.TUMA_API_KEY;
+async function tumaToken(creds?: TumaCreds | null): Promise<string> {
+  const email = creds?.email || process.env.TUMA_EMAIL;
+  const apiKey = creds?.apiKey || process.env.TUMA_API_KEY;
   if (!email || !apiKey) {
     throw new MpesaError("Tuma credentials are not configured (TUMA_EMAIL, TUMA_API_KEY).");
   }
+  const cached = tumaTokenCache.get(email);
+  if (cached && cached.expiresAt > Date.now() + 60_000) return cached.token;
 
   const res = await fetch(`${tumaBaseUrl()}/auth/token`, {
     method: "POST",
@@ -91,19 +94,18 @@ async function tumaToken(): Promise<string> {
     throw new MpesaError(json.message ?? "Could not authenticate with Tuma.", json);
   }
 
-  tumaTokenCache = {
+  tumaTokenCache.set(email, {
     token,
     expiresAt: jwtExpiresAt(token) ?? Date.now() + 10 * 60_000,
-  };
+  });
   return token;
 }
 
-async function initiateTumaStk(input: {
-  phone: string;
-  amountKes: number;
-  description: string;
-}): Promise<StkResult> {
-  const token = await tumaToken();
+export async function initiateTumaStk(
+  input: { phone: string; amountKes: number; description: string },
+  creds?: TumaCreds | null,
+): Promise<StkResult> {
+  const token = await tumaToken(creds);
   const phone = normalisePhone(input.phone);
   if (!/^254\d{9}$/.test(phone)) {
     throw new MpesaError("Invalid Kenyan phone number for M-Pesa (expected 254XXXXXXXXX).");
@@ -119,7 +121,7 @@ async function initiateTumaStk(input: {
     body: JSON.stringify({
       amount: Math.round(input.amountKes),
       phone,
-      callback_url: tumaCallbackUrl(),
+      callback_url: tumaCallbackUrl(creds),
       description: input.description.slice(0, 200),
     }),
   });

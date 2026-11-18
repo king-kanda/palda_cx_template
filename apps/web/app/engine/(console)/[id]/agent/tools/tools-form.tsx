@@ -60,7 +60,7 @@ export function ToolsForm({
 
       {groups.map(([group, rows]) => (
         <section key={group}>
-          <h3 className="mb-1 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-muted">{group}</h3>
+          <h3 className="mb-1 font-mono text-[0.6875rem] uppercase tracking-[0.08em] text-ink-muted">{group}</h3>
           <ul className="divide-y divide-line rounded-2xl border border-line">
             {rows.map((t) => {
               const on = !t.locked && !off.has(t.name);

@@ -13,8 +13,8 @@ export default function EngineLoginPage() {
       <div className="card w-full max-w-sm p-7">
         <div className="flex items-center gap-2">
           <LogoMark className="size-7 text-brand-800" />
-          <span className="text-[19px] font-bold tracking-tight">palda cx</span>
-          <span className="rounded-md bg-lime-400 px-1.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wider text-brand-900">
+          <span className="text-[1.1875rem] font-bold tracking-tight">palda cx</span>
+          <span className="rounded-md bg-lime-400 px-1.5 py-0.5 font-mono text-[0.6875rem] font-medium uppercase tracking-wider text-brand-900">
             engine
           </span>
         </div>

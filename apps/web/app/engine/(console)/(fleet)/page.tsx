@@ -18,7 +18,7 @@ export default async function EngineOverviewPage() {
     .slice(0, 6);
 
   return (
-    <main className="mx-auto w-full max-w-[1440px] p-4 md:p-6">
+    <main className="mx-auto w-full max-w-[90rem] p-4 md:p-6">
       <PageHeader
         title="Overview"
         subtitle="Every customer's agents, boiled down to what needs a decision. Open a customer to dig into one."

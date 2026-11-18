@@ -135,7 +135,7 @@ export default async function InvoicesPage({
                       <Link className="font-medium hover:text-brand-800" href={`/invoices/${row.invoice.id}`}>
                         {row.invoice.number}
                       </Link>
-                      <div className="text-[11px] text-ink-subtle">{shortDate(row.invoice.createdAt)}</div>
+                      <div className="text-[0.6875rem] text-ink-subtle">{shortDate(row.invoice.createdAt)}</div>
                     </td>
                     <td>
                       <Link className="hover:text-brand-800" href={`/customers/${row.customer.id}`}>

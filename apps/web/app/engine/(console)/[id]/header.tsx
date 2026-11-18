@@ -8,7 +8,7 @@ function Cta({ customer }: { customer: CustomerSummary }) {
     const missing = readinessOf(customer).filter((c) => c.required && !c.ok);
     return (
       <Link href={`/engine/${customer.id}/rollout`} className="block rounded-2xl bg-brand-800 px-6 py-3 text-white hover:bg-brand-700">
-        <span className="block text-[16px] font-semibold">{missing.length === 0 ? "Roll out →" : "Resume setup →"}</span>
+        <span className="block text-[1rem] font-semibold">{missing.length === 0 ? "Roll out →" : "Resume setup →"}</span>
         <span className="block text-xs text-white/80">
           {missing.length === 0 ? "Everything required is done." : `${missing.length} required item${missing.length > 1 ? "s" : ""} left.`}
         </span>

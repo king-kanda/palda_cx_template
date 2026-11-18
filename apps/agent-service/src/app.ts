@@ -18,6 +18,7 @@ import {
   appendOutboundMessage,
   getWhatsappCreds,
   markWhatsappDisconnected,
+  payFromButton,
   recordAppReply,
   recordInboundMessage,
   recordWhatsappSync,
@@ -27,6 +28,7 @@ import {
   type ServiceContext,
 } from "@garden/services";
 import {
+  PAY_BUTTON_PREFIX,
   parseWhatsAppPayload,
   sendTypingIndicator,
   verifyWebhookSignature,
@@ -210,6 +212,33 @@ async function handleAccountUpdate(change: WhatsAppChange): Promise<void> {
   for (const tenantId of tenantIds) await markWhatsappDisconnected(tenantId, update.reason ?? "WhatsApp ended the connection.");
 }
 
+/** The customer tapped "Pay with M-Pesa". The prompt goes to the number they are writing from, and they are told so. */
+async function handlePayButton(
+  tenant: TenantRow,
+  contacts: { waId: string; name: string }[],
+  message: InboundWhatsAppMessage,
+): Promise<void> {
+  await withPrincipal(systemPrincipal(tenant.id, "whatsapp"), async (ctx) => {
+    const customer = await upsertCustomerByPhone(ctx, {
+      name: contacts.find((c) => `+${c.waId}` === message.from)?.name ?? "WhatsApp customer",
+      phone: message.from,
+    });
+    const recorded = await recordInboundMessage(ctx, {
+      customerId: customer.id,
+      waMessageId: message.waMessageId,
+      type: "button",
+      text: message.text ?? "Pay with M-Pesa",
+      raw: message.raw,
+    });
+    if (recorded.duplicate) return; // WhatsApp redelivered the tap: one prompt only
+    const conversation = await ensureConversation(ctx, customer.id, "whatsapp");
+    const invoiceId = (message.interactiveReply ?? "").slice(PAY_BUTTON_PREFIX.length);
+    const result = await payFromButton(ctx, { invoiceId, fromPhone: message.from });
+    await sendFreeform(ctx, customer, result.reply);
+    await appendOutboundMessage(ctx, { conversationId: conversation.id, text: result.reply });
+  });
+}
+
 async function handleMessages(
   tenant: TenantRow,
   contacts: { waId: string; name: string }[],
@@ -264,6 +293,12 @@ async function handleMessages(
       continue;
     }
 
+    if (message.type === "button" && message.interactiveReply?.startsWith(PAY_BUTTON_PREFIX)) {
+      // "Pay with M-Pesa" on a payment message: send the prompt right away, no model involved.
+      await handlePayButton(tenant, contacts, message);
+      continue;
+    }
+
     try {
       // Store the inbound message and conversation first, in their own
       // committed transaction. The agent turn then runs on the shared pool:
@@ -291,9 +326,14 @@ async function handleMessages(
             return null;
           }
 
-          // Kenya DPA: a one-time consent line on first contact (PLAN §7).
+          // Kenya DPA: a one-time consent line on first contact (PLAN §7). Counts only real customer messages, so staff
+          // "Test as customer" messages in the inbox can never make a real first message look like a later one.
           const recentMessages = await ctx.db.query.messages.findMany({
-            where: eq(schema.messages.conversationId, conversation.id),
+            where: and(
+              eq(schema.messages.conversationId, conversation.id),
+              eq(schema.messages.direction, "inbound"),
+              sql`${schema.messages.type} <> 'test'`,
+            ),
             columns: { id: true },
             limit: 2,
           });
@@ -466,6 +506,7 @@ app.post("/internal/reply", async (c) => {
     phoneE164: customer.phoneE164,
   });
 
+  const startedAt = new Date();
   const turn = await runTurn({
     tenantId: tenant.id,
     agentId: "wambo",
@@ -478,6 +519,19 @@ app.post("/internal/reply", async (c) => {
   if (!turn.text) return c.json({ ok: false, error: "No reply produced." }, 502);
 
   await withPrincipal(systemPrincipal(tenant.id, "wambo"), async (ctx) => {
+    // Keep the staff member's test question in the thread (timed before the answer), so the transcript reads as a
+    // conversation. Type "test", and the conversation's last inbound time is NOT touched: that drives WhatsApp's 24-hour
+    // window, and a test must never open it.
+    if (userText?.trim()) {
+      await ctx.db.insert(schema.messages).values({
+        tenantId: tenant.id,
+        conversationId,
+        direction: "inbound",
+        type: "test",
+        body: userText.trim(),
+        createdAt: startedAt,
+      });
+    }
     if (!turn.result?.handoff) {
       const delivery = await deliverAgentReply(ctx, customer, conversationId, turn.text);
       if (!delivery.sent) {

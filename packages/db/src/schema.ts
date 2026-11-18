@@ -63,7 +63,7 @@ export const tenantIntegrations = pgTable(
     tenantId: uuid("tenant_id")
       .notNull()
       .references(() => tenants.id, { onDelete: "cascade" }),
-    kind: text("kind").notNull(), // whatsapp | mpesa | mcp
+    kind: text("kind").notNull(), // whatsapp | payments | mcp
     configEncrypted: text("config_encrypted").notNull(),
     meta: jsonb("meta").$type<Record<string, unknown>>().notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -329,6 +329,12 @@ export const payments = pgTable(
     amountKes: integer("amount_kes").notNull(),
     mpesaReceipt: text("mpesa_receipt"),
     mpesaCheckoutRequestId: text("mpesa_checkout_request_id"),
+    /** Which gateway took this payment: tuma | paystack | pesapal | manual. Null on older rows. */
+    provider: text("provider"),
+    /** The gateway's own reference for this payment (Paystack reference, Pesapal merchant reference, Tuma checkout id). */
+    providerRef: text("provider_ref"),
+    /** For a payment link: where the customer pays. */
+    checkoutUrl: text("checkout_url"),
     phone: text("phone"),
     status: text("status").notNull().default("pending"), // pending | succeeded | failed
     rawPayload: jsonb("raw_payload").$type<Record<string, unknown>>(),
@@ -342,6 +348,9 @@ export const payments = pgTable(
     uniqueIndex("payments_checkout_uq")
       .on(t.tenantId, t.mpesaCheckoutRequestId)
       .where(sql`mpesa_checkout_request_id is not null`),
+    uniqueIndex("payments_provider_ref_uq")
+      .on(t.tenantId, t.provider, t.providerRef)
+      .where(sql`provider_ref is not null`),
   ],
 );
 
@@ -651,6 +660,17 @@ export type AgentRun = typeof agentRuns.$inferSelect;
  * People who run the Engine: set up customers, name their agents and roll them out.
  * Deliberately not tenant-scoped (no tenant_id, no RLS): these accounts sit above tenants.
  */
+/**
+ * Platform-wide settings the Palda team edits in the Engine (Settings), e.g. the Meta app credentials, instead of the server's
+ * `.env`. Not tenant-scoped (it belongs to no business), so no row-level security, like `platform_admins`. Values are encrypted.
+ */
+export const platformSettings = pgTable("platform_settings", {
+  key: text("key").primaryKey(),
+  valueEncrypted: text("value_encrypted").notNull(),
+  updatedBy: text("updated_by"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const platformAdmins = pgTable("platform_admins", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),

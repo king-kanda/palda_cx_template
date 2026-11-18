@@ -171,11 +171,11 @@ export default async function CalendarPage({
                       <div className="mb-1 flex items-center justify-between px-0.5">
                         <Link
                           href={`/bookings/new?date=${day}`}
-                          className="text-[11px] font-semibold text-ink-muted hover:text-brand-800"
+                          className="text-[0.6875rem] font-semibold text-ink-muted hover:text-brand-800"
                         >
                           {Number(day.slice(8, 10))}
                         </Link>
-                        <span className="text-[9px] text-ink-subtle">
+                        <span className="text-[0.5625rem] text-ink-subtle">
                           {weekdayName(day).slice(0, 3)}
                         </span>
                       </div>
@@ -186,7 +186,7 @@ export default async function CalendarPage({
                           </DragBooking>
                         ))}
                         {(byDay.get(day) ?? []).length > 3 ? (
-                          <p className="px-1 text-[9px] text-ink-subtle">
+                          <p className="px-1 text-[0.5625rem] text-ink-subtle">
                             +{(byDay.get(day) ?? []).length - 3} more
                           </p>
                         ) : null}
@@ -214,11 +214,11 @@ export default async function CalendarPage({
                   <div className="mb-1 flex items-center justify-between px-0.5">
                     <Link
                       href={`/bookings/new?date=${day}`}
-                      className="text-[11px] font-semibold text-ink-muted hover:text-brand-800"
+                      className="text-[0.6875rem] font-semibold text-ink-muted hover:text-brand-800"
                     >
                       {Number(day.slice(8, 10))}
                     </Link>
-                    <span className="text-[9px] text-ink-subtle">
+                    <span className="text-[0.5625rem] text-ink-subtle">
                       {weekdayName(day).slice(0, 3)}
                     </span>
                   </div>
@@ -229,7 +229,7 @@ export default async function CalendarPage({
                       </DragBooking>
                     ))}
                     {(byDay.get(day) ?? []).length === 0 ? (
-                      <p className="px-1 text-[9px] text-ink-subtle">Free</p>
+                      <p className="px-1 text-[0.5625rem] text-ink-subtle">Free</p>
                     ) : null}
                   </div>
                 </DropDay>
@@ -309,7 +309,7 @@ export default async function CalendarPage({
                     </div>
                     <form action={deleteBlockAction}>
                       <input type="hidden" name="blockId" value={block.id} />
-                      <button className="text-[11px] font-medium text-danger-600">Remove</button>
+                      <button className="text-[0.6875rem] font-medium text-danger-600">Remove</button>
                     </form>
                   </li>
                 ))}
@@ -349,7 +349,7 @@ function bookingChip(row: {
     <Link
       href={`/bookings/${row.booking.id}`}
       draggable={false}
-      className={`block truncate rounded px-1 py-0.5 text-[9px] font-medium ${
+      className={`block truncate rounded px-1 py-0.5 text-[0.5625rem] font-medium ${
         row.booking.status === "hold"
           ? "bg-warning-100 text-warning-600"
           : row.booking.status === "cancelled"

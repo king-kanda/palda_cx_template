@@ -734,7 +734,7 @@ const moneyTools: AnyToolDef[] = [
     name: "payments.request",
     group: "payments",
     description:
-      "Send an M-Pesa STK push / payment request for a booking. For customers the phone is always their verified WhatsApp number.",
+      "Ask a customer to pay for a booking. mode 'stk' (default) sends an M-Pesa prompt to the customer's phone; 'link' makes a hosted payment page (card or M-Pesa) and returns its URL; 'options' sends the customer a WhatsApp message with a 'Pay with M-Pesa' button and a 'Pay online' link. The business's payment providers are chosen and retried by the server. For customers the phone is always their verified WhatsApp number. Never invent a link; only use the URL in the result.",
     tier: "write-safe",
     principalTypes: ["customer", "staff", "system"],
     scopes: ["payments:request_own", "payments:write"],
@@ -744,16 +744,28 @@ const moneyTools: AnyToolDef[] = [
         invoiceId: uuid.optional(),
         amountKes: z.number().int().min(1).max(2_000_000).optional(),
         phone: z.string().min(9).max(20).optional(),
+        mode: z.enum(["stk", "link", "options"]).optional(),
         idempotencyKey: z.string().min(6).max(200).optional(),
       })
       .strict(),
     async handler(ctx, args) {
-      const result = await svc.initiateStk(ctx, args);
+      const { mode = "stk", idempotencyKey: _key, ...rest } = args;
+      if (mode === "options") {
+        const sent = await svc.sendPaymentOptions(ctx, {
+          bookingId: rest.bookingId,
+          invoiceId: rest.invoiceId,
+          amountKes: rest.amountKes,
+        });
+        return { mode, sent: sent.sent, kind: sent.kind, message: sent.message };
+      }
+      const result = await svc.requestPayment(ctx, { ...rest, mode });
       return {
+        mode,
         paymentId: result.payment.id,
         status: result.payment.status,
         amountKes: result.payment.amountKes,
         customerMessage: result.customerMessage,
+        paymentUrl: result.url,
         mocked: result.mocked,
       };
     },

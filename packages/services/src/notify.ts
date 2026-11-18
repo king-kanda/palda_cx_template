@@ -3,9 +3,11 @@ import { schema } from "@garden/db";
 import {
   WhatsAppError,
   sendTemplate,
+  sendTemplateWithButtons,
   sendText,
   whatsappMode,
   type SendResult,
+  type TemplateButton,
   type WhatsAppCreds,
 } from "@garden/integrations";
 import type { ServiceContext } from "./context";
@@ -109,6 +111,61 @@ export async function sendProactive(
     const message = error instanceof Error ? error.message : String(error);
     await logSend(ctx, input.customer, text, null, message);
     return { sent: false, mocked: false, body: text };
+  }
+}
+
+/**
+ * Sends an approved template that has buttons (for example "Pay with M-Pesa" and "Pay online"). In mock mode, and when WhatsApp
+ * refuses the template (not approved yet), `fallbackText` is sent as an ordinary message instead, which works while the
+ * customer's 24-hour window is open. `sent: false` means neither went out.
+ */
+export async function sendProactiveButtons(
+  ctx: ServiceContext,
+  input: {
+    customer: Customer;
+    templateName: string;
+    /** Body text with numbered {{1}}.. placeholders, exactly as submitted to Meta. */
+    body: string;
+    params: string[];
+    buttons: TemplateButton[];
+    fallbackText: string;
+    language?: string;
+  },
+): Promise<{ sent: boolean; mocked: boolean; usedTemplate: boolean; error?: string }> {
+  const rendered = input.body.replace(/\{\{(\d+)\}\}/g, (_m, n: string) => input.params[Number(n) - 1] ?? "");
+  try {
+    if (whatsappMode() === "cloud") {
+      const creds = await credsFor(ctx);
+      try {
+        const result = await sendTemplateWithButtons(
+          input.customer.phoneE164,
+          input.templateName,
+          input.params,
+          input.buttons,
+          input.language === "sw" ? "sw" : "en",
+          creds,
+        );
+        await logSend(ctx, input.customer, rendered, result);
+        return { sent: true, mocked: result.mocked, usedTemplate: true };
+      } catch (templateError) {
+        // Not approved yet (or the customer's window is the only way in): fall back to plain text.
+        const result = await sendText(input.customer.phoneE164, input.fallbackText, creds);
+        await logSend(ctx, input.customer, input.fallbackText, result, undefined);
+        return {
+          sent: true,
+          mocked: result.mocked,
+          usedTemplate: false,
+          error: templateError instanceof Error ? templateError.message : String(templateError),
+        };
+      }
+    }
+    const result = await sendText(input.customer.phoneE164, input.fallbackText);
+    await logSend(ctx, input.customer, input.fallbackText, result);
+    return { sent: true, mocked: result.mocked, usedTemplate: false };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await logSend(ctx, input.customer, input.fallbackText, null, message);
+    return { sent: false, mocked: false, usedTemplate: false, error: message };
   }
 }
 

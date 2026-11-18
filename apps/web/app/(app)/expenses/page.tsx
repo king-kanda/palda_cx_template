@@ -126,7 +126,7 @@ export default async function ExpensesPage({
                       <td>
                         <form action={deleteExpenseAction}>
                           <input type="hidden" name="expenseId" value={expense.id} />
-                          <button className="text-[11px] font-medium text-danger-600">Delete</button>
+                          <button className="text-[0.6875rem] font-medium text-danger-600">Delete</button>
                         </form>
                       </td>
                     </tr>

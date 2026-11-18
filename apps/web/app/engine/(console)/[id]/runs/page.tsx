@@ -51,9 +51,9 @@ export default async function RunsPage({
           <p className="text-sm text-ink-muted">No runs match.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left">
+            <table className="w-full min-w-[45rem] text-left">
               <thead>
-                <tr className="font-mono text-[11px] uppercase tracking-wider text-ink-muted">
+                <tr className="font-mono text-[0.6875rem] uppercase tracking-wider text-ink-muted">
                   <th className="pb-2 pr-3 font-normal">When</th>
                   <th className="pb-2 pr-3 font-normal">Agent</th>
                   <th className="pb-2 pr-3 font-normal">Outcome</th>
@@ -69,9 +69,9 @@ export default async function RunsPage({
                   return (
                     <tr key={r.id} className="align-top">
                       <td className="py-3 pr-3 font-mono text-xs text-ink-muted">{dateTime(r.at)}</td>
-                      <td className="py-3 pr-3 text-[15px] font-medium">
+                      <td className="py-3 pr-3 text-[0.9375rem] font-medium">
                         {name(r.agentId)}
-                        <span className="block font-mono text-[11px] font-normal text-ink-muted">via {r.trigger}</span>
+                        <span className="block font-mono text-[0.6875rem] font-normal text-ink-muted">via {r.trigger}</span>
                       </td>
                       <td className="py-3 pr-3">
                         <OutcomePill outcome={r.outcome} />

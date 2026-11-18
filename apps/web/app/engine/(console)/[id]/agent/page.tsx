@@ -40,7 +40,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
             {customer.verticalTitle.toLowerCase()}, then your voice and notes. It also gets the business facts, prices and the safety rules
             every time.
           </p>
-          <pre className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-2xl bg-surface-muted p-4 font-mono text-[12.5px] leading-relaxed text-ink">
+          <pre className="max-h-[35rem] overflow-auto whitespace-pre-wrap rounded-2xl bg-surface-muted p-4 font-mono text-[0.7812rem] leading-relaxed text-ink">
             {persona}
           </pre>
         </Panel>

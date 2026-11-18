@@ -132,10 +132,10 @@ export default async function DashboardPage() {
                 <div key={point.month} className="flex flex-1 flex-col items-center gap-2">
                   <div
                     className="w-full rounded-t-lg bg-brand-800"
-                    style={{ height: `${Math.max(4, (point.collectedKes / maxRevenue) * 120)}px` }}
+                    style={{ height: `${Math.max(0.25, (point.collectedKes / maxRevenue) * 7.5)}rem` }}
                     title={kes(point.collectedKes)}
                   />
-                  <span className="text-[10px] text-ink-subtle">{point.label}</span>
+                  <span className="text-[0.625rem] text-ink-subtle">{point.label}</span>
                 </div>
               ))}
             </div>

@@ -132,7 +132,17 @@ export async function routeWhatsappNumber(phoneNumberId: string): Promise<{ tena
   return row ? { tenantId: row.tenantId } : null;
 }
 
-/** Which businesses use this WhatsApp account? (account-level updates carry the account id, not a number) */
+function isSharedAccountViolation(error: unknown): boolean {
+  const e = error as { code?: string; message?: string; cause?: { code?: string } } | null;
+  return Boolean(e && (e.code === "23P01" || e.cause?.code === "23P01" || String(e.message ?? "").includes("whatsapp_routes_one_business_per_account")));
+}
+
+const SHARED_ACCOUNT = "This WhatsApp Business account is already connected to another business. Each business needs its own account.";
+
+/**
+ * Which business uses this WhatsApp account? (account-level updates carry the account id, not a number). The database allows
+ * at most one; a list is returned so a caller never has to assume.
+ */
 export async function routeWhatsappAccount(wabaId: string): Promise<string[]> {
   const rows = await getDb().query.whatsappRoutes.findMany({ where: eq(schema.whatsappRoutes.wabaId, wabaId) });
   return [...new Set(rows.map((r) => r.tenantId))];
@@ -186,7 +196,14 @@ export async function completeWhatsappSignup(by: string, tenantId: string, input
   }
   const coexistence = Boolean(input.coexistence) || details.isOnBizApp === true;
 
-  // Claim the number for this business FIRST. The primary key makes this atomic.
+  // One WhatsApp Business account belongs to one business, never two. The database enforces it
+  // (whatsapp_routes_one_business_per_account); this check only gives the clear message first.
+  const accountOwners = await routeWhatsappAccount(wabaId);
+  if (accountOwners.some((id) => id !== tenantId)) {
+    throw new ConflictError(SHARED_ACCOUNT);
+  }
+
+  // Claim the number for this business FIRST. The primary key (number) and the exclusion constraint (account) make this atomic.
   const claimed = await getDb()
     .insert(schema.whatsappRoutes)
     .values({ phoneNumberId, tenantId, wabaId })
@@ -198,7 +215,14 @@ export async function completeWhatsappSignup(by: string, tenantId: string, input
     if (existing && existing.tenantId !== tenantId) {
       throw new ConflictError("This WhatsApp number is already connected to another business.");
     }
-    if (existing) await getDb().update(schema.whatsappRoutes).set({ wabaId }).where(eq(schema.whatsappRoutes.phoneNumberId, phoneNumberId));
+    // Nothing was inserted and the number is free: another business took this account at the same moment.
+    if (!existing) throw new ConflictError(SHARED_ACCOUNT);
+    try {
+      await getDb().update(schema.whatsappRoutes).set({ wabaId }).where(eq(schema.whatsappRoutes.phoneNumberId, phoneNumberId));
+    } catch (error) {
+      if (isSharedAccountViolation(error)) throw new ConflictError(SHARED_ACCOUNT);
+      throw error;
+    }
   }
 
   let pin: string | undefined;

@@ -1,15 +1,16 @@
 import { z } from "zod";
 import { hmacSha256Hex, verifyHmacSha256 } from "./crypto";
+import { platformSetting } from "./platform-settings";
 
 export type WhatsAppMode = "cloud" | "mock";
 
 export function whatsappMode(): WhatsAppMode {
-  return (process.env.WHATSAPP_MODE as WhatsAppMode) ?? "mock";
+  return platformSetting("WHATSAPP_MODE") === "cloud" ? "cloud" : "mock";
 }
 
-/** Read on every call, so it can be changed without a restart in tests. Set WHATSAPP_GRAPH_VERSION to a current Graph API version. */
+/** Read on every call, so it can be changed from the Engine (Settings) without a restart. Set it to a current Graph API version. */
 export function graphVersion(): string {
-  return process.env.WHATSAPP_GRAPH_VERSION ?? "v21.0";
+  return platformSetting("WHATSAPP_GRAPH_VERSION") ?? "v21.0";
 }
 
 /**
@@ -133,8 +134,105 @@ export async function sendTemplate(
   return { waMessageId: id, mocked: false };
 }
 
+/** A button on a template, in the order the template defines them (that order is the button's index). */
+export type TemplateButton = { type: "quick_reply"; payload: string } | { type: "url"; suffix: string };
+
+/** Sends an approved template that has buttons. A quick-reply button carries a payload that comes back when it is tapped; a URL button fills the template's `{{1}}` with `suffix`. */
+export async function sendTemplateWithButtons(
+  to: string,
+  templateName: string,
+  bodyParams: TemplateParam[],
+  buttons: TemplateButton[],
+  languageCode = "en",
+  creds?: WhatsAppCreds | null,
+): Promise<SendResult> {
+  if (whatsappMode() === "mock") {
+    return { waMessageId: `mock_tpl_${templateName}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, mocked: true };
+  }
+  const components: Record<string, unknown>[] = [];
+  if (bodyParams.length) components.push({ type: "body", parameters: bodyParams.map((text) => ({ type: "text", text })) });
+  buttons.forEach((b, index) => {
+    components.push({
+      type: "button",
+      sub_type: b.type === "quick_reply" ? "quick_reply" : "url",
+      index: String(index),
+      parameters: [b.type === "quick_reply" ? { type: "payload", payload: b.payload } : { type: "text", text: b.suffix }],
+    });
+  });
+  const id = await graphSend(
+    { to: to.replace("+", ""), type: "template", template: { name: templateName, language: { code: languageCode }, components } },
+    creds,
+  );
+  return { waMessageId: id, mocked: false };
+}
+
+export type TemplateDefinition = {
+  name: string;
+  /** Body text with {{1}}, {{2}} ... placeholders, and one example value per placeholder (Meta requires examples). */
+  body: string;
+  bodyExamples: string[];
+  buttons: ({ type: "QUICK_REPLY"; text: string } | { type: "URL"; text: string; url: string; example: string })[];
+  language?: string;
+};
+
+export type TemplateStatus = "APPROVED" | "PENDING" | "REJECTED" | "PAUSED" | "DISABLED" | "UNKNOWN";
+
+/** Submits a utility template to Meta for approval on this business's WhatsApp account. A template that already exists is not an error. */
+export async function createMessageTemplate(
+  wabaId: string,
+  accessToken: string,
+  def: TemplateDefinition,
+): Promise<{ status: TemplateStatus; existed: boolean }> {
+  if (whatsappMode() === "mock") return { status: "APPROVED", existed: false };
+  const res = await fetch(`https://graph.facebook.com/${graphVersion()}/${wabaId}/message_templates`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: def.name,
+      language: def.language ?? "en",
+      category: "UTILITY",
+      components: [
+        { type: "BODY", text: def.body, example: { body_text: [def.bodyExamples] } },
+        {
+          type: "BUTTONS",
+          buttons: def.buttons.map((b) =>
+            b.type === "QUICK_REPLY"
+              ? { type: "QUICK_REPLY", text: b.text }
+              : { type: "URL", text: b.text, url: b.url, example: [b.example] },
+          ),
+        },
+      ],
+    }),
+  });
+  const json = (await res.json().catch(() => ({}))) as { status?: string; error?: { message?: string; error_user_msg?: string } };
+  if (!res.ok) {
+    const message = json.error?.error_user_msg ?? json.error?.message ?? "Meta rejected the template.";
+    if (/already exists|duplicate/i.test(message)) return { status: "UNKNOWN", existed: true };
+    throw new WhatsAppError(message, json);
+  }
+  return { status: normaliseTemplateStatus(json.status), existed: false };
+}
+
+function normaliseTemplateStatus(value: unknown): TemplateStatus {
+  const v = String(value ?? "").toUpperCase();
+  return v === "APPROVED" || v === "PENDING" || v === "REJECTED" || v === "PAUSED" || v === "DISABLED" ? v : "UNKNOWN";
+}
+
+export async function getMessageTemplateStatus(wabaId: string, accessToken: string, name: string): Promise<TemplateStatus | null> {
+  if (whatsappMode() === "mock") return "APPROVED";
+  const res = await fetch(
+    `https://graph.facebook.com/${graphVersion()}/${wabaId}/message_templates?name=${encodeURIComponent(name)}&fields=name,status`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  const json = (await res.json().catch(() => ({}))) as { data?: { name?: string; status?: string }[] };
+  if (!res.ok) throw new WhatsAppError("Couldn't read template status from WhatsApp.", json);
+  const found = (json.data ?? []).find((t) => t.name === name);
+  return found ? normaliseTemplateStatus(found.status) : null;
+}
+
 export function verifyWebhookSignature(rawBody: string, signatureHeader: string | null): boolean {
-  const secret = process.env.WHATSAPP_APP_SECRET;
+  // The Meta app secret signs webhooks. META_APP_SECRET and the older WHATSAPP_APP_SECRET are the same value.
+  const secret = platformSetting("META_APP_SECRET");
   if (!secret) return whatsappMode() === "mock";
   if (!signatureHeader?.startsWith("sha256=")) return false;
   return verifyHmacSha256(rawBody, signatureHeader.slice("sha256=".length), secret);
@@ -144,7 +242,7 @@ export function webhookChallenge(params: URLSearchParams): string | null {
   const mode = params.get("hub.mode");
   const token = params.get("hub.verify_token");
   const challenge = params.get("hub.challenge");
-  if (mode === "subscribe" && token === process.env.WHATSAPP_VERIFY_TOKEN && challenge) {
+  if (mode === "subscribe" && token && token === platformSetting("WHATSAPP_VERIFY_TOKEN") && challenge) {
     return challenge;
   }
   return null;

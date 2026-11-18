@@ -2,12 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CalendarDays, Calculator, FileText, MessageSquare, Plug, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { getCustomerIntegrations, getSettings, getWhatsappConnection, withPrincipal } from "@garden/services";
+import { getCustomerIntegrations, getPaymentSettings, getSettings, getWhatsappConnection, withPrincipal } from "@garden/services";
 import { getSession } from "@/lib/auth";
 import { principalOf } from "@/lib/principal";
 import { dateTime } from "@/lib/format";
 import { EmptyState, PageHeader, Section } from "@/components/ui";
 import { checkWhatsappAction, disconnectWhatsappAction } from "./whatsapp/actions";
+import { PaymentsSection } from "./payments/payments-section";
 
 export const dynamic = "force-dynamic";
 
@@ -31,11 +32,13 @@ const STATUS = {
  * The apps connected to the business, set up by the Palda team. Read-only on purpose: customers never handle the technical side
  * (addresses, tokens, permissions), and the page shows none of it.
  */
-export default async function IntegrationsPage() {
+export default async function IntegrationsPage({ searchParams }: { searchParams: Promise<{ payOk?: string; payError?: string }> }) {
   const session = await getSession();
   if (!session) redirect("/login");
-  const [settings, apps, whatsapp] = await Promise.all([
+  const query = await searchParams;
+  const [settings, payments, apps, whatsapp] = await Promise.all([
     withPrincipal(principalOf(session), (ctx) => getSettings(ctx)),
+    withPrincipal(principalOf(session), (ctx) => getPaymentSettings(ctx)),
     getCustomerIntegrations(session.tenantId),
     getWhatsappConnection(session.tenantId),
   ]);
@@ -103,6 +106,20 @@ export default async function IntegrationsPage() {
           )}
         </div>
       </Section>
+
+      {query.payOk ? <p className="rounded-xl border border-line bg-surface-muted px-4 py-3 text-sm">{query.payOk}</p> : null}
+      {query.payError ? (
+        <p className="rounded-xl border border-danger-600/30 bg-danger-100 px-4 py-3 text-sm text-danger-600">{query.payError}</p>
+      ) : null}
+      <PaymentsSection
+        providers={payments.providers}
+        source={payments.source}
+        templates={payments.templates}
+        slug={settings.tenant.slug}
+        isOwner={isOwner}
+        appUrl={(process.env.APP_URL ?? "http://localhost:3000").replace(/\/+$/, "")}
+        whatsappConnected={waLive}
+      />
 
       {apps.length === 0 ? (
         <EmptyState

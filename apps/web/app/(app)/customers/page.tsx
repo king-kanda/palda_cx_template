@@ -107,7 +107,7 @@ export default async function CustomersPage({
                           {row.customer.name}
                         </Link>
                         {row.customer.email ? (
-                          <div className="text-[11px] text-ink-subtle">{row.customer.email}</div>
+                          <div className="text-[0.6875rem] text-ink-subtle">{row.customer.email}</div>
                         ) : null}
                       </td>
                       <td className="font-mono text-xs">{row.customer.phoneE164}</td>

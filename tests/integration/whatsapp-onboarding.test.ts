@@ -161,6 +161,21 @@ describe.skipIf(!enabled)("WhatsApp Embedded Signup, routing and coexistence (ne
     await expect(sign(A, { wabaId: "WABA_A", phoneNumberId: "mock_pn_A" })).resolves.toMatchObject({ status: "active" });
   });
 
+  it("a WhatsApp Business account can only ever belong to one business, even with a different number", async () => {
+    // C tries to connect a new number that sits on A's account.
+    await expect(sign(C, { wabaId: "WABA_A", phoneNumberId: "mock_pn_C_on_A" })).rejects.toThrow(ConflictError);
+    await expect(sign(C, { wabaId: "WABA_A", phoneNumberId: "mock_pn_C_on_A" })).rejects.toThrow(/Business account is already connected to another business/);
+    expect(await routeWhatsappNumber("mock_pn_C_on_A")).toBeNull();
+    expect(await getWhatsappConnection(C)).toBeNull();
+    expect(await routeWhatsappAccount("WABA_A")).toEqual([A]);
+
+    // The database refuses it too, so no code path (or a hand-written query) can share an account.
+    await expect(
+      getDb().insert(schema.whatsappRoutes).values({ phoneNumberId: "mock_pn_raw", tenantId: C, wabaId: "WABA_A" }),
+    ).rejects.toThrow();
+    expect(await routeWhatsappNumber("mock_pn_raw")).toBeNull();
+  });
+
   it("a number nobody connected routes nowhere", async () => {
     expect(await routeWhatsappNumber("mock_pn_nobody")).toBeNull();
     expect(await routeWhatsappNumber("")).toBeNull();

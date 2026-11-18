@@ -38,7 +38,7 @@ export default async function AccessPage({
               {people.map((p) => (
                 <li key={p.id} className="flex items-center justify-between gap-3 py-3">
                   <span className="min-w-0">
-                    <span className="block truncate text-[15px] font-medium">{p.name}</span>
+                    <span className="block truncate text-[0.9375rem] font-medium">{p.name}</span>
                     <span className="block truncate font-mono text-xs text-ink-muted">{p.email}</span>
                   </span>
                   <span className="flex shrink-0 items-center gap-2">

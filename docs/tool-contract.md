@@ -89,7 +89,7 @@ result.
 
 | Tool | Tier | Principals | Purpose |
 | --- | --- | --- | --- |
-| `payments.request` | write-safe | customer, staff, system | Sends an M-Pesa STK push / payment link. |
+| `payments.request` | write-safe | customer, staff, system | `mode` `stk` (default): M-Pesa prompt; `link`: hosted payment page, returns `paymentUrl`; `options`: WhatsApp message with a "Pay with M-Pesa" button and a "Pay online" link. Provider choice and fallback are the server's. |
 | `payments.record_manual` | write-safe | staff, system | Records cash/bank/card payment. |
 | `payments.list` | read | staff, system | Payments for a booking or recent list. |
 | `payments.list_unmatched` | read | staff, system | C2B receipts with no booking. |

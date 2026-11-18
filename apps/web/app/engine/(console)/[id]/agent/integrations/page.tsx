@@ -48,7 +48,7 @@ export default async function IntegrationsPage({ params }: { params: Promise<{ i
       ) : (
         <Panel title="Connected apps" aside={`${servers.length} connected · ${waiting} tool${waiting === 1 ? "" : "s"} not switched on`}>
           <div className="-mx-5 overflow-x-auto">
-            <table className="table min-w-[760px]">
+            <table className="table min-w-[47.5rem]">
               <thead>
                 <tr>
                   <th>App</th>

@@ -11,10 +11,12 @@ import { principalOf } from "@/lib/principal";
 import { dateTime, shortDate } from "@/lib/format";
 import { PageHeader, Section, StatusPill } from "@/components/ui";
 import {
+  createPaymentLinkAction,
   initiateStkAction,
   matchPaymentAction,
   recordInvoicePaymentAction,
   sendInvoiceFromListAction,
+  sendPaymentOptionsAction,
   simulateMpesaAction,
   voidInvoiceAction,
 } from "../actions";
@@ -26,7 +28,7 @@ export default async function InvoiceDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; notice?: string; link?: string }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -67,6 +69,14 @@ export default async function InvoiceDetailPage({
         }
       />
 
+      {query.notice ? (
+        <p className="mb-4 rounded-xl border border-line bg-surface-muted px-4 py-3 text-sm">{query.notice}</p>
+      ) : null}
+      {query.link ? (
+        <p className="mb-4 break-all rounded-xl border border-line bg-surface-muted px-4 py-3 text-sm">
+          Payment link: <a className="font-medium text-brand-700 underline" href={query.link} target="_blank" rel="noreferrer">{query.link}</a>
+        </p>
+      ) : null}
       {query.error ? (
         <p className="mb-4 rounded-xl border border-danger-600/30 bg-danger-100 px-4 py-3 text-sm text-danger-600">{query.error}</p>
       ) : null}
@@ -198,10 +208,21 @@ export default async function InvoiceDetailPage({
         </div>
 
         <div className="space-y-5">
-          <Section title="M-Pesa STK push">
+          <Section title="Ask the customer to pay">
             <p className="mb-2 text-xs text-ink-muted">
-              Send a payment prompt to the customer&apos;s phone for the balance.
+              Uses the payment providers connected under Integrations, in their order, and tries the next one if a provider is down.
             </p>
+            <div className="mb-4 flex flex-wrap gap-2">
+              <form action={sendPaymentOptionsAction}>
+                <input type="hidden" name="invoiceId" value={invoice.id} />
+                <button className="btn btn-primary">Send on WhatsApp</button>
+              </form>
+              <form action={createPaymentLinkAction}>
+                <input type="hidden" name="invoiceId" value={invoice.id} />
+                <button className="btn btn-secondary">Create payment link</button>
+              </form>
+            </div>
+            <p className="mb-2 text-xs text-ink-muted">Or send an M-Pesa prompt to a phone now:</p>
             <form action={initiateStkAction} className="space-y-2">
               <input type="hidden" name="invoiceId" value={invoice.id} />
               <input
