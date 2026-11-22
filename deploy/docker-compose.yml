@@ -1,0 +1,103 @@
+# Palda CX production stack for one Ubuntu EC2 box. Pulls the prebuilt image from Docker Hub (nothing is built on the server).
+# nginx runs on the host and proxies https://<your domain> to 127.0.0.1:${WEB_PORT}. Postgres, Qdrant and the agent service are
+# not published: Meta's webhook reaches the agent through the web app (/webhooks/whatsapp is forwarded internally).
+#
+#   cp .env.example .env    # fill it in (bootstrap.sh does this for you the first time)
+#   bash deploy.sh          # pull + migrate + start
+
+x-app: &app
+  image: ${DOCKERHUB_USER:?set DOCKERHUB_USER in .env}/palda-cx:${TAG:-latest}
+  env_file: .env
+  environment: &app-env
+    NODE_ENV: production
+    TZ: Africa/Nairobi
+    DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/garden_bookings
+    APP_URL: ${APP_URL:?set APP_URL in .env}
+    AGENT_SERVICE_URL: http://agent:3100
+    AGENT_SERVICE_PORT: "3100"
+    QDRANT_URL: http://qdrant:6333
+    VECTOR_MODE: qdrant
+    # Production: outside MCP servers must be public https.
+    EXTERNAL_MCP_ALLOW_PRIVATE: "false"
+    EXTERNAL_MCP_ALLOW_INSECURE: "false"
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: garden_bookings
+      TZ: Africa/Nairobi
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d garden_bookings"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?set QDRANT_API_KEY in .env}
+    volumes:
+      - qdrant:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Applies the schema, the double-booking constraint and row-level security on every deploy, then exits.
+  # It does NOT load demo data in production (see deploy.sh --demo).
+  migrate:
+    <<: *app
+    restart: "no"
+    depends_on:
+      db: { condition: service_healthy }
+    command: ["pnpm", "db:migrate"]
+
+  web:
+    <<: *app
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3200}:3000"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      qdrant: { condition: service_healthy }
+    command: ["pnpm", "--filter", "@garden/web", "start"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://localhost:3000/login || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  agent:
+    <<: *app
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      qdrant: { condition: service_healthy }
+    command: ["pnpm", "--filter", "@garden/agent-service", "start"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3100/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  worker:
+    <<: *app
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    command: ["pnpm", "--filter", "@garden/worker", "start"]
+
+volumes:
+  pgdata:
+  qdrant:
