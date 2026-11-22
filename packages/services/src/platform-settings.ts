@@ -96,6 +96,13 @@ function validate(key: PlatformKey, v: string): string {
   if (key === "META_ES_CONFIG_ID" && !/^\d{5,25}$/.test(value)) throw new ValidationError("The Embedded Signup configuration ID is a number (Facebook Login for Business > Configurations).");
   if (key === "WHATSAPP_GRAPH_VERSION" && !/^v\d{1,3}\.\d$/.test(value)) throw new ValidationError('The Graph API version looks like "v21.0".');
   if (key === "WHATSAPP_VERIFY_TOKEN" && value.length < 12) throw new ValidationError("Use a verify token of at least 12 characters (or generate one).");
+  if (key === "INTEGRATIONS_MODE" && value !== "mock" && value !== "live") throw new ValidationError("Apps mode must be mock or live.");
+  if (key === "GOOGLE_CLIENT_ID" && !/^[\w-]+\.apps\.googleusercontent\.com$/.test(value)) {
+    throw new ValidationError("A Google client ID ends in .apps.googleusercontent.com (Google Cloud > APIs & Services > Credentials).");
+  }
+  if (key === "ZOHO_CLIENT_ID" && !/^1000\.[A-Z0-9]{10,}$/i.test(value)) {
+    throw new ValidationError('A Zoho client ID starts with "1000." (Zoho API Console > your Server-based client).');
+  }
   return value;
 }
 
@@ -126,6 +133,13 @@ export async function savePlatformSettings(by: string, input: PlatformSettingsIn
     const missing = (["META_APP_ID", "META_APP_SECRET", "META_ES_CONFIG_ID", "WHATSAPP_VERIFY_TOKEN"] as PlatformKey[]).filter((k) => !after(k));
     if (missing.length) {
       throw new ValidationError(`Live WhatsApp needs: ${missing.map((k) => PLATFORM_KEYS[k].label).join(", ")}.`);
+    }
+  }
+  if (after("INTEGRATIONS_MODE") === "live") {
+    const google = after("GOOGLE_CLIENT_ID") && after("GOOGLE_CLIENT_SECRET");
+    const zoho = after("ZOHO_CLIENT_ID") && after("ZOHO_CLIENT_SECRET");
+    if (!google && !zoho) {
+      throw new ValidationError("Live apps need at least one OAuth client: the Google or the Zoho client ID and secret.");
     }
   }
 

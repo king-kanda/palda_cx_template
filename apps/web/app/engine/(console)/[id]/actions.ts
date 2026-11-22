@@ -14,6 +14,9 @@ import {
   deleteExternalServer,
   setExternalServerStatus,
   setExternalToolsEnabled,
+  saveOdooConnection,
+  removeAppConnectionAsAdmin,
+  isAppId,
   updateBrand,
   syncExternalServer,
   deleteKnowledgeDocument,
@@ -152,13 +155,14 @@ export async function publishToolsAction(_prev: EngineFormState, formData: FormD
   const tenantId = idOf(formData);
   const agentId = String(formData.get("agentId") ?? "wambo");
   const blocked = formData.getAll("blocked").map(String);
+  const enabledIntegrationTools = formData.getAll("enabledIntegration").map(String);
   const max = Number(formData.get("maxToolCalls") ?? 6);
   try {
     const { version } = await publishAgentOverride(
       admin.id,
       tenantId,
       agentId,
-      { toolPolicy: { blockedTools: blocked, maxToolCalls: max } },
+      { toolPolicy: { blockedTools: blocked, enabledIntegrationTools, maxToolCalls: max } },
       String(formData.get("note") ?? ""),
     );
     revalidatePath(`/engine/${tenantId}/agent/tools`);
@@ -258,6 +262,7 @@ export async function saveExternalToolsAction(_prev: EngineFormState, formData: 
       formData.getAll("enabled").map(String),
     );
     revalidatePath(`/engine/${tenantId}/agent/integrations`);
+    revalidatePath(`/engine/${tenantId}/agent/tools`);
     return { ok: true, message: `Saved. ${enabled} tool${enabled === 1 ? " is" : "s are"} on. It applies from the next message.` };
   } catch (error) {
     return { error: messageOf(error) };
@@ -277,6 +282,36 @@ export async function deleteExternalServerAction(formData: FormData): Promise<vo
   const tenantId = idOf(formData);
   await deleteExternalServer(admin.id, tenantId, String(formData.get("serverId") ?? ""));
   revalidatePath(`/engine/${tenantId}/agent/integrations`);
+}
+
+/** Connect (or update) Odoo for this customer with an API key. The details are tested before anything is saved. */
+export async function saveOdooAction(_prev: EngineFormState, formData: FormData): Promise<EngineFormState> {
+  const admin = await requireEngineAdmin();
+  const tenantId = idOf(formData);
+  try {
+    const view = await saveOdooConnection(admin.id, tenantId, {
+      url: String(formData.get("url") ?? ""),
+      db: String(formData.get("db") ?? ""),
+      username: String(formData.get("username") ?? ""),
+      apiKey: String(formData.get("apiKey") ?? ""),
+    });
+    revalidatePath(`/engine/${tenantId}/agent/integrations`);
+    revalidatePath(`/engine/${tenantId}/agent/tools`);
+    return { ok: true, message: `Odoo is connected (${view.account}). Switch on its tools on the Tools screen.` };
+  } catch (error) {
+    return { error: messageOf(error) };
+  }
+}
+
+/** Remove an app connection for this customer (any app; OAuth grants are revoked with the vendor too). */
+export async function removeAppAction(formData: FormData): Promise<void> {
+  const admin = await requireEngineAdmin();
+  const tenantId = idOf(formData);
+  const app = String(formData.get("app") ?? "");
+  if (!isAppId(app)) return;
+  await removeAppConnectionAsAdmin(admin.id, tenantId, app);
+  revalidatePath(`/engine/${tenantId}/agent/integrations`);
+  revalidatePath(`/engine/${tenantId}/agent/tools`);
 }
 
 /** Save a customer's branding. The logo is only touched when it was changed (empty means removed). */

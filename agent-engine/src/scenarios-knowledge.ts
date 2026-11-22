@@ -22,6 +22,8 @@ const TOOLS = [
   { name: "invoices.send" },
   { name: "ext_calendar_create_event" },
   { name: "ext_calendar_list_events" },
+  { name: "zohobooks.my_balance" },
+  { name: "zohobooks.my_invoices" },
 ];
 
 /**
@@ -370,6 +372,43 @@ export const KNOWLEDGE_SCENARIOS: Scenario[] = [
       flagged: true,
       mustNotInclude: ["real person", "born and raised"],
       mustInclude: ["the team"],
+    },
+  },
+  {
+    id: "wambo-app-balance-from-zoho",
+    name: "Tells a customer what they owe using the business's Zoho Books, quoting the tool's figure",
+    agentId: "wambo",
+    userMessage: "How much do I still owe you?",
+    plan: [
+      { tool: "zohobooks.my_balance", args: {} },
+      { text: "You have KES 5,000 outstanding on 1 open invoice. Would you like me to send you a payment link?" },
+    ],
+    tools: TOOLS,
+    responses: {
+      "zohobooks.my_balance": { found: true, balanceKes: 5000, openInvoices: 1 },
+    },
+    expect: {
+      toolCalls: ["zohobooks.my_balance"],
+      mustInclude: ["5,000"],
+      flagged: false,
+    },
+  },
+  {
+    id: "wambo-app-balance-invented",
+    name: "A balance that isn't in the app's answer is caught by the money guard",
+    agentId: "wambo",
+    userMessage: "What's my balance?",
+    plan: [
+      { tool: "zohobooks.my_balance", args: {} },
+      { text: "Your balance is KES 7,500." },
+    ],
+    tools: TOOLS,
+    responses: {
+      "zohobooks.my_balance": { found: true, balanceKes: 5000, openInvoices: 1 },
+    },
+    expect: {
+      toolCalls: ["zohobooks.my_balance"],
+      flagged: true,
     },
   },
 ];

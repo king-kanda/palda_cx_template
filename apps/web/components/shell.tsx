@@ -371,7 +371,7 @@ export function AppShell({
           </button>
           <h1 className="truncate text-xl font-bold md:text-2xl">{title}</h1>
           <div className="ml-auto flex items-center gap-2 md:gap-3">
-            <Link href="/wambo" className={iconButton} aria-label="Wambo inbox">
+            <Link href="/wambo" className={iconButton} aria-label={`${agent.name} inbox`}>
               <MessageCircle className="size-5" />
             </Link>
             <Link href="/approvals" className={iconButton} aria-label="Approvals">

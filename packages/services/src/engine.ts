@@ -442,6 +442,11 @@ export const agentOverrideSchema = z
         /** Extra tools to switch off for this customer. The shipped safety blocks always stay on (enforced when the config is loaded). */
         blockedTools: z.array(z.string().trim().min(1).max(64)).max(200).default([]),
         maxToolCalls: z.number().int().min(1).max(12).optional(),
+        /**
+         * Tools for connected apps (Google, Zoho, Odoo) are OFF unless listed here. They are still only offered while the
+         * business has that app connected and working.
+         */
+        enabledIntegrationTools: z.array(z.string().trim().min(1).max(64)).max(100).default([]),
       })
       .strict(),
   })
@@ -526,6 +531,7 @@ export async function publishAgentOverride(adminId: string, tenantId: string, ag
       agentId,
       version,
       blockedTools: parsed.data.toolPolicy.blockedTools,
+      enabledIntegrationTools: parsed.data.toolPolicy.enabledIntegrationTools,
       maxToolCalls: parsed.data.toolPolicy.maxToolCalls ?? null,
       note: note.slice(0, 200),
     });

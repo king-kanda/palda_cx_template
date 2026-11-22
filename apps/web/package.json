@@ -11,7 +11,8 @@
     "engine:admin": "tsx scripts/engine-admin.ts",
     "engine:reindex": "tsx scripts/engine-reindex.ts",
     "engine:demo-runs": "tsx scripts/demo-runs.ts",
-    "engine:demo-brands": "tsx scripts/demo-brands.ts"
+    "engine:demo-brands": "tsx scripts/demo-brands.ts",
+    "showcase": "tsx scripts/showcase.ts"
   },
   "dependencies": {
     "@garden/db": "workspace:*",

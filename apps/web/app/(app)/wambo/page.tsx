@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CheckCircle2, MessageCircle } from "lucide-react";
 import { getSettings, listConversations, listOpenHandoffsWithConversations, withPrincipal } from "@garden/services";
 import { getSession } from "@/lib/auth";
 import { principalOf } from "@/lib/principal";
@@ -47,10 +46,7 @@ export default async function WamboInboxPage({
             {handoffs.length > 0 ? (
               <>
                 <h2 className="text-lg font-semibold">Needs you</h2>
-                <p className="mt-1 text-sm text-ink-muted">
-                  {agent} handed these to a person. Open one to reply; resolve it when it&apos;s done.
-                </p>
-                <ul className="mt-5 space-y-2">
+                <ul className="mt-4 space-y-2">
                   {handoffs.map((row) => (
                     <li key={row.handoff.id} className="card flex items-start gap-3 p-4">
                       <Avatar name={row.customer.name} size="size-9" />
@@ -82,20 +78,12 @@ export default async function WamboInboxPage({
               </>
             ) : (
               <div className="text-center">
-                <span className="mx-auto grid size-16 place-items-center rounded-full bg-brand-100 text-brand-800">
-                  {conversations.length ? <CheckCircle2 className="size-8" strokeWidth={1.5} /> : <MessageCircle className="size-8" strokeWidth={1.5} />}
-                </span>
-                <h2 className="mt-4 text-xl font-semibold">{conversations.length ? "You're all caught up" : `${agent} is ready`}</h2>
+                <h2 className="text-xl font-semibold">{conversations.length ? "You're all caught up" : `${agent} is ready`}</h2>
                 <p className="mx-auto mt-2 max-w-sm text-sm text-ink-muted">
                   {conversations.length
                     ? `${agent} is handling every chat. Anything that needs a person shows up here.`
                     : "When a customer messages your WhatsApp number, the chat appears on the left."}
                 </p>
-                <ul className="mx-auto mt-6 max-w-sm space-y-2 text-left text-sm text-ink-muted">
-                  <li className="flex gap-2"><span className="text-brand-800">•</span>Prices and availability always come from your system, never guessed.</li>
-                  <li className="flex gap-2"><span className="text-brand-800">•</span>Refunds, discounts and exceptions wait for your approval.</li>
-                  <li className="flex gap-2"><span className="text-brand-800">•</span>Reply in any chat to take over; hand it back when you&apos;re done.</li>
-                </ul>
               </div>
             )}
           </div>

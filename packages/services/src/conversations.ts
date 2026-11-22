@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { schema } from "@garden/db";
 import { audit, type ServiceContext } from "./context";
 import { sendFreeform } from "./notify";
@@ -171,15 +171,44 @@ export async function listConversations(ctx: ServiceContext) {
     .where(eq(schema.conversations.tenantId, ctx.tenantId))
     .orderBy(desc(schema.conversations.lastInboundAt))
     .limit(100);
-  const out = [];
-  for (const row of rows) {
-    const last = await ctx.db.query.messages.findFirst({
-      where: eq(schema.messages.conversationId, row.conversation.id),
-      orderBy: desc(schema.messages.createdAt),
-    });
-    out.push({ ...row, lastMessage: last ?? null });
-  }
-  return out;
+  if (rows.length === 0) return [];
+  const ids = rows.map((r) => r.conversation.id);
+
+  // The newest message of every conversation, in one query.
+  const lastMessages = await ctx.db
+    .selectDistinctOn([schema.messages.conversationId])
+    .from(schema.messages)
+    .where(and(eq(schema.messages.tenantId, ctx.tenantId), inArray(schema.messages.conversationId, ids)))
+    .orderBy(schema.messages.conversationId, desc(schema.messages.createdAt));
+  const lastBy = new Map(lastMessages.map((m) => [m.conversationId, m]));
+
+  // Customer messages nobody has answered yet: inbound messages newer than the conversation's latest outbound one.
+  const unanswered = await ctx.db
+    .select({ conversationId: schema.messages.conversationId, count: sql<number>`count(*)::int` })
+    .from(schema.messages)
+    .where(
+      and(
+        eq(schema.messages.tenantId, ctx.tenantId),
+        inArray(schema.messages.conversationId, ids),
+        eq(schema.messages.direction, "inbound"),
+        sql`${schema.messages.createdAt} > coalesce((
+          select max(o.created_at) from messages o
+          where o.conversation_id = ${schema.messages.conversationId} and o.direction = 'outbound'
+        ), '-infinity'::timestamptz)`,
+      ),
+    )
+    .groupBy(schema.messages.conversationId);
+  const unansweredBy = new Map(unanswered.map((u) => [u.conversationId, u.count]));
+
+  const out = rows.map((row) => ({
+    ...row,
+    lastMessage: lastBy.get(row.conversation.id) ?? null,
+    unanswered: unansweredBy.get(row.conversation.id) ?? 0,
+  }));
+  // Newest activity first (an outbound reply also moves a chat up, as in WhatsApp).
+  const at = (r: (typeof out)[number]) =>
+    (r.lastMessage?.createdAt ?? r.conversation.lastInboundAt ?? r.conversation.createdAt).getTime();
+  return out.sort((a, b) => at(b) - at(a));
 }
 
 export async function sendStaffMessage(

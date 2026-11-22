@@ -29,8 +29,10 @@ A. NEEDS YOU (accounts, approvals, decisions)
     consent wording for AI chats and for importing coexistence history.
 [ ] Decide: Engine admin accounts, what to do when WhatsApp ends a customer's link,
     pricing and message templates to offer.
-[ ] Decide: do customers authorise Zoho / Google Workspace themselves via real OAuth?
-    (today the Palda team connects those via external MCP servers in the Engine)
+[x] Decided 2026-11-22: owners connect Google Workspace, Zoho Books, Zoho CRM themselves via OAuth;
+    Odoo (API key) and custom MCP servers are connected by the Palda team in the Engine. Built (docs/INTEGRATIONS.md).
+[ ] Create the Google Cloud OAuth client + Zoho API Console client, paste into Engine > Settings,
+    then switch Apps mode to Live. Google verification needed for gmail.send beyond 100 test users.
 [ ] Decide: commit + push the uncommitted work (remote is the PERSONAL account,
     git@github.com:king-kanda/palda_cx_template.git).
 
@@ -49,7 +51,7 @@ B. I CAN BUILD (say which first)
 [ ] 8. Backups, monitoring, alerting (Postgres + Qdrant) and a deploy pipeline.
 [ ] 9. pnpm check:all script that sets the test env safely, so the suite can never
        run against the live database by mistake.
-[ ] 10. Customer self-service OAuth for Zoho / Google Workspace (only if you say yes above).
+[x] 10. Customer self-service OAuth for Zoho / Google Workspace (done 2026-11-22, mock-tested; not yet run against real Google/Zoho).
 
 
 C. THE CHECK YOU RUN WHEN YOU CAN

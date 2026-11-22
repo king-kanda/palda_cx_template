@@ -32,8 +32,8 @@ export default async function WamboSettingsPage({
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeader
-        title="Wambo settings"
-        subtitle="What Wambo knows, how it sounds and whether it is answering."
+        title={`${settings.agentName} settings`}
+        subtitle={`What ${settings.agentName} knows, how it sounds and whether it is answering.`}
         action={
           <Link className="btn btn-secondary" href="/wambo">
             ← Inbox
@@ -50,7 +50,7 @@ export default async function WamboSettingsPage({
           <form action={saveWamboAction} className="space-y-3">
             <div>
               <label className="mb-1.5 block text-sm font-medium">
-                Facts Wambo must know
+                Facts {settings.agentName} must know
               </label>
               <textarea
                 className="input min-h-32"
@@ -104,7 +104,7 @@ export default async function WamboSettingsPage({
                   defaultChecked={business.agentEnabled !== false}
                   className="h-4 w-4"
                 />
-                Wambo answers new messages
+                {settings.agentName} answers new messages
               </label>
               <label className="flex items-start gap-2 pt-6 text-sm">
                 <input
@@ -124,7 +124,7 @@ export default async function WamboSettingsPage({
             </div>
 
             <div className="flex justify-end">
-              <button className="btn btn-primary">Save Wambo settings</button>
+              <button className="btn btn-primary">Save {settings.agentName} settings</button>
             </div>
           </form>
         </Section>

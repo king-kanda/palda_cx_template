@@ -283,7 +283,7 @@ export default async function SettingsPage({
           </dl>
           <div className="mt-4 flex flex-wrap gap-2">
             <Link className="btn btn-secondary text-xs" href="/wambo/settings">
-              Wambo settings
+              {settings.agentName} settings
             </Link>
             <Link className="btn btn-secondary text-xs" href="/api/mcp">
               MCP endpoint

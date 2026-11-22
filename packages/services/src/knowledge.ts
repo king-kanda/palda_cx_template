@@ -83,6 +83,9 @@ export type KnowledgeDocumentInfo = {
   error: string | null;
   chunkCount: number;
   chars: number;
+  words: number;
+  /** The start of the text, for a preview in the Engine. */
+  preview: string;
   createdAt: Date;
 };
 
@@ -99,6 +102,8 @@ export async function listKnowledgeDocuments(tenantId: string): Promise<Knowledg
       error: r.error,
       chunkCount: r.chunkCount,
       chars: r.body.length,
+      words: r.body.trim() ? r.body.trim().split(/\s+/).length : 0,
+      preview: r.body.slice(0, 1200),
       createdAt: r.createdAt,
     }));
   });

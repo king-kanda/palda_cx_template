@@ -2,12 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import {
-  decideApproval,
-  executeApproval,
-  withPrincipal,
-  type Principal,
-} from "@garden/services";
+import { decideApproval, withPrincipal, type Principal } from "@garden/services";
+import { executeApprovedAction } from "@garden/mcp-server";
 import { requireSession } from "@/lib/auth";
 import { principalOf } from "@/lib/principal";
 
@@ -16,17 +12,9 @@ function fail(error: unknown): never {
   redirect(`/approvals?error=${encodeURIComponent(message)}`);
 }
 
-async function runApproved(
-  principal: Principal,
-  approvalId: string,
-): Promise<{ executed: boolean; manual: boolean }> {
-  const execution = await withPrincipal(principal, (ctx) => executeApproval(ctx, approvalId));
-  if (!execution.executed) {
-    // Tool-backed approvals are executed by the MCP dispatcher. Surface a clear
-    // message rather than silently marking them done.
-    return { executed: false, manual: true };
-  }
-  return { executed: true, manual: false };
+/** Carries out the approved action, including tool-backed ones the agent asked for (e.g. "email the customer from Gmail"). */
+async function runApproved(principal: Principal, approvalId: string): Promise<void> {
+  await executeApprovedAction(principal, approvalId);
 }
 
 export async function approveAction(formData: FormData): Promise<void> {

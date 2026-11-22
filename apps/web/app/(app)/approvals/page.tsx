@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   approvalTitle,
+  getSettings,
   kes,
   listApprovals,
   withPrincipal,
@@ -24,9 +25,10 @@ export default async function ApprovalsPage({
   const params = await searchParams;
   const principal = principalOf(session);
 
-  const approvals = await withPrincipal(principal, (ctx) =>
-    listApprovals(ctx, { status: params.status }),
-  );
+  const [approvals, { agentName }] = await Promise.all([
+    withPrincipal(principal, (ctx) => listApprovals(ctx, { status: params.status })),
+    withPrincipal(principal, (ctx) => getSettings(ctx)),
+  ]);
 
   const pending = approvals.filter((row) => row.status === "pending");
   const executed = approvals.filter((row) => row.status === "executed");
@@ -77,7 +79,7 @@ export default async function ApprovalsPage({
       {approvals.length === 0 ? (
         <EmptyState
           title="Nothing waiting"
-          body="Wambo is operating within policy. New sensitive requests will appear here."
+          body={`${agentName} is working within your rules. New sensitive requests will appear here.`}
         />
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">

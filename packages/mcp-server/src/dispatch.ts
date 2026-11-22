@@ -165,6 +165,7 @@ export async function callTool(
     }
 
     if (isSensitiveFor(tool, principal)) {
+      if (tool.authorize) await svc.withPrincipal(principal, (ctx) => tool.authorize!(ctx, args));
       const kind = approvalKindFor(tool, args);
       const approval = await svc.withPrincipal(principal, (ctx) =>
         svc.requestApproval(ctx, {
@@ -256,4 +257,24 @@ export function describeTools(principal: Principal): ToolDescriptor[] {
     tier: tool.tier,
     input: tool.input,
   }));
+}
+
+/**
+ * Carries out an approval that someone just approved in the app. Plain approvals (refunds, discounts, ...) are executed by the
+ * service layer; tool-backed ones (an agent asked to run a sensitive tool, such as emailing a customer from Gmail or raising a
+ * Zoho invoice) are run here, once, as the approver, and the approval is marked executed with the tool's result.
+ */
+export async function executeApprovedAction(
+  principal: Principal,
+  approvalId: string,
+): Promise<{ executed: boolean; tool?: string; result?: unknown }> {
+  const execution = await svc.withPrincipal(principal, (ctx) => svc.executeApproval(ctx, approvalId));
+  if (execution.executed) return { executed: true, result: execution.result };
+  const tool = TOOL_MAP.get(execution.pendingTool.tool);
+  if (!tool) throw new svc.NotFoundError("Tool", execution.pendingTool.tool);
+  const parsed = tool.input.safeParse(execution.pendingTool.args);
+  if (!parsed.success) throw new svc.ValidationError("The approved request is no longer valid.");
+  const result = await runTool(principal, tool, parsed.data as Record<string, unknown>);
+  await svc.withPrincipal(principal, (ctx) => svc.markApprovalExecuted(ctx, approvalId, result));
+  return { executed: true, tool: tool.name, result };
 }

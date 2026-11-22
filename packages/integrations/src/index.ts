@@ -9,3 +9,8 @@ export * from "./vector";
 export * from "./embeddings";
 export * from "./external-mcp";
 export * from "./whatsapp-onboarding";
+export * from "./oauth-apps";
+export * from "./apps-http";
+export * from "./apps-google";
+export * from "./apps-zoho";
+export * from "./apps-odoo";

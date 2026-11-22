@@ -2,7 +2,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CalendarDays, Calculator, FileText, MessageSquare, Plug, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { getCustomerIntegrations, getPaymentSettings, getSettings, getWhatsappConnection, withPrincipal } from "@garden/services";
+import {
+  getCustomerIntegrations,
+  getPaymentSettings,
+  getSettings,
+  getWhatsappConnection,
+  listAppConnections,
+  withPrincipal,
+} from "@garden/services";
+import { disconnectAppAction } from "./apps-actions";
 import { getSession } from "@/lib/auth";
 import { principalOf } from "@/lib/principal";
 import { dateTime } from "@/lib/format";
@@ -22,6 +30,12 @@ const ICONS: Record<string, LucideIcon> = {
   Other: Plug,
 };
 
+const APP_STATUS = {
+  connected: { label: "Connected", cls: "bg-lime-100 text-brand-800" },
+  attention: { label: "Needs attention", cls: "bg-warning-100 text-warning-600" },
+  not_connected: { label: "Not connected", cls: "bg-surface-muted text-ink-muted" },
+} as const;
+
 const STATUS = {
   connected: { label: "Connected", cls: "bg-lime-100 text-brand-800" },
   paused: { label: "Paused", cls: "bg-surface-muted text-ink-muted" },
@@ -32,16 +46,23 @@ const STATUS = {
  * The apps connected to the business, set up by the Palda team. Read-only on purpose: customers never handle the technical side
  * (addresses, tokens, permissions), and the page shows none of it.
  */
-export default async function IntegrationsPage({ searchParams }: { searchParams: Promise<{ payOk?: string; payError?: string }> }) {
+export default async function IntegrationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ payOk?: string; payError?: string; appOk?: string; appError?: string }>;
+}) {
   const session = await getSession();
   if (!session) redirect("/login");
   const query = await searchParams;
-  const [settings, payments, apps, whatsapp] = await Promise.all([
+  const [settings, payments, apps, whatsapp, connections] = await Promise.all([
     withPrincipal(principalOf(session), (ctx) => getSettings(ctx)),
     withPrincipal(principalOf(session), (ctx) => getPaymentSettings(ctx)),
     getCustomerIntegrations(session.tenantId),
     getWhatsappConnection(session.tenantId),
+    listAppConnections(session.tenantId),
   ]);
+  // OAuth apps always show (the owner can connect them); key-based ones only once the Palda team connected them.
+  const native = connections.filter((c) => c.auth === "oauth2" || c.status !== "not_connected");
   const isOwner = session.role === "owner";
   const waLive = whatsapp !== null && whatsapp.status !== "disconnected";
 
@@ -121,13 +142,74 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
         whatsappConnected={waLive}
       />
 
-      {apps.length === 0 ? (
-        <EmptyState
-          title="No apps connected yet"
-          body="Want your accounting, calendar or CRM connected? Ask the Palda team and we will set it up for you."
-        />
-      ) : (
+      {query.appOk ? <p className="rounded-xl border border-line bg-lime-100 px-4 py-3 text-sm text-brand-900">{query.appOk}</p> : null}
+      {query.appError ? (
+        <p className="rounded-xl border border-danger-600/30 bg-danger-100 px-4 py-3 text-sm text-danger-600">{query.appError}</p>
+      ) : null}
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold">Your apps</h2>
+          <p className="text-sm text-ink-muted">
+            You sign in to each app yourself and can disconnect at any time.
+          </p>
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          {native.map((app) => {
+            const status = APP_STATUS[app.status];
+            const ownerConnects = app.auth === "oauth2";
+            return (
+              <section key={app.id} className="card flex min-w-0 flex-col p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="grid size-11 place-items-center rounded-xl text-sm font-bold text-white" style={{ background: app.colour }} aria-hidden>
+                    {app.mark}
+                  </span>
+                  <span className={`pill ${status.cls}`}>{status.label}</span>
+                </div>
+                <h3 className="mt-4 text-lg font-semibold">{app.name}</h3>
+                <p className="text-xs text-ink-muted">{app.category}</p>
+                <p className="mt-2 flex-1 text-sm text-ink-muted">{app.summary}</p>
+                {app.status !== "not_connected" ? (
+                  <p className="mt-3 truncate text-xs text-ink">
+                    {app.account ?? "Connected"}
+                    {app.mock ? <span className="text-ink-muted"> · sample data (test mode)</span> : null}
+                  </p>
+                ) : null}
+                {app.status === "attention" ? (
+                  <p className="mt-2 text-xs text-warning-600">The connection stopped working. Reconnect it to carry on.</p>
+                ) : null}
+                <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+                  {!ownerConnects ? (
+                    <p className="text-xs text-ink-muted">
+                      {app.status === "not_connected" ? "Set up by the Palda team. Ask us to connect it." : "Set up by the Palda team."}
+                    </p>
+                  ) : !isOwner ? (
+                    <p className="text-xs text-ink-muted">Only the account owner can connect apps.</p>
+                  ) : !app.canConnect ? (
+                    <p className="text-xs text-ink-muted">Coming soon. The Palda team is finishing the setup.</p>
+                  ) : (
+                    <>
+                      <a href={`/integrations/connect/${app.id}`} className={`btn ${app.status === "connected" ? "btn-secondary" : "btn-primary"} h-10 px-4`}>
+                        {app.status === "not_connected" ? `Connect ${app.name}` : "Reconnect"}
+                      </a>
+                      {app.status !== "not_connected" ? (
+                        <form action={disconnectAppAction}>
+                          <input type="hidden" name="app" value={app.id} />
+                          <button className="btn btn-secondary h-10 px-4 text-danger-600">Disconnect</button>
+                        </form>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      </section>
+
+      {apps.length === 0 ? null : (
         <>
+          <h2 className="text-lg font-semibold">Other connected systems</h2>
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {apps.map((app) => {
               const Icon = ICONS[app.category] ?? Plug;
@@ -158,9 +240,9 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
               );
             })}
           </div>
-          <p className="text-sm text-ink-muted">Want another app connected? Ask the Palda team and we will set it up for you.</p>
         </>
       )}
+      <p className="text-sm text-ink-muted">Use something else, like Odoo or your own system? Ask the Palda team and we will connect it for you.</p>
     </div>
   );
 }

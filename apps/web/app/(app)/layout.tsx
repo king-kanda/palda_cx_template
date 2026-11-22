@@ -30,6 +30,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       navLabels={{
         "/bookings": settings.labels.bookings,
         "/customers": settings.labels.customers,
+        // The inbox is named after the business's own agent, as set in the Engine.
+        "/wambo": settings.agentName,
       }}
       agent={{ name: settings.agentName, avatar: settings.agentAvatar }}
       impersonation={

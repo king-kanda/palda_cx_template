@@ -1,60 +1,156 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Lock, Trash2 } from "lucide-react";
-import { INTEGRATION_PROVIDERS, getEngineCustomer, listExternalServers } from "@garden/services";
+import { getEngineCustomer, getOdooSettings, listAppConnections, listExternalServers, type AppConnectionView } from "@garden/services";
 import { requireEngineAdmin } from "@/lib/engine-auth";
 import { dateTime } from "@/lib/format";
 import { Panel } from "../../../../components/ui";
-import { deleteExternalServerAction, setExternalServerStatusAction } from "../../actions";
+import { deleteExternalServerAction, removeAppAction, setExternalServerStatusAction } from "../../actions";
 import { WorkspaceHeader } from "../../header";
-import { ConnectForm } from "./connect-form";
+import { ConnectForm, OdooForm } from "./connect-form";
 
 export const dynamic = "force-dynamic";
 
+const STATUS = {
+  connected: { label: "Connected", cls: "bg-success-100 text-success-600" },
+  attention: { label: "Needs attention", cls: "bg-warning-100 text-warning-600" },
+  not_connected: { label: "Not connected", cls: "bg-neutral-100 text-neutral-600" },
+} as const;
+
+function Mark({ app }: { app: AppConnectionView }) {
+  return (
+    <span className="grid size-11 shrink-0 place-items-center rounded-xl text-sm font-bold text-white" style={{ background: app.colour }} aria-hidden>
+      {app.mark}
+    </span>
+  );
+}
+
+function AppCard({ app, tenantId, owner, children }: { app: AppConnectionView; tenantId: string; owner: string; children?: ReactNode }) {
+  const status = STATUS[app.status];
+  return (
+    <section className="card flex min-w-0 flex-col p-5">
+      <div className="flex items-start gap-3">
+        <Mark app={app} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-semibold">{app.name}</h3>
+            <span className={`pill border-transparent ${status.cls}`}>{status.label}</span>
+            {app.mock && app.status !== "not_connected" ? <span className="pill border-transparent bg-info-100 text-info-600">sample data</span> : null}
+          </div>
+          <p className="text-xs text-ink-muted">{app.category}</p>
+        </div>
+      </div>
+      <p className="mt-3 text-sm text-ink-muted">{app.capabilities}</p>
+
+      <div className="mt-4 rounded-xl bg-surface-muted px-3 py-3 text-xs">
+        {app.status === "not_connected" ? (
+          app.auth === "oauth2" ? (
+            <span className="text-ink-muted">
+              {owner}&apos;s owner connects this from Integrations in their app.
+              {!app.canConnect ? " The platform's OAuth client isn't set yet (Engine > Settings)." : ""}
+            </span>
+          ) : (
+            <span className="text-ink-muted">Not connected yet.</span>
+          )
+        ) : (
+          <span className="block text-ink">
+            {app.account ?? "Connected"}
+            {app.connectedAt ? <span className="text-ink-muted"> · since {dateTime(app.connectedAt)}</span> : null}
+            {app.lastError ? <span className="mt-1 block text-warning-600">{app.lastError}</span> : null}
+          </span>
+        )}
+      </div>
+
+      {children}
+
+      {app.status !== "not_connected" ? (
+        <div className="mt-4 flex items-center justify-between gap-2 border-t border-line pt-3">
+          <Link href={`/engine/${tenantId}/agent/tools`} className="text-sm font-medium text-brand-700 hover:underline">
+            Choose its tools
+          </Link>
+          <form action={removeAppAction}>
+            <input type="hidden" name="tenantId" value={tenantId} />
+            <input type="hidden" name="app" value={app.id} />
+            <button className="text-xs text-ink-muted hover:text-danger-600">Disconnect</button>
+          </form>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 /**
- * The apps the Palda team has connected for this customer (Zoho Books, Google Workspace, ...). The customer sees a read-only list
- * of the same apps and never touches the technical side. What the agent may DO with each is decided on the Tools screen.
+ * The apps this customer's agent can work with. Apps that sign in with OAuth (Google, Zoho) are connected by the business owner
+ * in their own app and only shown here. Apps that need an API key (Odoo) and custom MCP servers are set up here by the Palda team.
  */
 export default async function IntegrationsPage({ params }: { params: Promise<{ id: string }> }) {
   await requireEngineAdmin();
   const { id } = await params;
-  const [customer, servers] = await Promise.all([getEngineCustomer(id), listExternalServers(id)]);
-  const waiting = servers.reduce((n, s) => n + s.tools.filter((t) => !t.enabled).length, 0);
+  const [customer, servers, apps, odoo] = await Promise.all([getEngineCustomer(id), listExternalServers(id), listAppConnections(id), getOdooSettings(id)]);
+  const oauth = apps.filter((a) => a.auth === "oauth2");
+  const keyed = apps.filter((a) => a.auth === "api_key");
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <WorkspaceHeader
         customer={customer}
         title="Integrations"
-        subtitle={`The apps you have connected for ${customer.name}, such as accounting or Google Workspace. ${customer.name} sees them as a read-only list. What ${customer.agent.name} may do with each is set on the Tools screen.`}
+        subtitle={`Sign-in apps are connected by ${customer.name}'s owner. Apps that need a key are set up here.`}
         action={
           <Link href={`/engine/${id}/agent/tools`} className="btn btn-primary h-11 px-5">
-            Review tools →
+            Choose tools
           </Link>
         }
       />
 
-      <div className="grid items-start gap-5 xl:grid-cols-[1fr_1.7fr]">
-        <Panel title="Connect an app">
-          <ConnectForm
-            tenantId={id}
-            providers={INTEGRATION_PROVIDERS.map((p) => ({ id: p.id, name: p.name, category: p.category, defaultName: p.defaultName }))}
-          />
-        </Panel>
-        <div className="space-y-5">
-      {servers.length === 0 ? (
-        <Panel title="Connected apps">
-          <p className="text-sm text-ink-muted">Nothing connected for {customer.name} yet. Use the form to connect their first app.</p>
-        </Panel>
-      ) : (
-        <Panel title="Connected apps" aside={`${servers.length} connected · ${waiting} tool${waiting === 1 ? "" : "s"} not switched on`}>
+      <section className="space-y-3">
+        <div className="px-1">
+          <h2 className="text-base font-semibold">Connected by the owner</h2>
+          <p className="text-xs text-ink-muted">The tokens stay with the business. You only see the status.</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {oauth.map((app) => (
+            <AppCard key={app.id} app={app} tenantId={id} owner={customer.name} />
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div className="px-1">
+          <h2 className="text-base font-semibold">Connected by the Palda team</h2>
+          <p className="text-xs text-ink-muted">Keys are tested, then stored encrypted and never shown again.</p>
+        </div>
+        <div className="grid items-start gap-4 xl:grid-cols-2">
+          {keyed.map((app) => (
+            <AppCard key={app.id} app={app} tenantId={id} owner={customer.name}>
+              <div className="mt-4">
+                <OdooForm tenantId={id} saved={odoo} />
+              </div>
+            </AppCard>
+          ))}
+
+          <Panel
+            title="Custom MCP server"
+          >
+            <p className="mb-4 text-sm text-ink-muted">
+              For a system Palda CX has no tools for. Its tools start off and are reviewed on Tools. If the server changes a tool, it switches off
+              again.
+            </p>
+            <ConnectForm tenantId={id} />
+          </Panel>
+        </div>
+      </section>
+
+      {servers.length ? (
+        <Panel title="Custom MCP servers" aside={`${servers.length} connected`}>
           <div className="-mx-5 overflow-x-auto">
             <table className="table min-w-[47.5rem]">
               <thead>
                 <tr>
-                  <th>App</th>
+                  <th>Server</th>
                   <th>Address</th>
                   <th>Status</th>
-                  <th className="text-right">Tools on</th>
+                  <th className="!text-right">Tools on</th>
                   <th>Last checked</th>
                   <th />
                 </tr>
@@ -106,13 +202,8 @@ export default async function IntegrationsPage({ params }: { params: Promise<{ i
               </tbody>
             </table>
           </div>
-          <p className="mt-3 text-xs text-ink-muted">
-            Pausing hides all of an app's tools from the agent at once. The customer can't change any of this.
-          </p>
         </Panel>
-      )}
-        </div>
-      </div>
+      ) : null}
     </div>
   );
 }

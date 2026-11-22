@@ -8,6 +8,9 @@ export const CUSTOMER_SCOPES = [
   "memory:write_own",
   "invoices:read_own",
   "invoices:write_own",
+  // The business's connected apps (Google, Zoho, Odoo), for the customer's own records only.
+  "apps:read_own",
+  "apps:write_own",
 ] as const;
 
 export const SYSTEM_SCOPES = [

@@ -17,7 +17,29 @@ export const PLATFORM_KEYS = {
   // Not a credential: it only answers Meta's one-time webhook handshake, and admins must be able to copy it into Meta.
   WHATSAPP_VERIFY_TOKEN: { label: "Webhook verify token", secret: false },
   WHATSAPP_GRAPH_VERSION: { label: "Graph API version", secret: false },
+  // Apps the customer connects with OAuth from their own app (Google Workspace, Zoho Books, Zoho CRM). One OAuth client per
+  // vendor serves every customer; each customer's own tokens are stored per business, encrypted.
+  INTEGRATIONS_MODE: { label: "Apps mode", secret: false },
+  GOOGLE_CLIENT_ID: { label: "Google OAuth client ID", secret: false },
+  GOOGLE_CLIENT_SECRET: { label: "Google OAuth client secret", secret: true },
+  ZOHO_CLIENT_ID: { label: "Zoho OAuth client ID", secret: false },
+  ZOHO_CLIENT_SECRET: { label: "Zoho OAuth client secret", secret: true },
 } as const;
+
+/** Which Settings panel a key belongs on. */
+export const PLATFORM_KEY_SECTION: Record<keyof typeof PLATFORM_KEYS, "whatsapp" | "apps"> = {
+  WHATSAPP_MODE: "whatsapp",
+  META_APP_ID: "whatsapp",
+  META_APP_SECRET: "whatsapp",
+  META_ES_CONFIG_ID: "whatsapp",
+  WHATSAPP_VERIFY_TOKEN: "whatsapp",
+  WHATSAPP_GRAPH_VERSION: "whatsapp",
+  INTEGRATIONS_MODE: "apps",
+  GOOGLE_CLIENT_ID: "apps",
+  GOOGLE_CLIENT_SECRET: "apps",
+  ZOHO_CLIENT_ID: "apps",
+  ZOHO_CLIENT_SECRET: "apps",
+};
 
 export type PlatformKey = keyof typeof PLATFORM_KEYS;
 

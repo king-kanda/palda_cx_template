@@ -2,6 +2,7 @@ import { z } from "zod";
 import * as svc from "@garden/services";
 import type { ServiceContext } from "@garden/services";
 import type { Principal } from "@garden/services";
+import { integrationTools } from "./integration-tools";
 
 export type ToolTier = "read" | "write-safe" | "write-sensitive" | "escalate";
 export type ToolPrincipalType = Principal["type"];
@@ -15,6 +16,14 @@ export type ToolDef<S extends z.ZodTypeAny = z.ZodTypeAny> = {
   scopes: string[];
   input: S;
   handler: (ctx: ServiceContext, args: z.infer<S>) => Promise<unknown>;
+  /** Set on tools that work with a business's connected app (Google, Zoho, Odoo). Those start switched off. */
+  integration?: svc.AppId;
+  /**
+   * Checks run BEFORE a sensitive call is turned into an approval (the handler only runs after approval). Use it to refuse
+   * requests the caller could never be allowed, e.g. a customer asking about someone else's booking, so they never reach the
+   * approvals queue.
+   */
+  authorize?: (ctx: ServiceContext, args: z.infer<S>) => Promise<void>;
 };
 
 export type AnyToolDef = ToolDef<z.ZodTypeAny>;
@@ -1329,6 +1338,7 @@ export const TOOLS: AnyToolDef[] = [
   ...workflowTools,
   ...opsTools,
   ...verticalTools,
+  ...integrationTools,
 ];
 
 export const TOOL_MAP = new Map(TOOLS.map((t) => [t.name, t]));

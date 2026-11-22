@@ -25,7 +25,8 @@
     "engine:admin": "pnpm --filter @garden/web engine:admin",
     "engine:reindex": "pnpm --filter @garden/web engine:reindex",
     "engine:demo-runs": "pnpm --filter @garden/web engine:demo-runs",
-    "engine:demo-brands": "pnpm --filter @garden/web engine:demo-brands"
+    "engine:demo-brands": "pnpm --filter @garden/web engine:demo-brands",
+    "db:showcase": "pnpm --filter @garden/web showcase"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",

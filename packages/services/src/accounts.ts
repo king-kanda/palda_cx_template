@@ -97,6 +97,25 @@ export async function authenticatePlatformAdmin(email: string, password: string)
   return passwordVerify(password, admin.passwordHash) ? admin : null;
 }
 
+/**
+ * For "Continue with Google": the one active account this (already verified) email belongs to. No password check, because
+ * Google proved the person owns the email. Returns an error message instead when there is no account, or more than one.
+ */
+export async function findAccountForSignIn(email: string): Promise<{ account: AccountMatch } | { error: string }> {
+  const valid = (await findAccountsByEmail(email)).filter(({ user, tenant }) => user.active && tenant.status === "active");
+  if (valid.length === 0) return { error: "There's no Palda CX account for that Google email. Ask your account manager to add it." };
+  if (valid.length > 1) return { error: "That email is registered with more than one business. Please contact support." };
+  return { account: valid[0]! };
+}
+
+/** For "Continue with Google" on the Engine: the active Palda team login with this (already verified) email. */
+export async function findPlatformAdminByEmail(email: string): Promise<PlatformAdmin | null> {
+  const admin = await getDb().query.platformAdmins.findFirst({
+    where: eq(schema.platformAdmins.email, email.trim().toLowerCase()),
+  });
+  return admin?.active ? admin : null;
+}
+
 export async function getPlatformAdmin(id: string): Promise<PlatformAdmin | null> {
   const admin = await getDb().query.platformAdmins.findFirst({ where: eq(schema.platformAdmins.id, id) });
   return admin?.active ? admin : null;

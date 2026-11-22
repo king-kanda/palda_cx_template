@@ -32,6 +32,8 @@ export * from "./natural";
 export * from "./brand";
 export * from "./documents";
 export * from "./integrations-catalog";
+export * from "./connections";
 export * from "./whatsapp-connect";
 export * from "./platform-settings";
 export * from "./whatsapp-echo";
+export * from "./showcase";

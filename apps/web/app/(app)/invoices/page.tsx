@@ -55,7 +55,7 @@ export default async function InvoicesPage({
       </div>
 
       {unmatched.length > 0 ? (
-        <section className="card mb-5 p-5">
+        <section id="reconcile" className="card mb-5 scroll-mt-24 p-5">
           <h2 className="mb-1 text-lg font-semibold">Unmatched M-Pesa receipts</h2>
           <p className="mb-3 text-xs text-ink-muted">
             These payments have no booking. Match them from the booking page.

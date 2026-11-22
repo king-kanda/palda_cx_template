@@ -13,6 +13,10 @@ import {
 import { getPreset } from "../../packages/verticals/src/index";
 import { WAMBO } from "../../agent-engine/src/index";
 import { loadAgentConfig } from "../../apps/agent-service/src/agent-config";
+import { INTEGRATION_TOOL_APPS } from "../../packages/mcp-server/src/index";
+
+/** The shipped defaults: the safety blocks, plus every app tool (Google, Zoho, Odoo), which are off until switched on. */
+const SHIPPED_BLOCKED = [...(WAMBO.toolPolicy.blockedTools ?? []), ...INTEGRATION_TOOL_APPS.keys()].sort();
 
 loadEnv();
 
@@ -61,7 +65,7 @@ describe.skipIf(!enabled)("per-customer agent controls (needs Postgres)", () => 
     tenantIds.push(a, b);
     // Nothing is overridden yet: the agent runs on the shipped defaults.
     const base = await loadAgentConfig(a, "wambo");
-    expect(base.toolPolicy.blockedTools).toEqual(WAMBO.toolPolicy.blockedTools);
+    expect([...(base.toolPolicy.blockedTools ?? [])].sort()).toEqual(SHIPPED_BLOCKED);
   });
 
   it("switching a tool off applies to that customer only", async () => {
@@ -103,7 +107,7 @@ describe.skipIf(!enabled)("per-customer agent controls (needs Postgres)", () => 
 
     await activateAgentVersion(adminId, a, "wambo", null);
     expect((await getAgentControl(a, "wambo")).live).toBeNull();
-    expect((await loadAgentConfig(a, "wambo")).toolPolicy.blockedTools).toEqual(WAMBO.toolPolicy.blockedTools);
+    expect([...((await loadAgentConfig(a, "wambo")).toolPolicy.blockedTools ?? [])].sort()).toEqual(SHIPPED_BLOCKED);
   });
 
   it("cannot activate another customer's version", async () => {
